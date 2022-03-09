@@ -2222,6 +2222,9 @@ int TileEngine::closeUfoDoors()
  * @param excludeAllBut [Optional] The only unit to be considered for ray hits.
  * @return the objectnumber(0-3) or unit(4) or out of map (5) or -1(hit nothing).
  */
+
+// Skybuck: Old code disabled. Bresenham line algorith, is inferior in accuracy compared to fast voxel traversal algorithm, see below
+/*
 int TileEngine::calculateLine(Position origin, Position target, bool storeTrajectory, std::vector<Position> *trajectory, BattleUnit *excludeUnit, bool doVoxelCheck, bool onlyVisible, BattleUnit *excludeAllBut)
 {
 	int x, x0, x1, delta_x, step_x;
@@ -2388,6 +2391,403 @@ int TileEngine::calculateLine(Position origin, Position target, bool storeTrajec
 
 	return V_EMPTY;
 }
+
+*/
+
+
+
+/**
+ * Calculates a line trajectory, using fast voxel traversion algorithm in 3D.
+ * @param origin Origin (voxel??).
+ * @param target Target (also voxel??).
+ * @param storeTrajectory True will store the whole trajectory - otherwise it just stores the last position.
+ * @param trajectory A vector of positions in which the trajectory is stored.
+ * @param excludeUnit Excludes this unit in the collision detection.
+ * @param doVoxelCheck Check against voxel or tile blocking? (first one for units visibility and line of fire, second one for terrain visibility).
+ * @param onlyVisible Skip invisible units? used in FPS view.
+ * @param excludeAllBut [Optional] The only unit to be considered for ray hits.
+ * @return the objectnumber(0-3) or unit(4) or out of map (5) or -1(hit nothing).
+ */
+int TileEngine::calculateLine(Position origin, Position target, bool storeTrajectory, std::vector<Position>* trajectory, BattleUnit* excludeUnit, bool doVoxelCheck, bool onlyVisible, BattleUnit* excludeAllBut)
+{
+	int cx, cy, cz;
+	Position lastPoint(origin);
+	int result;
+	int steps = 0;
+	bool excludeAllUnits = false;
+
+	if (_save->isBeforeGame())
+	{
+		excludeAllUnits = true; // don't start unit spotting before pre-game inventory stuff (large units on the craftInventory tile will cause a crash if they're "spotted")
+	}
+
+	if (doVoxelCheck) voxelCheckFlush();
+
+	//
+	// fast voxel traversal algorithm, initialization phase
+	//
+
+//	Ray ray;
+	double ray_origin_x;
+	double ray_origin_y;
+	double ray_origin_z;
+
+	double ray_direction_x;
+	double ray_direction_y;
+	double ray_direction_z;
+
+	double ray_length;
+
+//	Grid3D grid;
+	double grid_minBound_x;
+	double grid_minBound_y;
+	double grid_minBound_z;
+
+	double grid_maxBound_x;
+	double grid_maxBound_y;
+	double grid_maxBound_z;
+
+	double grid_SizeX;
+	double grid_SizeY;
+	double grid_SizeZ;
+
+	size_t num_x_voxels;
+	size_t num_y_voxels;
+	size_t num_z_voxels;
+
+	double grid_voxelSizeX;
+	double grid_voxelSizeY;
+	double grid_voxelSizeZ;
+
+	double t0;
+	double t1;
+
+    double tMin;
+    double tMax;
+
+	// setup ray data
+
+	// setup ray origin
+	ray_origin_x = origin.x;
+	ray_origin_y = origin.y;
+	ray_origin_z = origin.z;
+
+	// setup and compute ray direction
+	ray_direction_x = target.x - ray_origin_x;
+	ray_direction_y = target.y - ray_origin_y;
+	ray_direction_z = target.z - ray_origin_z;
+
+	ray_length = ray_direction_x * ray_direction_x;
+	ray_length += ray_direction_y * ray_direction_y;
+	ray_length += ray_direction_z * ray_direction_z;
+
+	ray_length = std::sqrt( ray_length );
+
+	ray_direction_x = ray_direction_x / ray_length;
+	ray_direction_y = ray_direction_y / ray_length;
+	ray_direction_z = ray_direction_z / ray_length;
+
+	// setup t0 and t1
+	t0 = 0;
+	t1 = 1;
+
+	// setup grid data
+
+	// setup grid min bound
+	grid_minBound_x = 0;
+	grid_minBound_y = 0;
+	grid_minBound_z = 0;
+
+	// setup grid max bound
+	grid_maxBound_x = _save->getMapSizeX();
+	grid_maxBound_y = _save->getMapSizeY();
+	grid_maxBound_z = _save->getMapSizeZ();
+
+	// setup grid voxels
+//	num_x_voxels = 16; // ?
+//	num_y_voxels = 16; // ?
+//	num_z_voxels = 24; // ?
+
+	// compute grid size
+	grid_SizeX = grid_maxBound_x - grid_minBound_x;
+	grid_SizeY = grid_maxBound_y - grid_minBound_y;
+	grid_SizeZ = grid_maxBound_z - grid_minBound_z;
+
+	// compute voxel size
+//	grid_voxelSizeX = grid_SizeX / num_x_voxels;
+//	grid_voxelSizeY = grid_SizeY / num_y_voxels;
+//	grid_voxelSizeZ = grid_SizeZ / num_z_voxels;
+
+	// 1 ?
+	grid_voxelSizeX = 1;
+	grid_voxelSizeY = 1;
+	grid_voxelSizeZ = 1;
+
+	// ray box intersection
+	bool ray_intersects_grid = false;
+	bool continue_ray_intersection_computation = true;
+
+	double tYMin, tYMax, tZMin, tZMax;
+
+	const double x_inv_dir = 1 / ray_direction_x;
+	if (x_inv_dir >= 0)
+	{
+		tMin = (grid_minBound_x - ray_origin_x) * x_inv_dir;
+		tMax = (grid_maxBound_x - ray_origin_x) * x_inv_dir;
+	}
+	else
+	{
+		tMin = (grid_maxBound_x - ray_origin_x) * x_inv_dir;
+		tMax = (grid_minBound_x - ray_origin_x) * x_inv_dir;
+	}
+
+	const double y_inv_dir = 1 / ray_direction_y;
+	if (y_inv_dir >= 0)
+	{
+		tYMin = (grid_minBound_y - ray_origin_y) * y_inv_dir;
+		tYMax = (grid_maxBound_y - ray_origin_y) * y_inv_dir;
+	}
+	else
+	{
+		tYMin = (grid_maxBound_y - ray_origin_y) * y_inv_dir;
+		tYMax = (grid_minBound_y - ray_origin_y) * y_inv_dir;
+	}
+
+	if
+	(
+		(tMin > tYMax) ||
+		(tYMin > tMax)
+	) continue_ray_intersection_computation = false;
+
+	if (continue_ray_intersection_computation)
+	{
+		if (tYMin > tMin) tMin = tYMin;
+		if (tYMax < tMax) tMax = tYMax;
+
+		const double z_inv_dir = 1 / ray_direction_z;
+		if (z_inv_dir >= 0)
+		{
+			tZMin = (grid_minBound_z - ray_origin_z) * z_inv_dir;
+			tZMax = (grid_maxBound_z - ray_origin_z) * z_inv_dir;
+		}
+		else
+		{
+			tZMin = (grid_maxBound_z - ray_origin_z) * z_inv_dir;
+			tZMax = (grid_minBound_z - ray_origin_z) * z_inv_dir;
+		}
+	}
+
+	if
+	(
+		(tMin > tZMax) ||
+		(tZMin > tMax)
+	) continue_ray_intersection_computation = false;
+
+	if (continue_ray_intersection_computation)
+	{
+		if (tZMin > tMin) tMin = tZMin;
+		if (tZMax < tMax) tMax = tZMax;
+
+		ray_intersects_grid =
+		(
+			(tMin < t1) &&
+			(tMax > t0)
+		);
+	}
+
+    if (!ray_intersects_grid) return V_EMPTY; // Skybuck: not sure about this, maybe return other value ?
+
+	if (t0 > tMin) tMin = t0;
+	if (t1 > tMax) tMax = t1;
+
+    double ray_start_x = ray_origin_x + ray_direction_x * tMin;
+	double ray_start_y = ray_origin_y + ray_direction_y * tMin;
+	double ray_start_z = ray_origin_z + ray_direction_z * tMin;
+
+    double ray_end_x = ray_origin_x + ray_direction_x * tMax;
+	double ray_end_y = ray_origin_y + ray_direction_y * tMax;
+	double ray_end_z = ray_origin_z + ray_direction_z * tMax;
+
+    size_t current_X_index = std::ceil(ray_start_x - grid_minBound_x / grid_voxelSizeX);
+	if (current_X_index < 1) current_X_index = 1;
+
+    size_t end_X_index = std::ceil(ray_end_x - grid_minBound_x / grid_voxelSizeX);
+	if (end_X_index < 1) end_X_index = 1;
+
+    int stepX;
+    double tDeltaX;
+    double tMaxX;
+    if (ray_direction_x > 0.0)
+	{
+        stepX = 1;
+        tDeltaX = grid_voxelSizeX / ray_direction_x;
+        tMaxX = tMin + (grid_minBound_x + current_X_index * grid_voxelSizeX
+                        - ray_start_x) / ray_direction_x;
+    } else
+	if (ray_direction_x < 0.0)
+	{
+        stepX = -1;
+        tDeltaX = grid_voxelSizeX / -ray_direction_x;
+        const size_t previous_X_index = current_X_index - 1;
+        tMaxX = tMin + (grid_minBound_x + previous_X_index * grid_voxelSizeX
+                        - ray_start_x) / ray_direction_x;
+    } else
+	{
+        stepX = 0;
+        tDeltaX = tMax;
+        tMaxX = tMax;
+    }
+
+    size_t current_Y_index = std::ceil(ray_start_y - grid_minBound_y / grid_voxelSizeY);
+	if (current_Y_index < 1) current_Y_index = 1;
+
+    size_t end_Y_index = std::ceil(ray_end_y - grid_minBound_y / grid_voxelSizeY);
+	if (end_Y_index < 1) end_Y_index = 1;
+
+    int stepY;
+    double tDeltaY;
+    double tMaxY;
+    if (ray_direction_y > 0.0)
+	{
+        stepY = 1;
+        tDeltaY = grid_voxelSizeY / ray_direction_y;
+        tMaxY = tMin + (grid_minBound_y + current_Y_index * grid_voxelSizeY
+                        - ray_start_y) / ray_direction_y;
+    } else
+	if (ray_direction_y < 0.0)
+	{
+        stepY= -1;
+        tDeltaY = grid_voxelSizeY / -ray_direction_y;
+        const size_t previous_Y_index = current_Y_index - 1;
+        tMaxY = tMin + (grid_minBound_y + previous_Y_index * grid_voxelSizeY
+                        - ray_start_y) / ray_direction_y;
+    } else
+	{
+        stepY = 0;
+        tDeltaY = tMax;
+        tMaxY = tMax;
+    }
+
+    size_t current_Z_index = std::ceil(ray_start_z - grid_minBound_z / grid_voxelSizeZ);
+	if (current_Z_index < 1 ) current_Z_index = 1;
+
+	size_t end_Z_index = std::ceil(ray_end_z - grid_minBound_z / grid_voxelSizeZ);
+	if (end_Z_index < 1) end_Z_index = 1;
+
+    int stepZ;
+    double tDeltaZ;
+    double tMaxZ;
+    if (ray_direction_z > 0.0)
+	{
+        stepZ = 1;
+        tDeltaZ = grid_voxelSizeZ / ray_direction_z;
+        tMaxZ = tMin + (grid_minBound_z + current_Z_index * grid_voxelSizeZ
+                        - ray_start_z) / ray_direction_z;
+    } else
+	if (ray_direction_z < 0.0)
+	{
+        stepZ = -1;
+        tDeltaZ = grid_voxelSizeZ / -ray_direction_z;
+        const size_t previous_Z_index = current_Z_index - 1;
+        tMaxZ = tMin + (grid_minBound_z + previous_Z_index * grid_voxelSizeZ
+                        - ray_start_z) / ray_direction_z;
+    } else {
+        stepZ = 0;
+        tDeltaZ = tMax;
+        tMaxZ = tMax;
+    }
+
+	//
+	// fast voxel travelsal alhorithm traversal phase
+	//
+	while
+	(
+		(current_X_index != end_X_index) ||
+		(current_Y_index != end_Y_index) ||
+		(current_Z_index != end_Z_index)
+	)
+	{
+		//
+		// process voxel
+		//
+		cx = current_X_index;
+		cy = current_Y_index;
+		cz = current_Z_index;
+
+		if (storeTrajectory && trajectory)
+		{
+			trajectory->push_back(Position(cx, cy, cz));
+		}
+		//passes through this point?
+		if (doVoxelCheck)
+		{
+			result = voxelCheck(Position(cx, cy, cz), excludeUnit, false, onlyVisible, excludeAllBut);
+			if (result != V_EMPTY)
+			{
+				if (trajectory)
+				{ // store the position of impact
+					trajectory->push_back(Position(cx, cy, cz));
+				}
+				return result;
+			}
+		}
+		else
+		{
+			int temp_res = verticalBlockage(_save->getTile(lastPoint), _save->getTile(Position(cx, cy, cz)), DT_NONE);
+			result = horizontalBlockage(_save->getTile(lastPoint), _save->getTile(Position(cx, cy, cz)), DT_NONE, steps < 2);
+			steps++;
+			if (result == -1)
+			{
+				if (temp_res > 127)
+				{
+					result = 0;
+				}
+				else {
+					return result; // We hit a big wall
+				}
+			}
+			result += temp_res;
+			if (result > 127)
+			{
+				return result;
+			}
+
+			lastPoint = Position(cx, cy, cz);
+		}
+
+		//
+		// traverse to next voxel
+		//
+
+		if
+		(
+			(tMaxX < tMaxY) &&
+			(tMaxX < tMaxZ)
+		)
+		{
+			// X-axis traversal.
+			current_X_index += stepX;
+			tMaxX += tDeltaX;
+		}
+		else
+		if (tMaxY < tMaxZ)
+		{
+			// Y-axis traversal.
+			current_Y_index += stepY;
+			tMaxY += tDeltaY;
+		}
+		else
+		{
+			// Z-axis traversal.
+			current_Z_index += stepZ;
+			tMaxZ += tDeltaZ;
+		}
+	}
+
+	return V_EMPTY;
+}
+
+
 
 /**
  * Calculates a parabola trajectory, used for throwing items.

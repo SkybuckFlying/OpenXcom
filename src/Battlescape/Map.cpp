@@ -715,10 +715,12 @@ void Map::drawTerrain(Surface *surface)
 						Position(-1, 0, 0),
 					};
 
+
 					for (int b = 0; b < backPosSize; ++b)
 					{
 						drawUnit(surface, _save->getTile(mapPosition + backPos[b]), tile, screenPosition, tileShade, obstacleShade, topLayer);
 					}
+
 
 					// Draw walls
 					if (!tile->isVoid())
@@ -737,6 +739,8 @@ void Map::drawTerrain(Surface *surface)
 							else
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), wallShade, false);
 						}
+
+
 						// Draw north wall
 						tmpSurface = tile->getSprite(O_NORTHWALL);
 						if (tmpSurface)
@@ -751,6 +755,8 @@ void Map::drawTerrain(Surface *surface)
 							else
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), wallShade, tile->getMapData(O_WESTWALL) != 0);
 						}
+
+
 						// Draw object
 						if (tile->getMapData(O_OBJECT) && (tile->getMapData(O_OBJECT)->getBigWall() < 6 || tile->getMapData(O_OBJECT)->getBigWall() == 9))
 						{
