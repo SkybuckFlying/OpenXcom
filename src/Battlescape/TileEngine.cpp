@@ -2574,14 +2574,14 @@ int TileEngine::calculateLine(Position origin, Position target, bool storeTrajec
 		{
 			tZMin = (grid_maxBound_z - ray_origin_z) * z_inv_dir;
 			tZMax = (grid_minBound_z - ray_origin_z) * z_inv_dir;
-		}
-	}
+		}	
 
-	if
-	(
-		(tMin > tZMax) ||
-		(tZMin > tMax)
-	) continue_ray_intersection_computation = false;
+		if
+		(
+			(tMin > tZMax) ||
+			(tZMin > tMax)
+		) continue_ray_intersection_computation = false;
+	}
 
 	if (continue_ray_intersection_computation)
 	{
@@ -2700,11 +2700,20 @@ int TileEngine::calculateLine(Position origin, Position target, bool storeTrajec
 	//
 	// fast voxel travelsal alhorithm traversal phase
 	//
+	/*
 	while
 	(
 		(current_X_index != end_X_index) ||
 		(current_Y_index != end_Y_index) ||
 		(current_Z_index != end_Z_index)
+	)
+	*/
+
+	while
+	(
+		(tMaxX < ray_length) ||
+		(tMaxY < ray_length) ||
+		(tMaxZ < ray_length) 
 	)
 	{
 		//
