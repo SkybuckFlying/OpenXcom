@@ -81,6 +81,19 @@ public:
 	int unitOpensDoor(BattleUnit *unit, bool rClick = false, int dir = -1);
 	/// Closes ufo doors.
 	int closeUfoDoors();
+
+	/// process a voxel on a the line trajectory below
+	int calculateLineProcessVoxel
+	(
+		int VoxelX, int VoxelY, int VoxelZ,
+		Position LastPoint,
+		bool storeTrajectory, std::vector<Position> *trajectory,
+		BattleUnit *excludeUnit, bool excludeAllUnits, bool doVoxelCheck, bool onlyVisible, BattleUnit *excludeAllBut,
+		int *result,
+		int *steps,
+		bool *Done
+	);	
+
 	/// Calculates a line trajectory.
 	int calculateLine(Position origin, Position target, bool storeTrajectory, std::vector<Position> *trajectory, BattleUnit *excludeUnit, bool doVoxelCheck = true, bool onlyVisible = false, BattleUnit *excludeAllBut = 0);
 	/// Calculates a parabola trajectory.
@@ -149,8 +162,6 @@ public:
 	Position getOriginVoxel(BattleAction &action, Tile *tile);
 	/// mark a region of the map as "dangerous" for a turn.
 	void setDangerZone(const Position& pos, int radius, BattleUnit *unit);
-
-	void SkybuckPixel(int x, int y, Uint8 pixel);
 };
 
 }
