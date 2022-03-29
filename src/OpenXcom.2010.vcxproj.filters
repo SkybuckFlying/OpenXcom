@@ -945,6 +945,15 @@
     <ClCompile Include="Menu\ModConfirmExtendedState.cpp">
       <Filter>Menu</Filter>
     </ClCompile>
+    <ClCompile Include="Battlescape\ShadingEngine.cpp">
+      <Filter>Battlescape</Filter>
+    </ClCompile>
+    <ClCompile Include="Battlescape\GenericMap.cpp">
+      <Filter>Battlescape</Filter>
+    </ClCompile>
+    <ClCompile Include="Battlescape\LightArray.cpp">
+      <Filter>Battlescape</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -1929,6 +1938,24 @@
     </ClInclude>
     <ClInclude Include="Menu\ModConfirmExtendedState.h">
       <Filter>Menu</Filter>
+    </ClInclude>
+    <ClInclude Include="Battlescape\ShadingEngine.h">
+      <Filter>Battlescape</Filter>
+    </ClInclude>
+    <ClInclude Include="Battlescape\GenericMap.h">
+      <Filter>Battlescape</Filter>
+    </ClInclude>
+    <ClInclude Include="Battlescape\Light.h">
+      <Filter>Battlescape</Filter>
+    </ClInclude>
+    <ClInclude Include="Battlescape\LightArray.h">
+      <Filter>Battlescape</Filter>
+    </ClInclude>
+    <ClInclude Include="Battlescape\xyzDouble.h">
+      <Filter>Battlescape</Filter>
+    </ClInclude>
+    <ClInclude Include="Battlescape\Color.h">
+      <Filter>Battlescape</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -277,10 +277,12 @@
     <ClCompile Include="Battlescape\DebriefingState.cpp" />
     <ClCompile Include="Battlescape\Explosion.cpp" />
     <ClCompile Include="Battlescape\ExplosionBState.cpp" />
+    <ClCompile Include="Battlescape\GenericMap.cpp" />
     <ClCompile Include="Battlescape\InfoboxOKState.cpp" />
     <ClCompile Include="Battlescape\InfoboxState.cpp" />
     <ClCompile Include="Battlescape\Inventory.cpp" />
     <ClCompile Include="Battlescape\InventoryState.cpp" />
+    <ClCompile Include="Battlescape\LightArray.cpp" />
     <ClCompile Include="Battlescape\Map.cpp" />
     <ClCompile Include="Battlescape\MedikitState.cpp" />
     <ClCompile Include="Battlescape\MedikitView.cpp" />
@@ -298,6 +300,7 @@
     <ClCompile Include="Battlescape\PsiAttackBState.cpp" />
     <ClCompile Include="Battlescape\ScannerState.cpp" />
     <ClCompile Include="Battlescape\ScannerView.cpp" />
+    <ClCompile Include="Battlescape\ShadingEngine.cpp" />
     <ClCompile Include="Battlescape\UnitFallBState.cpp" />
     <ClCompile Include="Battlescape\UnitInfoState.cpp" />
     <ClCompile Include="Battlescape\TileEngine.cpp" />
@@ -588,15 +591,19 @@
     <ClInclude Include="Battlescape\BriefingState.h" />
     <ClInclude Include="Battlescape\Camera.h" />
     <ClInclude Include="Battlescape\CannotReequipState.h" />
+    <ClInclude Include="Battlescape\Color.h" />
     <ClInclude Include="Battlescape\CommendationLateState.h" />
     <ClInclude Include="Battlescape\CommendationState.h" />
     <ClInclude Include="Battlescape\DebriefingState.h" />
     <ClInclude Include="Battlescape\Explosion.h" />
     <ClInclude Include="Battlescape\ExplosionBState.h" />
+    <ClInclude Include="Battlescape\GenericMap.h" />
     <ClInclude Include="Battlescape\InfoboxOKState.h" />
     <ClInclude Include="Battlescape\InfoboxState.h" />
     <ClInclude Include="Battlescape\Inventory.h" />
     <ClInclude Include="Battlescape\InventoryState.h" />
+    <ClInclude Include="Battlescape\Light.h" />
+    <ClInclude Include="Battlescape\LightArray.h" />
     <ClInclude Include="Battlescape\Map.h" />
     <ClInclude Include="Battlescape\MedikitState.h" />
     <ClInclude Include="Battlescape\MedikitView.h" />
@@ -615,6 +622,7 @@
     <ClInclude Include="Battlescape\PsiAttackBState.h" />
     <ClInclude Include="Battlescape\ScannerState.h" />
     <ClInclude Include="Battlescape\ScannerView.h" />
+    <ClInclude Include="Battlescape\ShadingEngine.h" />
     <ClInclude Include="Battlescape\UnitFallBState.h" />
     <ClInclude Include="Battlescape\UnitInfoState.h" />
     <ClInclude Include="Battlescape\TileEngine.h" />
@@ -625,6 +633,7 @@
     <ClInclude Include="Battlescape\UnitWalkBState.h" />
     <ClInclude Include="Battlescape\Particle.h" />
     <ClInclude Include="Battlescape\WarningMessage.h" />
+    <ClInclude Include="Battlescape\xyzDouble.h" />
     <ClInclude Include="dirent.h" />
     <ClInclude Include="Engine\Action.h" />
     <ClInclude Include="Engine\AdlibMusic.h" />
