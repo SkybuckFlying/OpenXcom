@@ -2694,85 +2694,6 @@ bool LineSegmentIntersectsBoxSingle
 	return result;
 }
 
-int TileEngine::calculateLineProcessVoxel
-(
-	int VoxelX, int VoxelY, int VoxelZ,
-	Position LastPoint,
-	bool storeTrajectory, std::vector<Position> *trajectory,
-	BattleUnit *excludeUnit, bool excludeAllUnits, bool doVoxelCheck, bool onlyVisible, BattleUnit *excludeAllBut,
-	int *result,
-	int *steps,
-	bool *Done
-)
-{
-	// debug variable
-//	Position fpos;
-//	Tile *fTile;
-
-			// Skybuck: debug code, uses green smoke, blinds everything on accident
-//			if (_save != 0)
-//			{
-//				fpos = Position( VoxelX, VoxelY, VoxelZ );
-//				fTile = _save->getTile(fpos);
-//
-//				if (fTile != 0)
-//				{
-//					fTile->setSmoke( 250 );
-//				}
-//			}			
-
-	// store trajectory even if outside of voxel boundary, other code must solve it, otherwise trajectory empty
-	if (storeTrajectory && trajectory)
-	{
-		trajectory->push_back(Position(VoxelX, VoxelY, VoxelZ));
-	}
-
-	//passes through this point?
-	if (doVoxelCheck)
-	{
-//		result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), excludeUnit, false, onlyVisible, excludeAllBut);
-		*result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), excludeUnit, excludeAllUnits, onlyVisible, excludeAllBut); // skybuck: Not sure which call is better
-
-		if (*result != V_EMPTY)
-		{
-			if (trajectory)
-			{ // store the position of impact
-				trajectory->push_back(Position(VoxelX, VoxelY, VoxelZ));
-			}
-			*Done = true;
-			return *result;
-		}
-	}
-	else
-	{
-		int temp_res = verticalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE);
-		*result = horizontalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE, *steps<2);
-		*steps++;
-		if (*result == -1)
-		{
-			if (temp_res > 127)
-			{
-				*result = 0;
-			}
-			else
-			{
-				*Done = true;
-				return *result; // We hit a big wall
-			}
-		}
-		*result += temp_res;
-		if (*result > 127)
-		{
-			*Done = true;
-			return *result;
-		}
-
-		LastPoint = Position(VoxelX, VoxelY, VoxelZ);
-	}
-
-	return *result;
-}
-
 int TileEngine::calculateLine
 (
 	Position origin, Position target,
@@ -2804,7 +2725,6 @@ int TileEngine::calculateLine
 	Position LastPoint(origin);
 	bool excludeAllUnits = false;
 
-	bool Done;
 	int steps = 0;
 
 	//	Epsilon := 0.001;
@@ -2866,16 +2786,53 @@ int TileEngine::calculateLine
 			VoxelY = y1;
 			VoxelZ = z1;
 
-			return calculateLineProcessVoxel
-			(
-					VoxelX, VoxelY, VoxelZ,
-					LastPoint,
-					storeTrajectory, trajectory,
-					excludeUnit, excludeAllUnits, doVoxelCheck, onlyVisible, excludeAllBut,
-					&result,
-					&steps,
-					&Done
-			);
+			// store trajectory even if outside of voxel boundary, other code must solve it, otherwise trajectory empty
+			if (storeTrajectory && trajectory)
+			{
+				trajectory->push_back(Position(VoxelX, VoxelY, VoxelZ));
+			}
+
+			//passes through this point?
+			if (doVoxelCheck)
+			{
+		//		result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), excludeUnit, false, onlyVisible, excludeAllBut);
+				result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), excludeUnit, excludeAllUnits, onlyVisible, excludeAllBut); // skybuck: Not sure which call is better
+
+				if (result != V_EMPTY)
+				{
+					if (trajectory)
+					{ // store the position of impact
+						trajectory->push_back(Position(VoxelX, VoxelY, VoxelZ));
+					}
+					return result;
+				}
+			}
+			else
+			{
+				int temp_res = verticalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE);
+				result = horizontalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE, steps<2);
+				steps++;
+				if (result == -1)
+				{
+					if (temp_res > 127)
+					{
+						result = 0;
+					}
+					else
+					{
+						return result; // We hit a big wall
+					}
+				}
+				result += temp_res;
+				if (result > 127)
+				{
+					return result;
+				}
+
+				LastPoint = Position(VoxelX, VoxelY, VoxelZ);
+			}
+
+			return result;
 		}
 	}
 	else
@@ -2999,18 +2956,55 @@ int TileEngine::calculateLine
 				// process voxel
 				VoxelX = TraverseX1; 
 				VoxelY = TraverseY1; 
-				VoxelZ = TraverseZ1; 
+				VoxelZ = TraverseZ1;
 
-				return calculateLineProcessVoxel
-				(
-					VoxelX, VoxelY, VoxelZ,
-					LastPoint,
-					storeTrajectory, trajectory,
-					excludeUnit, excludeAllUnits, doVoxelCheck, onlyVisible, excludeAllBut,
-					&result,
-					&steps,
-					&Done
-				);
+				// store trajectory even if outside of voxel boundary, other code must solve it, otherwise trajectory empty
+				if (storeTrajectory && trajectory)
+				{
+					trajectory->push_back(Position(VoxelX, VoxelY, VoxelZ));
+				}
+
+				//passes through this point?
+				if (doVoxelCheck)
+				{
+			//		result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), excludeUnit, false, onlyVisible, excludeAllBut);
+					result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), excludeUnit, excludeAllUnits, onlyVisible, excludeAllBut); // skybuck: Not sure which call is better
+
+					if (result != V_EMPTY)
+					{
+						if (trajectory)
+						{ // store the position of impact
+							trajectory->push_back(Position(VoxelX, VoxelY, VoxelZ));
+						}
+						return result;
+					}
+				}
+				else
+				{
+					int temp_res = verticalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE);
+					result = horizontalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE, steps<2);
+					steps++;
+					if (result == -1)
+					{
+						if (temp_res > 127)
+						{
+							result = 0;
+						}
+						else
+						{
+							return result; // We hit a big wall
+						}
+					}
+					result += temp_res;
+					if (result > 127)
+					{
+						return result;
+					}
+
+					LastPoint = Position(VoxelX, VoxelY, VoxelZ);
+				}
+
+				return result;
 			}
 			else
 			{
@@ -3049,25 +3043,55 @@ int TileEngine::calculateLine
 	if (dy > 0) OutY = vMapVoxelBoundaryMaxY+1; else OutY = -1;
 	if (dz > 0) OutZ = vMapVoxelBoundaryMaxZ+1; else OutZ = -1;
 
-	Done = false;
 	t = 0;
 	while (t <= 1.0)
 	{
 		// process voxel
-		result = calculateLineProcessVoxel
-		(
-			VoxelX, VoxelY, VoxelZ,
-			LastPoint,
-			storeTrajectory, trajectory,
-			excludeUnit, excludeAllUnits, doVoxelCheck, onlyVisible, excludeAllBut,
-			&result,
-			&steps,
-			&Done
-		);
 
-		if (Done == true)
+		// store trajectory even if outside of voxel boundary, other code must solve it, otherwise trajectory empty
+		if (storeTrajectory && trajectory)
 		{
-			return result;
+			trajectory->push_back(Position(VoxelX, VoxelY, VoxelZ));
+		}
+
+		//passes through this point?
+		if (doVoxelCheck)
+		{
+	//		result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), excludeUnit, false, onlyVisible, excludeAllBut);
+			result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), excludeUnit, excludeAllUnits, onlyVisible, excludeAllBut); // skybuck: Not sure which call is better
+
+			if (result != V_EMPTY)
+			{
+				if (trajectory)
+				{ // store the position of impact
+					trajectory->push_back(Position(VoxelX, VoxelY, VoxelZ));
+				}
+				return result;
+			}
+		}
+		else
+		{
+			int temp_res = verticalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE);
+			result = horizontalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE, steps<2);
+			steps++;
+			if (result == -1)
+			{
+				if (temp_res > 127)
+				{
+					result = 0;
+				}
+				else
+				{
+					return result; // We hit a big wall
+				}
+			}
+			result += temp_res;
+			if (result > 127)
+			{
+				return result;
+			}
+
+			LastPoint = Position(VoxelX, VoxelY, VoxelZ);
 		}
 
 		// go to next voxel
