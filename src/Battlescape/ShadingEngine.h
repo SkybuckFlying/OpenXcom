@@ -3,9 +3,12 @@
 #include "GenericMap.cpp"
 #include "Color.h"
 #include "LightArray.h"
+#include "..\Engine\Surface.h"
 
 namespace OpenXcom
 {
+
+class Surface;
 
 struct Pixel
 {
@@ -27,6 +30,7 @@ class ShadingEngine
 		GenericMap<bool> *mLitMap;
 		GenericMap<double> *mDistanceMap;
 		GenericMap<double> *mExposureMap;
+		GenericMap<Surface*> *mSurfaceMap;
 
 	public:
 		ShadingEngine();
@@ -37,6 +41,8 @@ class ShadingEngine
 
 		void SetWidth( int ParaWidth );
 		void SetHeight( int ParaHeight );
+
+		void CollectData( int x, int y, Surface *ParaSource );
 };
 
 }

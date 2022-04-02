@@ -20,6 +20,7 @@
 #include "../Engine/InteractiveSurface.h"
 #include "../Engine/Options.h"
 #include "Position.h"
+#include "ShadingEngine.h"
 #include <vector>
 
 namespace OpenXcom
@@ -75,6 +76,8 @@ private:
 	int _iconHeight, _iconWidth, _messageColor;
 	const std::vector<Uint8> *_transparencies;
 	bool _showObstacles;
+
+	ShadingEngine *_ShadingEngine;
 public:
 	/// Creates a new map at the specified position and size.
 	Map(Game* game, int width, int height, int x, int y, int visibleMapHeight);

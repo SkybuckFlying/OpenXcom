@@ -8,21 +8,32 @@ namespace OpenXcom
 template <class GenericType>
 GenericMap<GenericType>::GenericMap()
 {
-
+	mWidth = 0;
+	mHeight = 0;
+	mData = 0;
 }
 
 // destructor
 template <class GenericType>
 GenericMap<GenericType>::~GenericMap()
 {
-	delete[] mData;
+	if (mData != 0)
+	{
+		delete[] mData;
+	}
 }
 
 template <class GenericType>
 void GenericMap<GenericType>::ReSize( int ParaWidth, int ParaHeight )
 {
-	delete[] mData;
-	mData = new GenericType[ ParaHeight * ParaWidth ]; 
+	if (mData != 0)
+	{
+		delete[] mData;
+	}
+	if ((ParaHeight * ParaWidth) > 0)
+	{
+		mData = new GenericType[ ParaHeight * ParaWidth ];
+	}
 }
 
 template <class GenericType>

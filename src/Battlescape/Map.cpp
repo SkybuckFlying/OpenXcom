@@ -76,6 +76,11 @@ namespace OpenXcom
  */
 Map::Map(Game *game, int width, int height, int x, int y, int visibleMapHeight) : InteractiveSurface(width, height, x, y), _game(game), _arrow(0), _selectorX(0), _selectorY(0), _mouseX(0), _mouseY(0), _cursorType(CT_NORMAL), _cursorSize(1), _animFrame(0), _projectile(0), _projectileInFOV(false), _explosionInFOV(false), _launch(false), _visibleMapHeight(visibleMapHeight), _unitDying(false), _smoothingEngaged(false), _flashScreen(false), _projectileSet(0), _showObstacles(false)
 {
+	_ShadingEngine = new ShadingEngine();
+
+	_ShadingEngine->SetHeight( height );
+	_ShadingEngine->SetWidth( width );
+
 	_iconHeight = _game->getMod()->getInterface("battlescape")->getElement("icons")->h;
 	_iconWidth = _game->getMod()->getInterface("battlescape")->getElement("icons")->w;
 	_messageColor = _game->getMod()->getInterface("battlescape")->getElement("messageWindows")->color;
@@ -121,6 +126,7 @@ Map::Map(Game *game, int width, int height, int x, int y, int visibleMapHeight) 
  */
 Map::~Map()
 {
+	delete _ShadingEngine;
 	delete _scrollMouseTimer;
 	delete _scrollKeyTimer;
 	delete _obstacleTimer;
@@ -623,6 +629,10 @@ void Map::drawTerrain(Surface *surface)
 	}
 
 	surface->lock();
+
+	// could try a raytracer inside of painter algorithm... might actually be easier and even faster...
+	// might safe some tile processing, would be handy to convert from screen to map coordinates
+	// ofcourse that required anyway.
 	for (int itZ = beginZ; itZ <= endZ; itZ++)
 	{
 		bool topLayer = itZ == endZ;
@@ -670,9 +680,22 @@ void Map::drawTerrain(Surface *surface)
 					if (tmpSurface)
 					{
 						if (tile->getObstacle(O_FLOOR))
-							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), obstacleShade, false);
+						{
+//							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), obstacleShade, false);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), obstacleShade, false);
+
+
+						//	_ShadingEngine->CollectData( tmpSurface, mapPosition, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset() );
+
+						//	surface->drawLine( screenPosition.x, screenPosition.y, screenPosition.x+10, screenPosition.y+10, 200 ); 
+						}
 						else
-							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tileShade, false);
+						{
+//							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tileShade, false);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tileShade, false);
+
+							//	surface->drawLine( screenPosition.x, screenPosition.y, screenPosition.x+10, screenPosition.y+10, 200 ); 
+						}
 					}
 					unit = tile->getUnit();
 
@@ -1102,6 +1125,7 @@ void Map::drawTerrain(Surface *surface)
 			}
 		}
 	}
+
 	if (pathfinderTurnedOn)
 	{
 		if (_numWaypid)
@@ -1176,6 +1200,7 @@ void Map::drawTerrain(Surface *surface)
 			_numWaypid->setBordered(false); // make sure we remove the border in case it's being used for missile waypoints.
 		}
 	}
+
 	unit = (BattleUnit*)_save->getSelectedUnit();
 	if (unit && (_save->getSide() == FACTION_PLAYER || _save->getDebugMode()) && unit->getPosition().z <= _camera->getViewLevel())
 	{
@@ -1240,6 +1265,7 @@ void Map::drawTerrain(Surface *surface)
 			}
 		}
 	}
+
 	surface->unlock();
 }
 

@@ -935,7 +935,14 @@ struct StandardShade
 	* @param notused
 	* @param notused
 	*/
-	static inline void func(Uint8& dest, const Uint8& src, const int& shade, const int&, const int&)
+	static inline void func
+	(
+		Uint8& dest,
+		const Uint8& src,
+		const int& shade,
+		const int&,
+		const int&
+	)
 	{
 		if (src)
 		{
@@ -949,8 +956,6 @@ struct StandardShade
 	}
 
 };
-
-
 
 /**
  * Specific blit function to blit battlescape terrain data in different shades in a fast way.
@@ -983,6 +988,20 @@ void Surface::blitNShade(Surface *surface, int x, int y, int off, bool half, int
 
 }
 
+
+void Surface::blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Surface *surface, int x, int y, int off, bool half, int newBaseColor)
+{
+	ShaderMove<Uint8> src(this, x, y);
+	if (half)
+	{
+		GraphSubset g = src.getDomain();
+		g.beg_x = g.end_x/2;
+		src.setDomain(g);
+	}
+
+	ShaderDrawSkybuck<ColorReplace>(ParaShadingEngine, ShaderSurface(surface), src, ShaderScalar(off), ShaderScalar(newBaseColor));
+}
+
 /**
  * Specific blit function to blit battlescape terrain data in different shades in a fast way.
  * @param surface destination blit to
@@ -999,6 +1018,16 @@ void Surface::blitNShade(Surface *surface, int x, int y, int shade, GraphSubset 
 	dest.setDomain(range);
 
 	ShaderDraw<StandardShade>(dest, src, ShaderScalar(shade));
+}
+
+void Surface::blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Surface *surface, int x, int y, int shade, GraphSubset range)
+{
+	ShaderMove<Uint8> src(this, x, y);
+	ShaderMove<Uint8> dest(surface);
+
+	dest.setDomain(range);
+
+	ShaderDrawSkybuck<StandardShade>(ParaShadingEngine, dest, src, ShaderScalar(shade));
 }
 
 /**
