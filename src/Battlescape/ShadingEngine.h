@@ -10,14 +10,20 @@ namespace OpenXcom
 
 class Surface;
 
+struct MapPosition
+{
+	int X, Y, Z;
+};
+
 struct Pixel
 {
-	unsigned char Red, Green, Blue, alpha;
+	unsigned char Red, Green, Blue, Alpha;
 };
 
 class ShadingEngine
 {
-	private:
+	// private:
+	public:
 
 		int mWidth;
 		int mHeight;
@@ -30,9 +36,9 @@ class ShadingEngine
 		GenericMap<bool> *mLitMap;
 		GenericMap<double> *mDistanceMap;
 		GenericMap<double> *mExposureMap;
-		GenericMap<Surface*> *mSurfaceMap;
+		GenericMap<MapPosition> *mMapPosition;
 
-	public:
+	// public:
 		ShadingEngine();
 		~ShadingEngine();
 
@@ -42,7 +48,8 @@ class ShadingEngine
 		void SetWidth( int ParaWidth );
 		void SetHeight( int ParaHeight );
 
-		void CollectData( int x, int y, Surface *ParaSource );
+		void CollectMapPosition( int x, int y, MapPosition ParaMapPosition );
+		void CollectColor( int x, int y, Color ParaColor );
 };
 
 }

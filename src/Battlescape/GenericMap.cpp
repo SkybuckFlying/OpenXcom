@@ -64,7 +64,15 @@ void GenericMap<GenericType>::SetHeight( int ParaValue )
 template <class GenericType>
 void GenericMap<GenericType>::SetData( int ParaX, int ParaY, GenericType ParaValue )
 {
-	mData[ ParaY * mWidth + ParaX ] = ParaValue;
+	// Skybuck: temporally for debugging purposes, stay within range blablablabal.
+	if
+	(
+		(ParaX >= 0) && (ParaX < mWidth) &&
+		(ParaY >= 0) && (ParaY < mHeight)
+	)
+	{
+		mData[ ParaY * mWidth + ParaX ] = ParaValue;
+	}
 }
 
 template <class GenericType>

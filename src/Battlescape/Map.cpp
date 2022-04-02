@@ -227,6 +227,21 @@ void Map::draw()
 	if ((_save->getSelectedUnit() && _save->getSelectedUnit()->getVisible()) || _unitDying || _save->getSelectedUnit() == 0 || _save->getDebugMode() || _projectileInFOV || _explosionInFOV)
 	{
 		drawTerrain(this);
+
+		int x, y;
+		Color vColor;
+
+
+		for (y=0; y<this->getHeight();y++)
+		{
+			for (x=0; x<this->getWidth();x++)
+			{
+				vColor = _ShadingEngine->mColorMap->GetData( x, y );
+				this->setPixel( x, y, vColor.Red );
+			}
+		}
+
+
 	}
 	else
 	{
@@ -682,17 +697,18 @@ void Map::drawTerrain(Surface *surface)
 						if (tile->getObstacle(O_FLOOR))
 						{
 //							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), obstacleShade, false);
-							tmpSurface->blitNShadeSkybuck(_ShadingEngine, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), obstacleShade, false);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), obstacleShade, false);
 
+//							tmpSurface->blitNShadeSkybuck( _ShadingEngine, mapPosition, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), obstacleShade, false);
 
-						//	_ShadingEngine->CollectData( tmpSurface, mapPosition, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset() );
+				//			_ShadingEngine->CollectData( tmpSurface, mapPosition, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset() );
 
 						//	surface->drawLine( screenPosition.x, screenPosition.y, screenPosition.x+10, screenPosition.y+10, 200 ); 
 						}
 						else
 						{
 //							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tileShade, false);
-							tmpSurface->blitNShadeSkybuck(_ShadingEngine, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tileShade, false);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tileShade, false);
 
 							//	surface->drawLine( screenPosition.x, screenPosition.y, screenPosition.x+10, screenPosition.y+10, 200 ); 
 						}

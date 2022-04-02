@@ -19,6 +19,7 @@
  */
 #include "ShaderDrawHelper.h"
 #include "..\Battlescape\ShadingEngine.h"
+#include "..\Battlescape\Camera.h"
 
 namespace OpenXcom
 {
@@ -140,6 +141,9 @@ template<typename ColorFunc, typename DestType, typename Src0Type, typename Src1
 static inline void ShaderDrawSkybuck
 (
 	ShadingEngine *ParaShadingEngine,
+	Camera *ParaCamera,
+	int screenx, int screeny,
+
 	const DestType& dest_frame,
 	const Src0Type& src0_frame,
 	const Src1Type& src1_frame,
@@ -147,6 +151,8 @@ static inline void ShaderDrawSkybuck
 	const Src3Type& src3_frame
 )
 {
+	int MapX, MapY, MapZ;
+
 	//creating helper objects
 	helper::controler<DestType> dest(dest_frame);
 	helper::controler<Src0Type> src0(src0_frame);
@@ -212,19 +218,24 @@ static inline void ShaderDrawSkybuck
 		//iteration on x-axis
 		for (int x = end_x-begin_x; x>0; --x, dest.inc_x(), src0.inc_x(), src1.inc_x(), src2.inc_x(), src3.inc_x())
 		{
-			ParaShadingEngine->CollectData( x, y, src0_frame ); 
+			MapPosition vMapPosition;
+
+			// acquire x,y
+			// acquire z
+			// Skybuck: I don't know how to acquire Z so I will cheat a little bit and set it zero =D at least
+			// this should allow me to finish the rest of the shading engine
+			vMapPosition.Z = 0;
+
+			ParaCamera->convertScreenToMap( screenx + begin_x+x, screeny + begin_y+y, &vMapPosition.X, &vMapPosition.Y );
+
+			ParaShadingEngine->CollectMapPosition( screenx + begin_x+x, screeny + begin_y+y, vMapPosition );
+
+			// acquire color
+			Color vColor;
+			vColor.Red = src0.get_ref();
+			ParaShadingEngine->CollectColor( screenx + begin_x+x, screeny + begin_y+y, vColor ); 
 
 //			dest.get_ref(), src0.get_ref(), src1.get_ref(), src2.get_ref(), src3.get_ref());
-
-			ColorFunc::func
-			(
-				dest.get_ref(),
-				src0.get_ref(),
-				src1.get_ref(),
-				src2.get_ref(),
-				src3.get_ref()
-			);
-
 		}
 	}
 
@@ -254,24 +265,24 @@ static inline void ShaderDraw(const DestType& dest_frame)
 
 
 template<typename ColorFunc, typename DestType, typename Src0Type, typename Src1Type, typename Src2Type>
-static inline void ShaderDrawSkybuck(ShadingEngine *ParaShadingEngine, const DestType& dest_frame, const Src0Type& src0_frame, const Src1Type& src1_frame, const Src2Type& src2_frame)
+static inline void ShaderDrawSkybuck(ShadingEngine *ParaShadingEngine, Camera *ParaCamera,	int screenx, int screeny, const DestType& dest_frame, const Src0Type& src0_frame, const Src1Type& src1_frame, const Src2Type& src2_frame)
 {
-	ShaderDrawSkybuck<ColorFunc>(ParaShadingEngine, dest_frame, src0_frame, src1_frame, src2_frame, helper::Nothing());
+	ShaderDrawSkybuck<ColorFunc>(ParaShadingEngine, ParaCamera, screenx,screeny, dest_frame, src0_frame, src1_frame, src2_frame, helper::Nothing());
 }
 template<typename ColorFunc, typename DestType, typename Src0Type, typename Src1Type>
-static inline void ShaderDrawSkybuck(ShadingEngine *ParaShadingEngine, const DestType& dest_frame, const Src0Type& src0_frame, const Src1Type& src1_frame)
+static inline void ShaderDrawSkybuck(ShadingEngine *ParaShadingEngine, Camera *ParaCamera, 	int screenx, int screeny,const DestType& dest_frame, const Src0Type& src0_frame, const Src1Type& src1_frame)
 {
-	ShaderDrawSkybuck<ColorFunc>(ParaShadingEngine, dest_frame, src0_frame, src1_frame, helper::Nothing(), helper::Nothing());
+	ShaderDrawSkybuck<ColorFunc>(ParaShadingEngine, ParaCamera, screenx,screeny, dest_frame, src0_frame, src1_frame, helper::Nothing(), helper::Nothing());
 }
 template<typename ColorFunc, typename DestType, typename Src0Type>
-static inline void ShaderDrawSkybuck(ShadingEngine *ParaShadingEngine, const DestType& dest_frame, const Src0Type& src0_frame)
+static inline void ShaderDrawSkybuck(ShadingEngine *ParaShadingEngine, Camera *ParaCamera, 	int screenx, int screeny,const DestType& dest_frame, const Src0Type& src0_frame)
 {
-	ShaderDrawSkybuck<ColorFunc>(ParaShadingEngine, dest_frame, src0_frame, helper::Nothing(), helper::Nothing(), helper::Nothing());
+	ShaderDrawSkybuck<ColorFunc>(ParaShadingEngine, ParaCamera, screenx,screeny, dest_frame, src0_frame, helper::Nothing(), helper::Nothing(), helper::Nothing());
 }
 template<typename ColorFunc, typename DestType>
-static inline void ShaderDrawSkybuck(ShadingEngine *ParaShadingEngine, const DestType& dest_frame)
+static inline void ShaderDrawSkybuck(ShadingEngine *ParaShadingEngine, Camera *ParaCamera, 	int screenx, int screeny,const DestType& dest_frame)
 {
-	ShaderDrawSkybuck<ColorFunc>(ParaShadingEngine, dest_frame, helper::Nothing(), helper::Nothing(), helper::Nothing(), helper::Nothing());
+	ShaderDrawSkybuck<ColorFunc>(ParaShadingEngine, ParaCamera, screenx,screeny, dest_frame, helper::Nothing(), helper::Nothing(), helper::Nothing(), helper::Nothing());
 }
 
 template<typename T>

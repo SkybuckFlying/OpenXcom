@@ -989,7 +989,7 @@ void Surface::blitNShade(Surface *surface, int x, int y, int off, bool half, int
 }
 
 
-void Surface::blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Surface *surface, int x, int y, int off, bool half, int newBaseColor)
+void Surface::blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Camera *ParaCamera, Surface *surface, int x, int y, int off, bool half, int newBaseColor)
 {
 	ShaderMove<Uint8> src(this, x, y);
 	if (half)
@@ -999,7 +999,7 @@ void Surface::blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Surface *surfa
 		src.setDomain(g);
 	}
 
-	ShaderDrawSkybuck<ColorReplace>(ParaShadingEngine, ShaderSurface(surface), src, ShaderScalar(off), ShaderScalar(newBaseColor));
+	ShaderDrawSkybuck<ColorReplace>(ParaShadingEngine, ParaCamera, x, y, ShaderSurface(surface), src, ShaderScalar(off), ShaderScalar(newBaseColor));
 }
 
 /**
@@ -1020,14 +1020,14 @@ void Surface::blitNShade(Surface *surface, int x, int y, int shade, GraphSubset 
 	ShaderDraw<StandardShade>(dest, src, ShaderScalar(shade));
 }
 
-void Surface::blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Surface *surface, int x, int y, int shade, GraphSubset range)
+void Surface::blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Camera *ParaCamera, Surface *surface, int x, int y, int shade, GraphSubset range)
 {
 	ShaderMove<Uint8> src(this, x, y);
 	ShaderMove<Uint8> dest(surface);
 
 	dest.setDomain(range);
 
-	ShaderDrawSkybuck<StandardShade>(ParaShadingEngine, dest, src, ShaderScalar(shade));
+	ShaderDrawSkybuck<StandardShade>(ParaShadingEngine, ParaCamera, x, y, dest, src, ShaderScalar(shade));
 }
 
 /**

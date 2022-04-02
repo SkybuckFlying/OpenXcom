@@ -29,6 +29,7 @@ namespace OpenXcom
 class Font;
 class Language;
 class ShadingEngine;
+class Camera;
 
 /**
  * Element that is blit (rendered) onto the screen.
@@ -237,8 +238,8 @@ public:
 	/// Specific blit function to blit battlescape terrain data in different shades in a fast way.
 	void blitNShade(Surface *surface, int x, int y, int shade, GraphSubset range);
 
-	void blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Surface *surface, int x, int y, int shade, bool half = false, int newBaseColor = 0);
-	void blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Surface *surface, int x, int y, int shade, GraphSubset range);
+	void blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Camera *ParaCamera, Surface *surface, int x, int y, int shade, bool half = false, int newBaseColor = 0);
+	void blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Camera *ParaCamera, Surface *surface, int x, int y, int shade, GraphSubset range);
 
 	/// Invalidate the surface: force it to be redrawn
 	void invalidate(bool valid = true);

@@ -19,12 +19,12 @@ ShadingEngine::ShadingEngine()
 	mLitMap = new GenericMap<bool>();
 	mDistanceMap = new GenericMap<double>();
 	mExposureMap = new GenericMap<double>();
-	mSurfaceMap = new GenericMap<Surface*>();
+	mMapPosition = new GenericMap<MapPosition>();
 }
 
 ShadingEngine::~ShadingEngine()
 {
-	delete mSurfaceMap;
+	delete mMapPosition;
 	delete mExposureMap;
 	delete mDistanceMap;
 	delete mLitMap;
@@ -55,7 +55,7 @@ void ShadingEngine::SetWidth( int ParaWidth )
 	mLitMap->SetWidth( ParaWidth );
 	mDistanceMap->SetWidth( ParaWidth );
 	mExposureMap->SetWidth( ParaWidth );
-	mSurfaceMap->SetWidth( ParaWidth );
+	mMapPosition->SetWidth( ParaWidth );
 	mWidth = ParaWidth;
 }
 
@@ -68,14 +68,18 @@ void ShadingEngine::SetHeight( int ParaHeight )
 	mLitMap->SetHeight( ParaHeight );
 	mDistanceMap->SetHeight( ParaHeight );
 	mExposureMap->SetHeight( ParaHeight );
-	mSurfaceMap->SetHeight( ParaHeight );
+	mMapPosition->SetHeight( ParaHeight );
 	mHeight = ParaHeight;
 }
 
-void ShadingEngine::CollectData( int x, int y, Surface *ParaSource )
+void ShadingEngine::CollectMapPosition( int x, int y, MapPosition ParaMapPosition )
 {
-	mSurfaceMap->SetData( x, y, ParaSource );
+	mMapPosition->SetData( x, y, ParaMapPosition );
 }
 
+void ShadingEngine::CollectColor( int x, int y, Color ParaColor )
+{
+	mColorMap->SetData( x, y, ParaColor );
+}
 
 }
