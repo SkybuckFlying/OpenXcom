@@ -19,6 +19,7 @@
  */
 #include <vector>
 #include "Position.h"
+#include "ShadingEngine.h"
 #include "../Mod/RuleItem.h"
 #include "../Mod/MapData.h"
 #include <SDL.h>
@@ -82,6 +83,11 @@ public:
 	int closeUfoDoors();
 	/// Calculates a line trajectory.
 	int calculateLine(Position origin, Position target, bool storeTrajectory, std::vector<Position> *trajectory, BattleUnit *excludeUnit, bool doVoxelCheck = true, bool onlyVisible = false, BattleUnit *excludeAllBut = 0);
+
+	/// Calculates a line trajectory.
+	bool calculateLineLit( ShadingEngine *ParaShadingEngine, Position origin, Position target, bool doVoxelCheck, bool onlyVisible );
+
+
 	/// Calculates a parabola trajectory.
 	int calculateParabola(Position origin, Position target, bool storeTrajectory, std::vector<Position> *trajectory, BattleUnit *excludeUnit, double curvature, const Position delta);
 	/// Gets the origin voxel of a unit's eyesight.

@@ -226,14 +226,21 @@ static inline void ShaderDrawSkybuck
 			// this should allow me to finish the rest of the shading engine
 			vMapPosition.Z = 0;
 
-			ParaCamera->convertScreenToMap( screenx + begin_x+x, screeny + begin_y+y, &vMapPosition.X, &vMapPosition.Y );
+//			ParaCamera->convertScreenToMap( screenx + begin_x+x, screeny + begin_y+y, &vMapPosition.X, &vMapPosition.Y );
+			ParaCamera->convertScreenToMap( screenx + (end_x - x), screeny + (end_y - y), &vMapPosition.X, &vMapPosition.Y );
 
-			ParaShadingEngine->CollectMapPosition( screenx + begin_x+x, screeny + begin_y+y, vMapPosition );
+//			ParaShadingEngine->CollectMapPosition( screenx + begin_x+x, screeny + begin_y+y, vMapPosition );
+			ParaShadingEngine->CollectMapPosition( screenx + (end_x - x), screeny + (end_y - y), vMapPosition );
 
 			// acquire color
 			Color vColor;
 			vColor.Red = src0.get_ref();
-			ParaShadingEngine->CollectColor( screenx + begin_x+x, screeny + begin_y+y, vColor ); 
+
+			if (vColor.Red != 0)
+			{
+//				ParaShadingEngine->CollectColor( screenx + begin_x+x, screeny + begin_y+y, vColor );
+				ParaShadingEngine->CollectColor( screenx + (end_x - x), screeny + (end_y - y), vColor );
+			}
 
 //			dest.get_ref(), src0.get_ref(), src1.get_ref(), src2.get_ref(), src3.get_ref());
 		}

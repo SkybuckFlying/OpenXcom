@@ -3125,6 +3125,406 @@ int TileEngine::calculateLine
 }
 
 
+bool TileEngine::calculateLineLit
+(
+	ShadingEngine *ParaShadingEngine, Position origin, Position target, bool doVoxelCheck, bool onlyVisible
+)
+{
+	int result;
+	float x1, y1, z1; // start point
+	float x2, y2, z2; // end point
+
+	float tMaxX, tMaxY, tMaxZ, t, tDeltaX, tDeltaY, tDeltaZ;
+
+	int VoxelX, VoxelY, VoxelZ;
+
+	int OutX, OutY, OutZ;
+
+	bool IntersectionPoint1;
+	bool IntersectionPoint2;
+
+	float IntersectionPointX1, IntersectionPointY1, IntersectionPointZ1;
+	float IntersectionPointX2, IntersectionPointY2, IntersectionPointZ2;
+
+	float TraverseX1, TraverseY1, TraverseZ1;
+	float TraverseX2, TraverseY2, TraverseZ2;
+
+	float Epsilon;
+
+	Position LastPoint(origin);
+
+	int steps = 0;
+	bool Lit;
+
+	Lit = false;
+
+	//	Epsilon := 0.001;
+	Epsilon = 0.1;
+
+	float TileWidth = 16.0;
+	float TileHeight = 16.0;
+	float TileDepth = 24.0;
+
+	// calculate max voxel position
+	int vMapVoxelBoundaryMinX = 0;
+	int vMapVoxelBoundaryMinY = 0;
+	int vMapVoxelBoundaryMinZ = 0;
+
+	int vLastMapTileX = (_save->getMapSizeX()-1);
+	int vLastMapTileY = (_save->getMapSizeY()-1);
+	int vLastMapTileZ = (_save->getMapSizeZ()-1);
+
+	int vLastTileVoxelX = TileWidth-1;
+	int vLastTileVoxelY = TileHeight-1;
+	int vLastTileVoxelZ = TileDepth-1;
+
+	int vMapVoxelBoundaryMaxX = (vLastMapTileX*TileWidth) + vLastTileVoxelX;
+	int vMapVoxelBoundaryMaxY = (vLastMapTileY*TileHeight) + vLastTileVoxelY;
+	int vMapVoxelBoundaryMaxZ = (vLastMapTileZ*TileDepth) + vLastTileVoxelZ;
+
+	//start and end points
+	x1 = origin.x;	 x2 = target.x;
+	y1 = origin.y;	 y2 = target.y;
+	z1 = origin.z;	 z2 = target.z;
+
+	// if single point then
+	if ( (x1==x2) && (y1==y2) && (z1==z2) )
+	{
+		// check if point in grid
+		if
+		(
+			PointInBoxSingle
+			(
+				x1, y1, z1,
+
+				vMapVoxelBoundaryMinX,
+				vMapVoxelBoundaryMinY,
+				vMapVoxelBoundaryMinZ,
+
+				vMapVoxelBoundaryMaxX-Epsilon,
+				vMapVoxelBoundaryMaxY-Epsilon,
+				vMapVoxelBoundaryMaxZ-Epsilon
+			) == true
+		)
+		{
+			// process voxel
+			VoxelX = x1;
+			VoxelY = y1;
+			VoxelZ = z1;
+
+			//passes through this point?
+			if (doVoxelCheck)
+			{
+				result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), 0, false, false, 0 ); 
+
+				if (result != V_EMPTY)
+				{
+					return Lit;
+				}
+			}
+			else
+			{
+				int temp_res = verticalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE);
+				result = horizontalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE, steps<2);
+				steps++;
+				if (result == -1)
+				{
+					if (temp_res > 127)
+					{
+						result = 0;
+					}
+					else
+					{
+						return Lit; // We hit a big wall
+					}
+				}
+				result += temp_res;
+				if (result > 127)
+				{
+					return Lit;
+				}
+
+				LastPoint = Position(VoxelX, VoxelY, VoxelZ);
+			}
+
+			return Lit;
+		}
+	}
+	else
+	{
+		// check if both points are in grid
+		if
+		(
+			PointInBoxSingle
+			(
+				x1, y1, z1,
+
+				vMapVoxelBoundaryMinX,
+				vMapVoxelBoundaryMinY,
+				vMapVoxelBoundaryMinZ,
+
+				vMapVoxelBoundaryMaxX-Epsilon,
+				vMapVoxelBoundaryMaxY-Epsilon,
+				vMapVoxelBoundaryMaxZ-Epsilon
+			)
+			&&
+			PointInBoxSingle
+			(
+				x2, y2, z2,
+
+				vMapVoxelBoundaryMinX,
+				vMapVoxelBoundaryMinY,
+				vMapVoxelBoundaryMinZ,
+
+				vMapVoxelBoundaryMaxX-Epsilon,
+				vMapVoxelBoundaryMaxY-Epsilon,
+				vMapVoxelBoundaryMaxZ-Epsilon
+			)
+		)
+		{
+			// just fall through to next code below
+			// traverse
+		}
+		else
+		// check if line intersects box
+		if
+		(
+			LineSegmentIntersectsBoxSingle
+			(
+				x1,y1,z1,
+				x2,y2,z2,
+
+				vMapVoxelBoundaryMinX,
+				vMapVoxelBoundaryMinY,
+				vMapVoxelBoundaryMinZ,
+
+				vMapVoxelBoundaryMaxX-Epsilon,
+				vMapVoxelBoundaryMaxY-Epsilon,
+				vMapVoxelBoundaryMaxZ-Epsilon,
+
+				&IntersectionPoint1,
+				&IntersectionPointX1,
+				&IntersectionPointY1,
+				&IntersectionPointZ1,
+
+				&IntersectionPoint2,
+				&IntersectionPointX2,
+				&IntersectionPointY2,
+				&IntersectionPointZ2
+			) == true
+		)
+		{
+			if (IntersectionPoint1 == true)
+			{
+				TraverseX1 = IntersectionPointX1;
+				TraverseY1 = IntersectionPointY1;
+				TraverseZ1 = IntersectionPointZ1;
+			}
+			else
+			{
+				TraverseX1 = x1;
+				TraverseY1 = y1;
+				TraverseZ1 = z1;
+			}
+
+			// compensate for any floating point errors (inaccuracies)
+			TraverseX1 = MaxSingle( TraverseX1, vMapVoxelBoundaryMinX );
+			TraverseY1 = MaxSingle( TraverseY1, vMapVoxelBoundaryMinY );
+			TraverseZ1 = MaxSingle( TraverseZ1, vMapVoxelBoundaryMinZ );
+
+			TraverseX1 = MinSingle( TraverseX1, vMapVoxelBoundaryMaxX-Epsilon );
+			TraverseY1 = MinSingle( TraverseY1, vMapVoxelBoundaryMaxY-Epsilon );
+			TraverseZ1 = MinSingle( TraverseZ1, vMapVoxelBoundaryMaxZ-Epsilon );
+
+			if (IntersectionPoint2 == true)
+			{
+				TraverseX2 = IntersectionPointX2;
+				TraverseY2 = IntersectionPointY2;
+				TraverseZ2 = IntersectionPointZ2;
+			}
+			else
+			{
+				TraverseX2 = x2;
+				TraverseY2 = y2;
+				TraverseZ2 = z2;
+			}
+
+			// compensate for any floating point errors (inaccuracies)
+			TraverseX2 = MaxSingle( TraverseX2, vMapVoxelBoundaryMinX );
+			TraverseY2 = MaxSingle( TraverseY2, vMapVoxelBoundaryMinY );
+			TraverseZ2 = MaxSingle( TraverseZ2, vMapVoxelBoundaryMinZ );
+
+			TraverseX2 = MinSingle( TraverseX2, vMapVoxelBoundaryMaxX-Epsilon );
+			TraverseY2 = MinSingle( TraverseY2, vMapVoxelBoundaryMaxY-Epsilon );
+			TraverseZ2 = MinSingle( TraverseZ2, vMapVoxelBoundaryMaxZ-Epsilon );
+
+			// it is possible that after intersection testing the line is just a dot
+			// on the intersection box so check for this and then process voxel
+			// seperately.
+			if
+			(
+				(TraverseX1==TraverseX2) &&
+				(TraverseY1==TraverseY2) &&
+				(TraverseZ1==TraverseZ2)
+			)
+			{
+				// process voxel
+				VoxelX = TraverseX1; 
+				VoxelY = TraverseY1; 
+				VoxelZ = TraverseZ1;
+
+				//passes through this point?
+				if (doVoxelCheck)
+				{
+					result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), 0, false, false, 0);
+
+					if (result != V_EMPTY)
+					{
+						return Lit;
+					}
+				}
+				else
+				{
+					int temp_res = verticalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE);
+					result = horizontalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE, steps<2);
+					steps++;
+					if (result == -1)
+					{
+						if (temp_res > 127)
+						{
+							result = 0;
+						}
+						else
+						{
+							return result; // We hit a big wall
+						}
+					}
+					result += temp_res;
+					if (result > 127)
+					{
+						return Lit;
+					}
+
+					LastPoint = Position(VoxelX, VoxelY, VoxelZ);
+				}
+
+				return Lit;
+			}
+			else
+			{
+				// just fall through below
+				// traverse
+				x1 = TraverseX1; 
+				y1 = TraverseY1;
+				z1 = TraverseZ1; 
+
+				x2 = TraverseX2; 
+				y2 = TraverseY2;
+				z2 = TraverseZ2; 
+			}
+		}
+	}
+
+	// traverse code, fast voxel traversal algorithm
+	int dx = SignSingle(x2 - x1);
+	if (dx != 0) tDeltaX = fmin(dx / (x2 - x1), 10000000.0f); else tDeltaX = 10000000.0f;
+	if (dx > 0) tMaxX = tDeltaX * Frac1Single(x1); else tMaxX = tDeltaX * Frac0Single(x1);
+	VoxelX = (int) x1;
+
+	int dy = SignSingle(y2 - y1);
+	if (dy != 0) tDeltaY = fmin(dy / (y2 - y1), 10000000.0f); else tDeltaY = 10000000.0f;
+	if (dy > 0) tMaxY = tDeltaY * Frac1Single(y1); else tMaxY = tDeltaY * Frac0Single(y1);
+	VoxelY = (int) y1;
+
+	int dz = SignSingle(z2 - z1);
+	if (dz != 0) tDeltaZ = fmin(dz / (z2 - z1), 10000000.0f); else tDeltaZ = 10000000.0f;
+	if (dz > 0) tMaxZ = tDeltaZ * Frac1Single(z1); else tMaxZ = tDeltaZ * Frac0Single(z1);
+	VoxelZ = (int) z1;
+
+	if (doVoxelCheck) voxelCheckFlush();
+
+	if (dx > 0) OutX = vMapVoxelBoundaryMaxX+1; else OutX = -1;
+	if (dy > 0) OutY = vMapVoxelBoundaryMaxY+1; else OutY = -1;
+	if (dz > 0) OutZ = vMapVoxelBoundaryMaxZ+1; else OutZ = -1;
+
+	t = 0;
+	while (t <= 1.0)
+	{
+		// process voxel
+
+		//passes through this point?
+		if (doVoxelCheck)
+		{
+	//		result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), excludeUnit, false, onlyVisible, excludeAllBut);
+			result = voxelCheck(Position(VoxelX, VoxelY, VoxelZ), 0, false, false, 0 ); // skybuck: Not sure which call is better
+
+			if (result != V_EMPTY)
+			{
+				ParaShadingEngine->mLitMap->SetData( VoxelX, VoxelY, true );
+				return Lit;
+			}
+		}
+		else
+		{
+			int temp_res = verticalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE);
+			result = horizontalBlockage(_save->getTile(LastPoint), _save->getTile(Position(VoxelX, VoxelY, VoxelZ)), DT_NONE, steps<2);
+			steps++;
+			if (result == -1)
+			{
+				if (temp_res > 127)
+				{
+					result = 0;
+				}
+				else
+				{
+					ParaShadingEngine->mLitMap->SetData( VoxelX, VoxelY, true );
+					return Lit; // We hit a big wall
+				}
+			}
+			result += temp_res;
+			if (result > 127)
+			{
+				ParaShadingEngine->mLitMap->SetData( VoxelX, VoxelY, true );
+				return Lit;
+			}
+
+			LastPoint = Position(VoxelX, VoxelY, VoxelZ);
+		}
+
+		// go to next voxel
+		if ( (tMaxX < tMaxY) && (tMaxX < tMaxZ) )
+		{
+			t = tMaxX;
+			VoxelX += dx;
+			tMaxX += tDeltaX;
+
+			if (VoxelX == OutX) break;
+		}
+		else
+		if (tMaxY < tMaxZ)
+		{
+			t = tMaxY;
+			VoxelY += dy;
+			tMaxY += tDeltaY;
+
+			if (VoxelY == OutY) break;
+		}
+		else
+		{
+			t = tMaxZ;
+			VoxelZ += dz;
+			tMaxZ += tDeltaZ;
+
+			if (VoxelZ == OutZ) break;
+		}
+	}
+
+	ParaShadingEngine->mLitMap->SetData( VoxelX, VoxelY, true );
+	Lit = true;
+	return Lit;
+}
+
+
 /**
  * Calculates a parabola trajectory, used for throwing items.
  * @param origin Origin in voxelspace.

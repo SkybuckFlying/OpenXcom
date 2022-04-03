@@ -231,13 +231,62 @@ void Map::draw()
 		int x, y;
 		Color vColor;
 
+		TileEngine *vTileEngine;
 
+		vTileEngine = _save->getBattleGame()->getTileEngine();
+
+		Position vSun( 	_save->getMapSizeX()*16, _save->getMapSizeY()*16, _save->getMapSizeZ()*24 );
+
+//		Position vSun( 	25*16, 25*16, 20*24 );
+	
+	
+		MapPosition vMapPosition;
+
+		bool result;
+		bool vLit;
+
+		// clear lit map
 		for (y=0; y<this->getHeight();y++)
 		{
 			for (x=0; x<this->getWidth();x++)
 			{
-				vColor = _ShadingEngine->mColorMap->GetData( x, y );
-				this->setPixel( x, y, vColor.Red );
+				_ShadingEngine->mLitMap->SetData( x, y, false );
+			}
+		}
+
+		// fill in lit map for voxels that are hit
+		for (y=0; y<this->getHeight();y++)
+		{
+			for (x=0; x<this->getWidth();x++)
+			{
+//				vColor = _ShadingEngine->mColorMap->GetData( x, y );
+//				this->setPixel( x, y, vColor.Red );
+
+				vMapPosition = _ShadingEngine->mMapPosition->GetData( x, y );
+
+				Position vTarget( vMapPosition.X, vMapPosition.Y, vMapPosition.Z );
+				
+				vTileEngine->calculateLineLit( _ShadingEngine, vSun, vTarget, true, false );
+			}
+		}
+
+		// draw/render/show voxels that are lit/hit
+		for (y=0; y<this->getHeight();y++)
+		{
+			for (x=0; x<this->getWidth();x++)
+			{
+				vLit = _ShadingEngine->mLitMap->GetData( x, y );
+
+				if (vLit == true)
+				{
+					vColor = _ShadingEngine->mColorMap->GetData( x, y );
+					this->setPixel( x, y, vColor.Red );
+				} else
+				{
+					vColor.Red = 0; // try and make it black as if it's in shadow
+					this->setPixel( x, y, vColor.Red );
+
+				}
 			}
 		}
 
@@ -480,13 +529,16 @@ void Map::drawUnit(Surface *surface, Tile *unitTile, Tile *currTile, Position cu
 	{
 		unitShade = obstacleShade;
 	}
-	tmpSurface->blitNShade(surface, tileScreenPosition.x + offset.x - _spriteWidth / 2, tileScreenPosition.y + offset.y, unitShade, mask);
+//	tmpSurface->blitNShade(surface, tileScreenPosition.x + offset.x - _spriteWidth / 2, tileScreenPosition.y + offset.y, unitShade, mask);
+	tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, tileScreenPosition.x + offset.x - _spriteWidth / 2, tileScreenPosition.y + offset.y, unitShade, mask);
+
 	// draw fire
 	if (bu->getFire() > 0)
 	{
 		int frameNumber = 4 + (_animFrame / 2);
 		tmpSurface = _game->getMod()->getSurfaceSet("SMOKE.PCK")->getFrame(frameNumber);
-		tmpSurface->blitNShade(surface, tileScreenPosition.x + offset.x, tileScreenPosition.y + offset.y, 0, mask);
+//		tmpSurface->blitNShade(surface, tileScreenPosition.x + offset.x, tileScreenPosition.y + offset.y, 0, mask);
+		tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, tileScreenPosition.x + offset.x, tileScreenPosition.y + offset.y, 0, mask);
 	}
 	if (bu->getBreathFrame() > 0)
 	{
@@ -495,7 +547,8 @@ void Map::drawUnit(Surface *surface, Tile *unitTile, Tile *currTile, Position cu
 		offset.y += (22 - bu->getHeight());
 		if (tmpSurface)
 		{
-			tmpSurface->blitNShade(surface, tileScreenPosition.x + offset.x, tileScreenPosition.y + offset.y - 30, tileShade, mask);
+//			tmpSurface->blitNShade(surface, tileScreenPosition.x + offset.x, tileScreenPosition.y + offset.y - 30, tileShade, mask);
+			tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, tileScreenPosition.x + offset.x, tileScreenPosition.y + offset.y - 30, tileShade, mask);
 		}
 	}
 }
@@ -735,13 +788,17 @@ void Map::drawTerrain(Surface *surface)
 									frameNumber = 6; // red static crosshairs
 							}
 							tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
-							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+						//	tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y, 0 );
+
 						}
 						else if (_camera->getViewLevel() > itZ)
 						{
 							frameNumber = 2; // blue box
 							tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
-							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+//							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y, 0 );
+
 						}
 					}
 
@@ -772,9 +829,12 @@ void Map::drawTerrain(Surface *surface)
 							else
 								wallShade = tileShade;
 							if (tile->getObstacle(O_WESTWALL))
-								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), obstacleShade, false);
+//								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), obstacleShade, false);
+								tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), obstacleShade, false);
+
 							else
-								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), wallShade, false);
+//								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), wallShade, false);
+								tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), wallShade, false);
 						}
 						// Draw north wall
 						tmpSurface = tile->getSprite(O_NORTHWALL);
@@ -786,9 +846,13 @@ void Map::drawTerrain(Surface *surface)
 							else
 								wallShade = tileShade;
 							if (tile->getObstacle(O_NORTHWALL))
-								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), obstacleShade, tile->getMapData(O_WESTWALL) != 0);
+//								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), obstacleShade, tile->getMapData(O_WESTWALL) != 0);
+								tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), obstacleShade, tile->getMapData(O_WESTWALL) != 0);
+
 							else
-								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), wallShade, tile->getMapData(O_WESTWALL) != 0);
+//								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), wallShade, tile->getMapData(O_WESTWALL) != 0);
+								tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), wallShade, tile->getMapData(O_WESTWALL) != 0);
+
 						}
 						// Draw object
 						if (tile->getMapData(O_OBJECT) && (tile->getMapData(O_OBJECT)->getBigWall() < 6 || tile->getMapData(O_OBJECT)->getBigWall() == 9))
@@ -797,9 +861,12 @@ void Map::drawTerrain(Surface *surface)
 							if (tmpSurface)
 							{
 								if (tile->getObstacle(O_OBJECT))
-									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), obstacleShade, false);
+//									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), obstacleShade, false);
+									tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), obstacleShade, false);
+
 								else
-									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tileShade, false);
+//									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tileShade, false);
+									tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tileShade, false);
 							}
 						}
 						// draw an item on top of the floor (if any)
@@ -807,7 +874,9 @@ void Map::drawTerrain(Surface *surface)
 						if (sprite != -1)
 						{
 							tmpSurface = _game->getMod()->getSurfaceSet("FLOOROB.PCK")->getFrame(sprite);
-							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y + tile->getTerrainLevel(), tileShade, false);
+//							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y + tile->getTerrainLevel(), tileShade, false);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y + tile->getTerrainLevel(), tileShade, false);
+
 						}
 
 					}
@@ -831,7 +900,8 @@ void Map::drawTerrain(Surface *surface)
 								_save->getTileEngine()->isVoxelVisible(voxelPos))
 							{
 								_camera->convertVoxelToScreen(voxelPos, &bulletPositionScreen);
-								tmpSurface->blitNShade(surface, bulletPositionScreen.x - 16, bulletPositionScreen.y - 26, 16);
+//								tmpSurface->blitNShade(surface, bulletPositionScreen.x - 16, bulletPositionScreen.y - 26, 16);
+								tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, bulletPositionScreen.x - 16, bulletPositionScreen.y - 26, 16);
 							}
 
 							voxelPos = _projectile->getPosition();
@@ -844,7 +914,8 @@ void Map::drawTerrain(Surface *surface)
 								_save->getTileEngine()->isVoxelVisible(voxelPos))
 							{
 								_camera->convertVoxelToScreen(voxelPos, &bulletPositionScreen);
-								tmpSurface->blitNShade(surface, bulletPositionScreen.x - 16, bulletPositionScreen.y - 26, 0);
+//								tmpSurface->blitNShade(surface, bulletPositionScreen.x - 16, bulletPositionScreen.y - 26, 0);
+								tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, bulletPositionScreen.x - 16, bulletPositionScreen.y - 26, 0);
 							}
 
 						}
@@ -879,7 +950,9 @@ void Map::drawTerrain(Surface *surface)
 											_camera->convertVoxelToScreen(voxelPos, &bulletPositionScreen);
 											bulletPositionScreen.x -= tmpSurface->getWidth() / 2;
 											bulletPositionScreen.y -= tmpSurface->getHeight() / 2;
-											tmpSurface->blitNShade(surface, bulletPositionScreen.x, bulletPositionScreen.y, 16);
+//											tmpSurface->blitNShade(surface, bulletPositionScreen.x, bulletPositionScreen.y, 16);
+											tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, bulletPositionScreen.x, bulletPositionScreen.y, 16);
+
 										}
 
 										// draw bullet itself
@@ -892,7 +965,8 @@ void Map::drawTerrain(Surface *surface)
 											_camera->convertVoxelToScreen(voxelPos, &bulletPositionScreen);
 											bulletPositionScreen.x -= tmpSurface->getWidth() / 2;
 											bulletPositionScreen.y -= tmpSurface->getHeight() / 2;
-											tmpSurface->blitNShade(surface, bulletPositionScreen.x, bulletPositionScreen.y, 0);
+//											tmpSurface->blitNShade(surface, bulletPositionScreen.x, bulletPositionScreen.y, 0);
+											tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, bulletPositionScreen.x, bulletPositionScreen.y, 0);
 										}
 									}
 								}
@@ -947,7 +1021,8 @@ void Map::drawTerrain(Surface *surface)
 							frameNumber += (_animFrame / 2) + tile->getAnimationOffset();
 						}
 						tmpSurface = _game->getMod()->getSurfaceSet("SMOKE.PCK")->getFrame(frameNumber);
-						tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, shade);
+//						tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, shade);
+						tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y, shade);
 					}
 
 					//draw particle clouds
@@ -980,13 +1055,15 @@ void Map::drawTerrain(Surface *surface)
 							tmpSurface = _game->getMod()->getSurfaceSet("Pathfinding")->getFrame(11);
 							if (tmpSurface)
 							{
-								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y+2, 0, false, tile->getMarkerColor());
+//								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y+2, 0, false, tile->getMarkerColor());
+								tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y+2, 0, false, tile->getMarkerColor());
 							}
 						}
 						tmpSurface = _game->getMod()->getSurfaceSet("Pathfinding")->getFrame(tile->getPreview());
 						if (tmpSurface)
 						{
-							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y + tile->getTerrainLevel(), 0, false, tileColor);
+//							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y + tile->getTerrainLevel(), 0, false, tileColor);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y + tile->getTerrainLevel(), 0, false, tileColor);
 						}
 					}
 					if (!tile->isVoid())
@@ -998,9 +1075,11 @@ void Map::drawTerrain(Surface *surface)
 							if (tmpSurface)
 							{
 								if (tile->getObstacle(O_OBJECT))
-									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), obstacleShade, false);
+//									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), obstacleShade, false);
+									tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), obstacleShade, false);
 								else
-									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tileShade, false);
+//									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tileShade, false);
+									tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tileShade, false); 
 							}
 						}
 					}
@@ -1024,7 +1103,8 @@ void Map::drawTerrain(Surface *surface)
 									frameNumber = 6; // red static crosshairs
 							}
 							tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
-							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+//							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y, 0);
 
 							// UFO extender accuracy: display adjusted accuracy value on crosshair in real-time.
 							if (_cursorType == CT_AIM && Options::battleUFOExtenderAccuracy)
@@ -1090,20 +1170,24 @@ void Map::drawTerrain(Surface *surface)
 								}
 								_txtAccuracy->setText(Unicode::formatPercentage(accuracy));
 								_txtAccuracy->draw();
-								_txtAccuracy->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+//								_txtAccuracy->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+								_txtAccuracy->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y, 0);
+
 							}
 						}
 						else if (_camera->getViewLevel() > itZ)
 						{
 							frameNumber = 5; // blue box
 							tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
-							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+//							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y, 0); 
 						}
 						if (_cursorType > 2 && _camera->getViewLevel() == itZ)
 						{
 							int frame[6] = {0, 0, 0, 11, 13, 15};
 							tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frame[_cursorType] + (_animFrame / 4));
-							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+//							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+							tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y, 0);
 						}
 					}
 
@@ -1119,13 +1203,15 @@ void Map::drawTerrain(Surface *surface)
 							if (waypXOff == 2 && waypYOff == 2)
 							{
 								tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(7);
-								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+//								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+								tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y, 0);
 							}
 							if (_save->getBattleGame()->getCurrentAction()->type == BA_LAUNCH)
 							{
 								_numWaypid->setValue(waypid);
 								_numWaypid->draw();
-								_numWaypid->blitNShade(surface, screenPosition.x + waypXOff, screenPosition.y + waypYOff, 0);
+//								_numWaypid->blitNShade(surface, screenPosition.x + waypXOff, screenPosition.y + waypYOff, 0);
+								_numWaypid->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x + waypXOff, screenPosition.y + waypYOff, 0);
 
 								waypXOff += waypid > 9 ? 8 : 6;
 								if (waypXOff >= 26)
@@ -1174,14 +1260,17 @@ void Map::drawTerrain(Surface *surface)
 								tmpSurface = _game->getMod()->getSurfaceSet("Pathfinding")->getFrame(23);
 								if (tmpSurface)
 								{
-									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y+2, 0, false, tile->getMarkerColor());
+//									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y+2, 0, false, tile->getMarkerColor());
+									tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y+2, 0, false, tile->getMarkerColor());
+
 								}
 							}
 							int overlay = tile->getPreview() + 12;
 							tmpSurface = _game->getMod()->getSurfaceSet("Pathfinding")->getFrame(overlay);
 							if (tmpSurface)
 							{
-								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - adjustment, 0, false, tile->getMarkerColor());
+//								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - adjustment, 0, false, tile->getMarkerColor());
+								tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x, screenPosition.y - adjustment, 0, false, tile->getMarkerColor());
 							}
 						}
 
@@ -1200,11 +1289,14 @@ void Map::drawTerrain(Surface *surface)
 							_numWaypid->draw();
 							if ( !(_previewSetting & PATH_ARROWS) )
 							{
-								_numWaypid->blitNShade(surface, screenPosition.x + 16 - off, screenPosition.y + (29-adjustment), 0, false, tile->getMarkerColor() );
+//								_numWaypid->blitNShade(surface, screenPosition.x + 16 - off, screenPosition.y + (29-adjustment), 0, false, tile->getMarkerColor() );
+								_numWaypid->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x + 16 - off, screenPosition.y + (29-adjustment), 0, false, tile->getMarkerColor() );
+
 							}
 							else
 							{
-								_numWaypid->blitNShade(surface, screenPosition.x + 16 - off, screenPosition.y + (22-adjustment), 0);
+//								_numWaypid->blitNShade( surface, screenPosition.x + 16 - off, screenPosition.y + (22-adjustment), 0);
+								_numWaypid->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x + 16 - off, screenPosition.y + (22-adjustment), 0);
 							}
 						}
 					}
@@ -1235,7 +1327,8 @@ void Map::drawTerrain(Surface *surface)
 		}
 		if (this->getCursorType() != CT_NONE)
 		{
-			_arrow->blitNShade(surface, screenPosition.x + offset.x + (_spriteWidth / 2) - (_arrow->getWidth() / 2), screenPosition.y + offset.y - _arrow->getHeight() + arrowBob[_animFrame], 0);
+//			_arrow->blitNShade(surface, screenPosition.x + offset.x + (_spriteWidth / 2) - (_arrow->getWidth() / 2), screenPosition.y + offset.y - _arrow->getHeight() + arrowBob[_animFrame], 0);
+			_arrow->blitNShadeSkybuck(_ShadingEngine, _camera, surface, screenPosition.x + offset.x + (_spriteWidth / 2) - (_arrow->getWidth() / 2), screenPosition.y + offset.y - _arrow->getHeight() + arrowBob[_animFrame], 0);
 		}
 	}
 	delete _numWaypid;
@@ -1265,18 +1358,21 @@ void Map::drawTerrain(Surface *surface)
 					if ((*i)->getCurrentFrame() >= 0)
 					{
 						tmpSurface = _game->getMod()->getSurfaceSet("X1.PCK")->getFrame((*i)->getCurrentFrame());
-						tmpSurface->blitNShade(surface, bulletPositionScreen.x - (tmpSurface->getWidth() / 2), bulletPositionScreen.y - (tmpSurface->getHeight() / 2), 0);
+//						tmpSurface->blitNShade(surface, bulletPositionScreen.x - (tmpSurface->getWidth() / 2), bulletPositionScreen.y - (tmpSurface->getHeight() / 2), 0);
+						tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, bulletPositionScreen.x - (tmpSurface->getWidth() / 2), bulletPositionScreen.y - (tmpSurface->getHeight() / 2), 0); 
 					}
 				}
 				else if ((*i)->isHit())
 				{
 					tmpSurface = _game->getMod()->getSurfaceSet("HIT.PCK")->getFrame((*i)->getCurrentFrame());
-					tmpSurface->blitNShade(surface, bulletPositionScreen.x - 15, bulletPositionScreen.y - 25, 0);
+//					tmpSurface->blitNShade(surface, bulletPositionScreen.x - 15, bulletPositionScreen.y - 25, 0);
+					tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, bulletPositionScreen.x - 15, bulletPositionScreen.y - 25, 0);
 				}
 				else
 				{
 					tmpSurface = _game->getMod()->getSurfaceSet("SMOKE.PCK")->getFrame((*i)->getCurrentFrame());
-					tmpSurface->blitNShade(surface, bulletPositionScreen.x - 15, bulletPositionScreen.y - 15, 0);
+//					tmpSurface->blitNShade(surface, bulletPositionScreen.x - 15, bulletPositionScreen.y - 15, 0);
+					tmpSurface->blitNShadeSkybuck(_ShadingEngine, _camera, surface, bulletPositionScreen.x - 15, bulletPositionScreen.y - 15, 0); 
 				}
 			}
 		}

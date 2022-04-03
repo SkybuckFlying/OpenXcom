@@ -999,7 +999,14 @@ void Surface::blitNShadeSkybuck(ShadingEngine *ParaShadingEngine, Camera *ParaCa
 		src.setDomain(g);
 	}
 
-	ShaderDrawSkybuck<ColorReplace>(ParaShadingEngine, ParaCamera, x, y, ShaderSurface(surface), src, ShaderScalar(off), ShaderScalar(newBaseColor));
+	if (newBaseColor)
+	{
+		--newBaseColor;
+		newBaseColor <<= 4;
+		ShaderDrawSkybuck<ColorReplace>(ParaShadingEngine, ParaCamera, x, y, ShaderSurface(surface), src, ShaderScalar(off), ShaderScalar(newBaseColor));
+	}
+	else
+		ShaderDrawSkybuck<StandardShade>(ParaShadingEngine, ParaCamera, x, y, ShaderSurface(surface), src, ShaderScalar(off));
 }
 
 /**
