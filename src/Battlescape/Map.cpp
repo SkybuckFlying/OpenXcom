@@ -482,10 +482,11 @@ void Map::drawUnit(Surface *surface, Tile *unitTile, Tile *currTile, Position cu
 int EatShitAndDie = 0;
 
 
-void FaggotShitDraw( Surface *Dst, int DstX, int DstY, Surface *Src)
+void DrawSprite( Surface *Dst, int DstX, int DstY, Surface *Src)
 {
 	int x, y;
 	Uint8 SourceColor;
+	int SpriteWidth, SpriteHeight;
 
 	/*
 	for (y=0; y<Dst->getHeight()-1; y++)
@@ -497,9 +498,12 @@ void FaggotShitDraw( Surface *Dst, int DstX, int DstY, Surface *Src)
 	}
 	*/
 
-	for (y=0; y<Src->getHeight()-1; y++)
+	SpriteWidth = Src->getWidth(); // 32
+	SpriteHeight = Src->getHeight(); // 40
+
+	for (y=0; y<SpriteHeight-1; y++)
 	{
-		for (x=0; x<Src->getWidth()-1; x++)
+		for (x=0; x<SpriteWidth-1; x++)
 		{
 			SourceColor = Src->getPixel(x,y);  
 			if
@@ -514,6 +518,209 @@ void FaggotShitDraw( Surface *Dst, int DstX, int DstY, Surface *Src)
 
 }
 
+void DrawLoft( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src)
+{
+	int x, y;
+	Position Here;
+	Uint8 VoxelColor;
+
+	for (y=0; y<16; y++) 
+	{
+		for (x=0; x<16; x++)
+		{
+			// for z try this later
+			Here.x = DstX + x;
+			Here.y = DstY + y;
+			Here.z = 0;
+			switch (Te->voxelCheck( Here, 0, false, false, 0 ))
+			{
+				case V_EMPTY:
+					VoxelColor = 25;
+					break;
+				case V_FLOOR:
+					VoxelColor = 50;
+					break;
+				case V_WESTWALL:
+					VoxelColor = 75;
+					break;
+				case V_NORTHWALL:
+					VoxelColor = 100;
+					break;
+				case V_OBJECT:
+					VoxelColor = 125;
+					break;
+				case V_UNIT:
+					VoxelColor = 150;
+					break;
+				case V_OUTOFBOUNDS:
+					VoxelColor = 175;
+					break;
+				default:
+					VoxelColor = 0;
+			}
+			Dst->setPixel( DstX + x, DstY + y, VoxelColor );					
+	
+		}
+	}
+}
+
+/*
+
+	// for z try this later
+	Here.x = DstX + x;
+	Here.y = DstY + y;
+	Here.z = 0;
+	switch (Te->voxelCheck( Here, 0, false, false, 0 ))
+	{
+		case V_EMPTY:
+					VoxelColor = 25;
+					break;
+				case V_FLOOR:
+					VoxelColor = 50;
+					break;
+				case V_WESTWALL:
+					VoxelColor = 75;
+					break;
+				case V_NORTHWALL:
+					VoxelColor = 100;
+					break;
+				case V_OBJECT:
+					VoxelColor = 125;
+					break;
+				case V_UNIT:
+					VoxelColor = 150;
+					break;
+				case V_OUTOFBOUNDS:
+					VoxelColor = 175;
+					break;
+				default:
+					VoxelColor = 0;
+			}
+			Dst->setPixel( DstX + x, DstY + y, VoxelColor );					
+	
+		}
+		*/
+
+
+// Skybuck:
+// pre-compute which loft voxel is visible for the sprite.
+// cause this will be too slow
+// the relation between sprite color/pixel and sprite voxel/loft needs to be determined, and can be pre-computed
+// to save computation time.
+// for now I try real-time.
+
+void ProcessSpriteVoxel( Surface *Dst, int DstX, int DstY, int VoxelX, int VoxelY, int VoxelZ, int SpriteX, int SpriteY, Uint8 TestColor )
+{
+	Uint8 VoxelColor;
+
+//	VoxelColor = SpriteX % 256;
+	Dst->setPixel( DstX + SpriteX, DstY + SpriteY, TestColor );	
+}
+
+void DrawVoxelDataInsteadOfSprite( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src)
+{
+	int x, y;
+	Position Here;
+	Uint8 VoxelColor;
+
+	int SpriteStartX, SpriteStartY;
+	int SpriteX;
+	float SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+	Uint8 TestColor;
+
+	float ComponentX, ComponentY;
+
+	SpriteStartX = 16; // tile width
+	SpriteStartY = 24; // tile depth
+
+	for (VoxelZ=0; VoxelZ < 24; VoxelZ++)
+	{
+		for (VoxelX=0; VoxelX < 16; VoxelX++)
+		{
+			for (VoxelY=0; VoxelY < 16; VoxelY++)
+			{
+
+				// TestColor = VoxelX + VoxelY + VoxelZ;
+
+				if
+				(
+					(
+						(VoxelX == 0) && (VoxelY == 0) 
+					)
+					||
+					(
+						(VoxelX == 0) && (VoxelY == 15) 
+					)
+					||
+					(
+						(VoxelX == 15) && (VoxelY == 0) 
+					)
+					||
+					(
+						(VoxelX == 15) && (VoxelY == 15) 
+					)
+					||
+
+					(
+						(VoxelZ == 0) && (VoxelY == 0) 
+					)
+					||
+					(
+						(VoxelZ == 0) && (VoxelY == 15) 
+					)
+					||
+					(
+						(VoxelZ == 23) && (VoxelY == 0) 
+					)
+					||
+					(
+						(VoxelZ == 23) && (VoxelY == 15) 
+					)
+					||
+
+					(
+						(VoxelZ == 0) && (VoxelX == 0) 
+					)
+					||
+					(
+						(VoxelZ == 0) && (VoxelX == 15) 
+					)
+					||
+					(
+						(VoxelZ == 23) && (VoxelX == 0) 
+					)
+					||
+					(
+						(VoxelZ == 23) && (VoxelX == 15) 
+					)
+				)
+				{
+					TestColor = 200;
+				}
+				else
+				{
+					TestColor = 0;
+
+				}
+
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+//				SpriteY = ((SpriteStartY + (VoxelX / 2)) + (VoxelY / 2)) - VoxelZ;
+
+				ComponentX = VoxelX / 2.0;
+				ComponentY = VoxelY / 2.0;
+
+				SpriteY = (SpriteStartY + (ComponentX + ComponentY)) - VoxelZ;
+
+				if (TestColor > 0)
+				{
+					ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, TestColor );
+				}
+			}
+		}
+	}
+}
 
 /**
  * Draw the terrain.
@@ -563,17 +770,17 @@ void Map::drawTerrain(Surface *surface)
 	EatShitAndDie++;
 
 
-	for (int itZ = beginZ; itZ <= endZ; itZ++)
+	for (int itZ = beginZ; itZ <= endZ; itZ = itZ + 1)
 	{
 		bool topLayer = itZ == endZ;
-		for (int itX = beginX; itX <= endX; itX++)
+		for (int itX = beginX; itX <= endX; itX = itX + 1)
 		{
-			for (int itY = beginY; itY <= endY; itY++)
+			for (int itY = beginY; itY <= endY; itY = itY + 1)
 			{
 				mapPosition = Position(itX, itY, itZ);
 				_camera->convertMapToScreen(mapPosition, &screenPosition);
 				screenPosition += _camera->getMapOffset();
-
+/*
 				// only render cells that are inside the surface
 				if
 				(
@@ -624,12 +831,11 @@ void Map::drawTerrain(Surface *surface)
 					}
 					unit = tile->getUnit();
 
-/*
 					// Draw cursor back
-					frameNumber = 2; // blue box
-					tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
-					tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
-*/
+//					frameNumber = 2; // blue box
+//					tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
+//					tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+
 
 					// special handling for a moving unit in background of tile.
 					const int backPosSize = 3;
@@ -732,6 +938,174 @@ void Map::drawTerrain(Surface *surface)
 //							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
 							FaggotShitDraw( surface, screenPosition.x, screenPosition.y, tmpSurface );
 					}
+
+
+				}
+*/
+
+				if
+				(
+					(screenPosition.x > -_spriteWidth) && (screenPosition.x < surface->getWidth() + _spriteWidth) &&
+					(screenPosition.y > -_spriteHeight) && (screenPosition.y < surface->getHeight() + _spriteHeight)
+				)
+				{
+					tile = _save->getTile(mapPosition);
+
+					if (!tile) continue;
+
+
+					if (tile->isDiscovered(2))
+					{
+						tileShade = tile->getShade();
+//						tileShade = double(7.5 + cos( (itX/30.0) * (3.14 * 2) )  * 7.5);
+//						tileShade = double(7.5 + cos( ((_animFrame+itX)/30.0) * (3.14 * 2) )  * 7.5);
+//						tileShade = double(7.5 + cos( ((EatShitAndDie+itX)/30.0) * (3.14 * 2) )  * 7.5); // cool UFO DISCO
+
+						obstacleShade = tileShade;
+						if (_showObstacles)
+						{
+							if (tile->isObstacle())
+							{
+								if (tileShade > 7) obstacleShade = 7;
+								if (tileShade < 2) obstacleShade = 2;
+								obstacleShade += (arrowBob[_animFrame] * 2 - 2);
+							}
+						}
+					}
+					else
+					{
+						tileShade = 16;
+						obstacleShade = 16;
+						unit = 0;
+					}
+
+					tileColor = tile->getMarkerColor();
+
+					// Draw floor
+					tmpSurface = tile->getSprite(O_FLOOR);
+					if (tmpSurface)
+					{
+						if (tile->getObstacle(O_FLOOR))
+							DrawSprite(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tmpSurface );
+						else
+							DrawSprite(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tmpSurface );
+					}
+					unit = tile->getUnit();
+
+/*
+					// Draw cursor back
+					frameNumber = 2; // blue box
+					tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
+					tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+*/
+
+/*
+					// special handling for a moving unit in background of tile.
+					const int backPosSize = 3;
+					Position backPos[backPosSize] =
+					{
+						Position(0, -1, 0),
+						Position(-1, -1, 0),
+						Position(-1, 0, 0),
+					};
+
+					for (int b = 0; b < backPosSize; ++b)
+					{
+						drawUnit(surface, _save->getTile(mapPosition + backPos[b]), tile, screenPosition, tileShade, obstacleShade, topLayer);
+					}
+*/
+					// Draw walls
+					if (!tile->isVoid())
+					{
+						// Draw west wall
+						tmpSurface = tile->getSprite(O_WESTWALL);
+						if (tmpSurface)
+						{
+							if ((tile->getMapData(O_WESTWALL)->isDoor() || tile->getMapData(O_WESTWALL)->isUFODoor())
+								 && tile->isDiscovered(0))
+								wallShade = tile->getShade();
+							else
+								wallShade = tileShade;
+							if (tile->getObstacle(O_WESTWALL))
+								DrawSprite(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), tmpSurface );
+							else
+								DrawSprite(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), tmpSurface );;
+						}
+						// Draw north wall
+						tmpSurface = tile->getSprite(O_NORTHWALL);
+						if (tmpSurface)
+						{
+							if ((tile->getMapData(O_NORTHWALL)->isDoor() || tile->getMapData(O_NORTHWALL)->isUFODoor())
+								 && tile->isDiscovered(1))
+								wallShade = tile->getShade();
+							else
+								wallShade = tileShade;
+							if (tile->getObstacle(O_NORTHWALL))
+								DrawSprite(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), tmpSurface );
+							else
+								DrawSprite(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), tmpSurface );
+						}
+
+
+						// Draw object
+						if (tile->getMapData(O_OBJECT) && (tile->getMapData(O_OBJECT)->getBigWall() < 6 || tile->getMapData(O_OBJECT)->getBigWall() == 9))
+						{
+							tmpSurface = tile->getSprite(O_OBJECT);
+							if (tmpSurface)
+							{
+								if (tile->getObstacle(O_OBJECT))
+									DrawSprite(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tmpSurface );
+								else
+									DrawSprite(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tmpSurface );
+							}
+						}
+						// draw an item on top of the floor (if any)
+						int sprite = tile->getTopItemSprite();
+						if (sprite != -1)
+						{
+							tmpSurface = _game->getMod()->getSurfaceSet("FLOOROB.PCK")->getFrame(sprite);
+							DrawSprite(surface, screenPosition.x, screenPosition.y + tile->getTerrainLevel(), tmpSurface );
+						}
+
+					}
+
+/*
+
+					unit = tile->getUnit();
+					// Draw soldier from this tile or below
+					drawUnit(surface, tile, tile, screenPosition, tileShade, obstacleShade, topLayer);
+*/
+
+/*
+					// special handling for a moving unit in forground of tile.
+					const int frontPosSize = 5;
+					Position frontPos[frontPosSize] =
+					{
+						Position(-1, +1, 0),
+						Position(0, +1, 0),
+						Position(+1, +1, 0),
+						Position(+1, 0, 0),
+						Position(+1, -1, 0),
+					};
+
+					for (int f = 0; f < frontPosSize; ++f)
+					{
+						drawUnit(surface, _save->getTile(mapPosition + frontPos[f]), tile, screenPosition, tileShade, obstacleShade, topLayer);
+					}
+
+*/
+
+
+/*
+					// Draw cursor front
+					{
+							frameNumber = 5; // blue box
+							tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
+//							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+							DrawSprite( surface, screenPosition.x, screenPosition.y, tmpSurface );
+					}
+*/
+					DrawVoxelDataInsteadOfSprite( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );  
 
 
 				}
