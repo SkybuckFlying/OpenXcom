@@ -458,12 +458,48 @@ void Camera::convertScreenToMap(int screenX, int screenY, int *mapX, int *mapY) 
  * @param mapPos X,Y,Z coordinates on the map.
  * @param screenPos Screen position.
  */
+/*
 void Camera::convertMapToScreen(Position mapPos, Position *screenPos) const
 {
 	screenPos->z = 0; // not used
 	screenPos->x = mapPos.x * (_spriteWidth / 2) - mapPos.y * (_spriteWidth / 2);
 	screenPos->y = mapPos.x * (_spriteWidth / 4) + mapPos.y * (_spriteWidth / 4) - mapPos.z * ((_spriteHeight + _spriteWidth / 4) / 2);
 }
+*/
+
+
+void Camera::convertMapToScreen(Position mapPos, Position *screenPos) const
+{
+	float MapX, MapY, MapZ;
+	float HalfSpriteWidth;
+	float OneFourthSpriteHeight;
+
+	float ComponentX1, ComponentX2;
+	float ComponentY1, ComponentY2, ComponentY3, ComponentY3Sub;
+
+	MapX = mapPos.x;
+	MapY = mapPos.y;
+	MapZ = mapPos.z;
+
+	HalfSpriteWidth = (_spriteWidth / 2.0);
+	OneFourthSpriteHeight = (_spriteWidth / 4.0);
+
+	screenPos->z = 0; // not used
+
+	ComponentX1 = MapX * HalfSpriteWidth;
+	ComponentX2 = MapY * HalfSpriteWidth;
+
+	screenPos->x = (ComponentX1 - ComponentX2);
+
+	ComponentY1 = MapX * OneFourthSpriteHeight;
+	ComponentY2 = MapY * OneFourthSpriteHeight;
+	ComponentY3Sub = _spriteHeight + OneFourthSpriteHeight;
+	ComponentY3 = MapZ * (ComponentY3Sub / 2.0);
+
+	screenPos->y = ((ComponentY1 + ComponentY2) - ComponentY3);
+}
+
+
 
 /**
  * Converts voxel coordinates X,Y,Z to screen positions X, Y.

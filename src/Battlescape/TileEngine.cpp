@@ -3308,7 +3308,13 @@ VoxelType TileEngine::voxelCheck(Position voxel, BattleUnit *excludeUnit, bool e
 		{
 			int x = 15 - voxel.x%16;
 			int y = voxel.y%16;
-			int idx = (mp->getLoftID((voxel.z%24)/2)*16) + y;
+			int idx =
+			(
+				mp->getLoftID
+				(
+					(voxel.z%24)/2
+				) * 16
+			) + y;
 			if (_voxelData->at(idx) & (1 << x))
 			{
 				return (VoxelType)i;

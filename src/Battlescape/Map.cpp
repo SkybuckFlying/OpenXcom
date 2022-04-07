@@ -722,6 +722,1710 @@ void DrawVoxelDataInsteadOfSprite( TileEngine *Te, Surface *Dst, int DstX, int D
 	}
 }
 
+VoxelType WhoreOfAVoxelCheck(TileEngine *Te, Position voxel, Tile *tile )
+{
+	// first we check terrain voxel data, not to allow 2x2 units stick through walls
+	for (int i = V_FLOOR; i <= V_OBJECT; ++i)
+	{
+		TilePart tp = (TilePart)i;
+		MapData *mp = tile->getMapData(tp);
+
+//		if (((tp == O_WESTWALL) || (tp == O_NORTHWALL)) && tile->isUfoDoorOpen(tp))
+//			continue;
+		if (mp != 0)
+		{
+			int x = 15 - (voxel.x%16);
+			int y = voxel.y%16;
+			int idx =
+			(
+				mp->getLoftID
+				(
+					(voxel.z%24)/2
+				) * 16
+			) + y;
+			if (Te->_voxelData->at(idx) & (1 << x))
+			{
+				return (VoxelType)i;
+			}
+		}
+	}
+
+	return V_EMPTY;
+}
+
+
+void DrawLoftInsteadOfSprite( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src )
+{
+/*
+	static const int VoxelXtoSpriteX[16] =
+	{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+
+	static const int VoxelXtoSpriteY[16] =
+	{0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+
+	static const int VoxelYtoSpriteX[16] =
+	{0,-1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15};
+
+	static const int VoxelYtoSpriteY[16] =
+	{0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+*/
+
+	bool Computed[40 * 32];
+
+	int x, y;
+	Uint8 VoxelColor;
+	Uint8 FinalColor;
+
+	int SpriteStartX, SpriteStartY;
+	int SpriteX;
+	float SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+	Uint8 TestColor;
+
+//	double ComponentX, ComponentY;
+	float ComponentX, ComponentY;
+	int Component;
+
+	Position VoxelPosition;
+	VoxelType VoxelCheckResult;
+
+	int vIndex;
+
+	for ( vIndex = 0; vIndex < (40*32); vIndex++ )
+	{
+		Computed[vIndex] = false;
+	}
+
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	Te->voxelCheckFlush();
+
+//	for (VoxelZ=0; VoxelZ < 24; VoxelZ++)
+//		for (VoxelY=0; VoxelY < 16; VoxelY++)
+//			for (VoxelX=0; VoxelX < 16; VoxelX++)
+
+
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+//		VoxelY = 0;
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+//			VoxelX = 0;
+			{
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+
+//				SpriteX = (SpriteStartX - VoxelY) + (1+VoxelX);
+//				SpriteY = ((SpriteStartY + (VoxelX / 2)) + (VoxelY / 2)) - VoxelZ;
+
+//				ComponentX = VoxelX / 2;
+//				ComponentY = VoxelY / 2;
+
+//				SpriteY = (SpriteStartY + (ComponentX  + ComponentY)) - VoxelZ;
+
+				Component = VoxelX + VoxelY;
+				Component = Component >> 1;
+
+				SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+//				SpriteX = SpriteStartX + VoxelXtoSpriteX[VoxelX] + VoxelYtoSpriteX[VoxelY];
+//				SpriteY = SpriteStartY + VoxelXtoSpriteY[VoxelX] + VoxelXtoSpriteY[VoxelY] - VoxelZ;
+
+
+				vIndex = (SpriteY * 32) + SpriteX;
+
+				if (!Computed[vIndex])
+				{
+					VoxelPosition.x = VoxelX;
+					VoxelPosition.y = VoxelY;
+					VoxelPosition.z = VoxelZ;
+
+					VoxelCheckResult = WhoreOfAVoxelCheck( Te, VoxelPosition, Src );
+
+					FinalColor = 0;
+
+					/*
+					VoxelColor = 225;
+
+					switch(VoxelCheckResult)
+					{
+						case V_EMPTY:
+							VoxelColor = 0;
+							break;
+						case V_FLOOR:
+							VoxelColor = 50;
+							break;
+						case V_WESTWALL:
+							VoxelColor = 75;
+							break;
+						case V_NORTHWALL:
+							VoxelColor = 100;
+							break;
+						case V_OBJECT:
+							VoxelColor = 125;
+							break;
+						case V_UNIT:
+							VoxelColor = 150;
+							break;
+						case V_OUTOFBOUNDS:
+							VoxelColor = 175;
+							break;
+						default:
+							VoxelColor = 200;
+					}
+					*/
+
+					if (VoxelCheckResult != V_EMPTY)
+					{
+						FinalColor = 16 + (VoxelZ % 24);
+					}
+
+					if (FinalColor > 0)
+					{
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+						Computed[vIndex] = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+
+// why is this fucked.
+void DrawLoftInsteadOfSpriteFuckMeBaby( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src )
+{
+	bool Computed[40 * 32];
+
+	int x, y;
+	Uint8 VoxelColor;
+	Uint8 FinalColor;
+
+	int SpriteStartX, SpriteStartY;
+	int SpriteX;
+	float SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+	Uint8 TestColor;
+
+	float ComponentX, ComponentY;
+	int Component;
+
+	Position VoxelPosition;
+	VoxelType VoxelCheckResult;
+
+	int vIndex;
+
+	for ( vIndex = 0; vIndex < (40*16); vIndex++ )
+	{
+		Computed[vIndex] = false;
+	}
+
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	Te->voxelCheckFlush();
+
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+//		VoxelY = 0;
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+//			VoxelX = 0;
+			{
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+				Component = VoxelX + VoxelY;
+				Component = Component >> 1;
+
+				SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+				if (SpriteX <= 14)
+				{
+
+					vIndex = (SpriteY * 32) + SpriteX;
+
+					if (!Computed[vIndex])
+					{
+						FinalColor = 116 + (VoxelZ % 24);
+
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+						Computed[vIndex] = true;
+					}
+				}
+				else
+				if (SpriteX == 15)
+				{
+					vIndex = (SpriteY * 32) + SpriteX;
+					if (!Computed[vIndex])
+					{
+						FinalColor = 116 + (VoxelZ % 24);
+
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+						Computed[vIndex] = true;
+					}
+
+					SpriteX = 16;
+					vIndex = (SpriteY * 32) + SpriteX;
+					if (!Computed[vIndex])
+					{
+						FinalColor = 116 + (VoxelZ % 24);
+
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+						Computed[vIndex] = true;
+					}
+				}
+				else
+				if (SpriteX >= 16)
+				{
+					SpriteX = SpriteX + 1;
+
+					vIndex = (SpriteY * 32) + SpriteX;
+					if (!Computed[vIndex])
+					{
+						FinalColor = 116 + (VoxelZ % 24);
+
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+						Computed[vIndex] = true;
+					}
+
+				}
+			}
+		}
+	}
+}
+
+
+
+
+
+
+void DrawCombinedSurfaceAndLoft( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src )
+{
+/*
+	static const int VoxelXtoSpriteX[16] =
+	{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+
+	static const int VoxelXtoSpriteY[16] =
+	{0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+
+	static const int VoxelYtoSpriteX[16] =
+	{0,-1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15};
+
+	static const int VoxelYtoSpriteY[16] =
+	{0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+*/
+
+	bool Computed[40 * 32];
+
+	int x, y;
+	Uint8 VoxelColor;
+	Uint8 FinalColor;
+
+	int SpriteStartX, SpriteStartY;
+	int SpriteX;
+	float SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+	Uint8 TestColor;
+
+//	double ComponentX, ComponentY;
+	float ComponentX, ComponentY;
+	int Component;
+
+	Position VoxelPosition;
+	VoxelType VoxelCheckResult;
+
+	int vIndex;
+
+	for ( vIndex = 0; vIndex < (40*32); vIndex++ )
+	{
+		Computed[vIndex] = false;
+	}
+
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	Te->voxelCheckFlush();
+
+//	for (VoxelZ=0; VoxelZ < 24; VoxelZ++)
+//		for (VoxelY=0; VoxelY < 16; VoxelY++)
+//			for (VoxelX=0; VoxelX < 16; VoxelX++)
+
+
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+//		VoxelY = 0;
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+//			VoxelX = 0;
+			{
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+
+//				SpriteX = (SpriteStartX - VoxelY) + (1+VoxelX);
+//				SpriteY = ((SpriteStartY + (VoxelX / 2)) + (VoxelY / 2)) - VoxelZ;
+
+//				ComponentX = VoxelX / 2;
+//				ComponentY = VoxelY / 2;
+
+//				SpriteY = (SpriteStartY + (ComponentX  + ComponentY)) - VoxelZ;
+
+				Component = VoxelX + VoxelY;
+				Component = Component >> 1;
+
+				SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+//				SpriteX = SpriteStartX + VoxelXtoSpriteX[VoxelX] + VoxelYtoSpriteX[VoxelY];
+//				SpriteY = SpriteStartY + VoxelXtoSpriteY[VoxelX] + VoxelXtoSpriteY[VoxelY] - VoxelZ;
+
+
+				vIndex = (SpriteY * 32) + SpriteX;
+
+				if (!Computed[vIndex])
+				{
+					VoxelPosition.x = VoxelX;
+					VoxelPosition.y = VoxelY;
+					VoxelPosition.z = VoxelZ;
+
+					VoxelCheckResult = WhoreOfAVoxelCheck( Te, VoxelPosition, Src );
+
+					FinalColor = 0;
+
+					/*
+					VoxelColor = 225;
+
+					switch(VoxelCheckResult)
+					{
+						case V_EMPTY:
+							VoxelColor = 0;
+							break;
+						case V_FLOOR:
+							VoxelColor = 50;
+							break;
+						case V_WESTWALL:
+							VoxelColor = 75;
+							break;
+						case V_NORTHWALL:
+							VoxelColor = 100;
+							break;
+						case V_OBJECT:
+							VoxelColor = 125;
+							break;
+						case V_UNIT:
+							VoxelColor = 150;
+							break;
+						case V_OUTOFBOUNDS:
+							VoxelColor = 175;
+							break;
+						default:
+							VoxelColor = 200;
+					}
+					*/
+
+					if (VoxelCheckResult != V_EMPTY)
+					{
+						FinalColor = (Dst->getPixel( DstX + SpriteX, DstY + SpriteY ) + (VoxelZ % 24))%256;
+					}
+
+					if (FinalColor > 0)
+					{
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+						Computed[vIndex] = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+// macros for fast voxel traversal algoritm in code below
+// original macros disabled, to not be reliant on macro language ! ;)
+// #define SIGN(x) (x > 0 ? 1 : (x < 0 ? -1 : 0))
+// #define FRAC0(x) (x - floorf(x))
+// #define FRAC1(x) (1 - x + floorf(x))
+
+// note: the floating point type below in these helper functions should match the floating point type in calculateLine
+//       for maximum accuracy and correctness, otherwise problems will occur !
+float NoShitSignSingle( float x )
+{
+	return (x > 0 ? 1 : (x < 0 ? -1 : 0));
+}
+
+float NoShitFrac0Single( float x )
+{
+	return (x - floorf(x));
+}
+
+float NoShitFrac1Single( float x )
+{
+	return (1 - x + floorf(x));
+}
+
+float NoShitMaxSingle(float A, float B)
+{
+	if (A > B) return A; else return B;
+}
+
+float NoShitMinSingle(float A, float B)
+{
+	if (A < B) return A; else return B;
+}
+
+bool NoShitPointInBoxSingle
+(
+	float X, float Y, float Z,
+	float BoxX1, float BoxY1, float BoxZ1,
+	float BoxX2, float BoxY2, float BoxZ2
+)
+{
+	float MinX, MinY, MinZ;
+	float MaxX, MaxY, MaxZ;
+
+	bool result = false;
+
+	if (BoxX1 < BoxX2)
+	{
+		MinX = BoxX1;
+		MaxX = BoxX2;
+	} else
+	{
+		MinX = BoxX2;
+		MaxX = BoxX1;
+	}
+
+	if (BoxY1 < BoxY2)
+	{
+		MinY = BoxY1;
+		MaxY = BoxY2;
+	} else
+	{
+		MinY = BoxY2;
+		MaxY = BoxY1;
+	}
+
+	if (BoxZ1 < BoxZ2)
+	{
+		MinZ = BoxZ1;
+		MaxZ = BoxZ2;
+	} else
+	{
+		MinZ = BoxZ2;
+		MaxZ = BoxZ1;
+	}
+
+	if
+	(
+		(X >= MinX) && (Y >= MinY) && (Z >= MinZ) &&
+		(X <= MaxX) && (Y <= MaxY) && (Z <= MaxZ)
+	)
+	{
+		result = true;
+	}
+	return result;
+}
+
+bool NoShitLineSegmentIntersectsBoxSingle
+(
+	float LineX1, float LineY1, float LineZ1,
+	float LineX2, float LineY2, float LineZ2,
+
+	float BoxX1, float BoxY1, float BoxZ1,
+	float BoxX2, float BoxY2, float BoxZ2,
+
+	// nearest to line origin, doesn't necessarily mean closes to box...
+	bool *MinIntersectionPoint,
+	float *MinIntersectionPointX, float *MinIntersectionPointY, float *MinIntersectionPointZ,
+
+	// farthest to line origin, doesn't necessarily mean farthest from box...
+	bool *MaxIntersectionPoint,
+	float *MaxIntersectionPointX, float *MaxIntersectionPointY, float *MaxIntersectionPointZ
+)
+{
+	float LineDeltaX;
+	float LineDeltaY;
+	float LineDeltaZ;
+
+	float LineDistanceToBoxX1;
+	float LineDistanceToBoxX2;
+
+	float LineDistanceToBoxY1;
+	float LineDistanceToBoxY2;
+
+	float LineDistanceToBoxZ1;
+	float LineDistanceToBoxZ2;
+
+	float LineMinDistanceToBoxX;
+	float LineMaxDistanceToBoxX;
+
+	float LineMinDistanceToBoxY;
+	float LineMaxDistanceToBoxY;
+
+	float LineMinDistanceToBoxZ;
+	float LineMaxDistanceToBoxZ;
+
+	float LineMaxMinDistanceToBox;
+	float LineMinMaxDistanceToBox;
+
+	float LineMinDistanceToBox;
+	float LineMaxDistanceToBox;
+
+	bool result = false;
+	*MinIntersectionPoint = false;
+	*MaxIntersectionPoint = false;
+
+	LineDeltaX = LineX2 - LineX1;
+	LineDeltaY = LineY2 - LineY1;
+	LineDeltaZ = LineZ2 - LineZ1;
+
+	// T (distance along line) calculations which will be used to figure out Tmins and Tmaxs:
+	// t = (LocationX - x0) / (DeltaX)
+	if (LineDeltaX != 0)
+	{
+		LineDistanceToBoxX1 = (BoxX1 - LineX1) / LineDeltaX;
+		LineDistanceToBoxX2 = (BoxX2 - LineX1) / LineDeltaX;
+	} else
+	{
+		LineDistanceToBoxX1 = (BoxX1 - LineX1);
+		LineDistanceToBoxX2 = (BoxX2 - LineX1);
+	}
+
+	// now we take the minimum's and maximum's
+	if (LineDistanceToBoxX1 < LineDistanceToBoxX2)
+	{
+		LineMinDistanceToBoxX = LineDistanceToBoxX1;
+		LineMaxDistanceToBoxX = LineDistanceToBoxX2;
+	} else
+	{
+		LineMinDistanceToBoxX = LineDistanceToBoxX2;
+		LineMaxDistanceToBoxX = LineDistanceToBoxX1;
+	}
+
+	if (LineDeltaY != 0)
+	{
+		LineDistanceToBoxY1 = (BoxY1 - LineY1) / LineDeltaY;
+		LineDistanceToBoxY2 = (BoxY2 - LineY1) / LineDeltaY;
+	} else
+	{
+		LineDistanceToBoxY1 = BoxY1 - LineY1;
+		LineDistanceToBoxY2 = BoxY2 - LineY1;
+	}
+
+	if (LineDistanceToBoxY1 < LineDistanceToBoxY2)
+	{
+		LineMinDistanceToBoxY = LineDistanceToBoxY1;
+		LineMaxDistanceToBoxY = LineDistanceToBoxY2;
+	} else
+	{
+		LineMinDistanceToBoxY = LineDistanceToBoxY2;
+		LineMaxDistanceToBoxY = LineDistanceToBoxY1;
+	}
+
+	if (LineDeltaZ != 0)
+	{
+		LineDistanceToBoxZ1 = (BoxZ1 - LineZ1) / LineDeltaZ;
+		LineDistanceToBoxZ2 = (BoxZ2 - LineZ1) / LineDeltaZ;
+	} else
+	{
+		LineDistanceToBoxZ1 = (BoxZ1 - LineZ1);
+		LineDistanceToBoxZ2 = (BoxZ2 - LineZ1);
+	}
+
+	if (LineDistanceToBoxZ1 < LineDistanceToBoxZ2)
+	{
+		LineMinDistanceToBoxZ = LineDistanceToBoxZ1;
+		LineMaxDistanceToBoxZ = LineDistanceToBoxZ2;
+	} else
+	{
+		LineMinDistanceToBoxZ = LineDistanceToBoxZ2;
+		LineMaxDistanceToBoxZ = LineDistanceToBoxZ1;
+	}
+
+	// these 6 distances all represent distances on a line.
+	// we want to clip this line to the box.
+	// so the } points of the line which are outside the box need to be clipped.
+	// so we clipping the line to the box.
+	// this means we are interested in the most minimum minimum
+	// and the most maximum, maximum.
+	// these min's and max's represent the outer intersections.
+	// if for whatever reason the minimum is larger than the maximum
+	// then the line misses the box ! ;)
+	// nooooooooooooooooooooooooooooooooo
+	// we want the maximum of the minimums
+	// and we want the minimum of the maximums
+	// that should give us the bounding intersections ! ;)
+
+
+	// find the maximum minimum
+	LineMaxMinDistanceToBox = LineMinDistanceToBoxX;
+
+	if (LineMinDistanceToBoxY > LineMaxMinDistanceToBox)
+	{
+		LineMaxMinDistanceToBox = LineMinDistanceToBoxY;
+	}
+
+	if (LineMinDistanceToBoxZ > LineMaxMinDistanceToBox)
+	{
+		LineMaxMinDistanceToBox = LineMinDistanceToBoxZ;
+	}
+
+	// find the minimum maximum
+	LineMinMaxDistanceToBox = LineMaxDistanceToBoxX;
+
+	if (LineMaxDistanceToBoxY < LineMinMaxDistanceToBox)
+	{
+		LineMinMaxDistanceToBox = LineMaxDistanceToBoxY;
+	}
+
+	if (LineMaxDistanceToBoxZ < LineMinMaxDistanceToBox)
+	{
+		LineMinMaxDistanceToBox = LineMaxDistanceToBoxZ;
+	}
+
+	// these two points are now the minimum and maximum distance to box
+	LineMinDistanceToBox = LineMaxMinDistanceToBox;
+	LineMaxDistanceToBox = LineMinMaxDistanceToBox;
+
+	// now check if the max distance is smaller than the minimum distance
+	// if so then the line segment does not intersect the box.
+	if (LineMaxDistanceToBox < LineMinDistanceToBox)
+	{
+		return result;
+	}
+
+	// if distances are within the line then there is an intersection
+	if ( (LineMinDistanceToBox > 0) && (LineMinDistanceToBox < 1) )
+	{
+		// else the min and max are the intersection points so calculate
+		// those using the parametric equation and return true.
+		// x = x0 + t(x1 - x0)
+		// y = y0 + t(y1 - y0)
+		// z = z0 + t(z1 - z0)
+
+		*MinIntersectionPoint = true;
+		*MinIntersectionPointX = LineX1 + LineMinDistanceToBox * LineDeltaX;
+		*MinIntersectionPointY = LineY1 + LineMinDistanceToBox * LineDeltaY;
+		*MinIntersectionPointZ = LineZ1 + LineMinDistanceToBox * LineDeltaZ;
+
+		result = true;
+	}
+
+	if ( (LineMaxDistanceToBox > 0) && (LineMaxDistanceToBox < 1) )
+	{
+		*MaxIntersectionPoint = true;
+		*MaxIntersectionPointX = LineX1 + LineMaxDistanceToBox * LineDeltaX;
+		*MaxIntersectionPointY = LineY1 + LineMaxDistanceToBox * LineDeltaY;
+		*MaxIntersectionPointZ = LineZ1 + LineMaxDistanceToBox * LineDeltaZ;
+
+		result = true;
+	}
+
+	return result;
+}
+
+int TraverseSecondHit
+(
+	SavedBattleGame *ParaSave,
+	TileEngine *Te,
+	Tile *Src, 
+	float StartX, float StartY, float StartZ,
+	float StopX, float StopY, float StopZ
+)
+{
+	int result;
+	float x1, y1, z1; // start point
+	float x2, y2, z2; // end point
+
+	float tMaxX, tMaxY, tMaxZ, t, tDeltaX, tDeltaY, tDeltaZ;
+
+	int VoxelX, VoxelY, VoxelZ;
+
+	int OutX, OutY, OutZ;
+
+	bool IntersectionPoint1;
+	bool IntersectionPoint2;
+
+	float IntersectionPointX1, IntersectionPointY1, IntersectionPointZ1;
+	float IntersectionPointX2, IntersectionPointY2, IntersectionPointZ2;
+
+	float TraverseX1, TraverseY1, TraverseZ1;
+	float TraverseX2, TraverseY2, TraverseZ2;
+
+	float Epsilon;
+
+	VoxelType VoxelCheckResult;
+
+	//	Epsilon := 0.001;
+	Epsilon = 0.1;
+
+	float TileWidth = 16.0;
+	float TileHeight = 16.0;
+	float TileDepth = 24.0;
+
+	// calculate max voxel position
+	int vMapVoxelBoundaryMinX = 0;
+	int vMapVoxelBoundaryMinY = 0;
+	int vMapVoxelBoundaryMinZ = 0;
+
+	int vLastMapTileX = (ParaSave->getMapSizeX()-1);
+	int vLastMapTileY = (ParaSave->getMapSizeY()-1);
+	int vLastMapTileZ = (ParaSave->getMapSizeZ()-1);
+
+	int vLastTileVoxelX = TileWidth-1;
+	int vLastTileVoxelY = TileHeight-1;
+	int vLastTileVoxelZ = TileDepth-1;
+
+	int vMapVoxelBoundaryMaxX = (vLastMapTileX*TileWidth) + vLastTileVoxelX;
+	int vMapVoxelBoundaryMaxY = (vLastMapTileY*TileHeight) + vLastTileVoxelY;
+	int vMapVoxelBoundaryMaxZ = (vLastMapTileZ*TileDepth) + vLastTileVoxelZ;
+
+	int TileVoxelX, TileVoxelY, TileVoxelZ;
+
+	//start and end points
+	x1 = StartX;	 x2 = StopX;
+	y1 = StartY;	 y2 = StopY;
+	z1 = StartZ;	 z2 = StopZ;
+
+	{
+		// check if both points are in grid
+		if
+		(
+			NoShitPointInBoxSingle
+			(
+				x1, y1, z1,
+
+				vMapVoxelBoundaryMinX,
+				vMapVoxelBoundaryMinY,
+				vMapVoxelBoundaryMinZ,
+
+				vMapVoxelBoundaryMaxX-Epsilon,
+				vMapVoxelBoundaryMaxY-Epsilon,
+				vMapVoxelBoundaryMaxZ-Epsilon
+			)
+			&&
+			NoShitPointInBoxSingle
+			(
+				x2, y2, z2,
+
+				vMapVoxelBoundaryMinX,
+				vMapVoxelBoundaryMinY,
+				vMapVoxelBoundaryMinZ,
+
+				vMapVoxelBoundaryMaxX-Epsilon,
+				vMapVoxelBoundaryMaxY-Epsilon,
+				vMapVoxelBoundaryMaxZ-Epsilon
+			)
+		)
+		{
+			// just fall through to next code below
+			// traverse
+		}
+		else
+		// check if line intersects box
+		if
+		(
+			NoShitLineSegmentIntersectsBoxSingle
+			(
+				x1,y1,z1,
+				x2,y2,z2,
+
+				vMapVoxelBoundaryMinX,
+				vMapVoxelBoundaryMinY,
+				vMapVoxelBoundaryMinZ,
+
+				vMapVoxelBoundaryMaxX-Epsilon,
+				vMapVoxelBoundaryMaxY-Epsilon,
+				vMapVoxelBoundaryMaxZ-Epsilon,
+
+				&IntersectionPoint1,
+				&IntersectionPointX1,
+				&IntersectionPointY1,
+				&IntersectionPointZ1,
+
+				&IntersectionPoint2,
+				&IntersectionPointX2,
+				&IntersectionPointY2,
+				&IntersectionPointZ2
+			) == true
+		)
+		{
+			if (IntersectionPoint1 == true)
+			{
+				TraverseX1 = IntersectionPointX1;
+				TraverseY1 = IntersectionPointY1;
+				TraverseZ1 = IntersectionPointZ1;
+			}
+			else
+			{
+				TraverseX1 = x1;
+				TraverseY1 = y1;
+				TraverseZ1 = z1;
+			}
+
+			// compensate for any floating point errors (inaccuracies)
+			TraverseX1 = NoShitMaxSingle( TraverseX1, vMapVoxelBoundaryMinX );
+			TraverseY1 = NoShitMaxSingle( TraverseY1, vMapVoxelBoundaryMinY );
+			TraverseZ1 = NoShitMaxSingle( TraverseZ1, vMapVoxelBoundaryMinZ );
+
+			TraverseX1 = NoShitMinSingle( TraverseX1, vMapVoxelBoundaryMaxX-Epsilon );
+			TraverseY1 = NoShitMinSingle( TraverseY1, vMapVoxelBoundaryMaxY-Epsilon );
+			TraverseZ1 = NoShitMinSingle( TraverseZ1, vMapVoxelBoundaryMaxZ-Epsilon );
+
+			if (IntersectionPoint2 == true)
+			{
+				TraverseX2 = IntersectionPointX2;
+				TraverseY2 = IntersectionPointY2;
+				TraverseZ2 = IntersectionPointZ2;
+			}
+			else
+			{
+				TraverseX2 = x2;
+				TraverseY2 = y2;
+				TraverseZ2 = z2;
+			}
+
+			// compensate for any floating point errors (inaccuracies)
+			TraverseX2 = NoShitMaxSingle( TraverseX2, vMapVoxelBoundaryMinX );
+			TraverseY2 = NoShitMaxSingle( TraverseY2, vMapVoxelBoundaryMinY );
+			TraverseZ2 = NoShitMaxSingle( TraverseZ2, vMapVoxelBoundaryMinZ );
+
+			TraverseX2 = NoShitMinSingle( TraverseX2, vMapVoxelBoundaryMaxX-Epsilon );
+			TraverseY2 = NoShitMinSingle( TraverseY2, vMapVoxelBoundaryMaxY-Epsilon );
+			TraverseZ2 = NoShitMinSingle( TraverseZ2, vMapVoxelBoundaryMaxZ-Epsilon );
+
+			{
+				// just fall through below
+				// traverse
+				x1 = TraverseX1; 
+				y1 = TraverseY1;
+				z1 = TraverseZ1; 
+
+				x2 = TraverseX2; 
+				y2 = TraverseY2;
+				z2 = TraverseZ2; 
+			}
+		}
+	}
+
+	// traverse code, fast voxel traversal algorithm
+	int dx = NoShitSignSingle(x2 - x1);
+	if (dx != 0) tDeltaX = fmin(dx / (x2 - x1), 10000000.0f); else tDeltaX = 10000000.0f;
+	if (dx > 0) tMaxX = tDeltaX * NoShitFrac1Single(x1); else tMaxX = tDeltaX * NoShitFrac0Single(x1);
+	VoxelX = (int) x1;
+
+	int dy = NoShitSignSingle(y2 - y1);
+	if (dy != 0) tDeltaY = fmin(dy / (y2 - y1), 10000000.0f); else tDeltaY = 10000000.0f;
+	if (dy > 0) tMaxY = tDeltaY * NoShitFrac1Single(y1); else tMaxY = tDeltaY * NoShitFrac0Single(y1);
+	VoxelY = (int) y1;
+
+	int dz = NoShitSignSingle(z2 - z1);
+	if (dz != 0) tDeltaZ = fmin(dz / (z2 - z1), 10000000.0f); else tDeltaZ = 10000000.0f;
+	if (dz > 0) tMaxZ = tDeltaZ * NoShitFrac1Single(z1); else tMaxZ = tDeltaZ * NoShitFrac0Single(z1);
+	VoxelZ = (int) z1;
+
+	if (dx > 0) OutX = vMapVoxelBoundaryMaxX+1; else OutX = -1;
+	if (dy > 0) OutY = vMapVoxelBoundaryMaxY+1; else OutY = -1;
+	if (dz > 0) OutZ = vMapVoxelBoundaryMaxZ+1; else OutZ = -1;
+
+	bool Hits = 0;
+	t = 0;
+	while (t <= 1.0)
+	{
+		// process voxel
+		int TileX = VoxelX / 16;
+		int TileY = VoxelY / 16;
+		int TileZ = VoxelZ / 24;
+
+		Tile *CheckTile = ParaSave->getTile(Position(TileX,TileY,TileZ));
+
+		TileVoxelX = VoxelX % 16;
+		TileVoxelY = VoxelY % 16;
+		TileVoxelZ = VoxelZ % 24;
+
+		VoxelCheckResult = WhoreOfAVoxelCheck( Te, Position(TileVoxelX,TileVoxelY,TileVoxelZ), CheckTile );
+
+		if (VoxelCheckResult != V_EMPTY)
+		{
+			Hits = Hits + 1;
+		}
+
+		// go to next voxel
+		if ( (tMaxX < tMaxY) && (tMaxX < tMaxZ) )
+		{
+			t = tMaxX;
+			VoxelX += dx;
+			tMaxX += tDeltaX;
+
+			if (VoxelX == OutX) break;
+		}
+		else
+		if (tMaxY < tMaxZ)
+		{
+			t = tMaxY;
+			VoxelY += dy;
+			tMaxY += tDeltaY;
+
+			if (VoxelY == OutY) break;
+		}
+		else
+		{
+			t = tMaxZ;
+			VoxelZ += dz;
+			tMaxZ += tDeltaZ;
+
+			if (VoxelZ == OutZ) break;
+		}
+	}
+
+	return Hits;
+}
+
+
+bool VoxelTraverseHit
+(
+	SavedBattleGame *ParaSave,
+
+	float StartX, float StartY, float StartZ,
+	float StopX, float StopY, float StopZ,
+
+	int CollisionTileX, int CollisionTileY, int CollisionTileZ,
+	int *CollisionVoxelX, int *CollisionVoxelY, int *CollisionVoxelZ
+)
+{
+	int result;
+	float x1, y1, z1; // start point
+	float x2, y2, z2; // end point
+
+	float tMaxX, tMaxY, tMaxZ, t, tDeltaX, tDeltaY, tDeltaZ;
+
+	int VoxelX, VoxelY, VoxelZ;
+
+	int OutX, OutY, OutZ;
+
+	bool IntersectionPoint1;
+	bool IntersectionPoint2;
+
+	float IntersectionPointX1, IntersectionPointY1, IntersectionPointZ1;
+	float IntersectionPointX2, IntersectionPointY2, IntersectionPointZ2;
+
+	float TraverseX1, TraverseY1, TraverseZ1;
+	float TraverseX2, TraverseY2, TraverseZ2;
+
+	float Epsilon;
+
+	VoxelType VoxelCheckResult;
+
+	//	Epsilon := 0.001;
+	Epsilon = 0.1;
+
+	float TileWidth = 16.0;
+	float TileHeight = 16.0;
+	float TileDepth = 24.0;
+
+	// calculate max voxel position
+	int vFirstMapTileX = CollisionTileX;
+	int vFirstMapTileY = CollisionTileY;
+	int vFirstMapTileZ = CollisionTileZ;
+
+	int vMapVoxelBoundaryMinX = vFirstMapTileX * TileWidth;
+	int vMapVoxelBoundaryMinY = vFirstMapTileY * TileHeight;
+	int vMapVoxelBoundaryMinZ = vFirstMapTileZ * TileDepth;
+
+	int vLastMapTileX = CollisionTileX;
+	int vLastMapTileY = CollisionTileY;
+	int vLastMapTileZ = CollisionTileZ;
+
+	int vLastTileVoxelX = TileWidth-1;
+	int vLastTileVoxelY = TileHeight-1;
+	int vLastTileVoxelZ = TileDepth-1;
+
+	int vMapVoxelBoundaryMaxX = (vLastMapTileX*TileWidth) + vLastTileVoxelX;
+	int vMapVoxelBoundaryMaxY = (vLastMapTileY*TileHeight) + vLastTileVoxelY;
+	int vMapVoxelBoundaryMaxZ = (vLastMapTileZ*TileDepth) + vLastTileVoxelZ;
+
+	int TileVoxelX, TileVoxelY, TileVoxelZ;
+
+	//start and end points
+	x1 = StartX;	 x2 = StopX;
+	y1 = StartY;	 y2 = StopY;
+	z1 = StartZ;	 z2 = StopZ;
+
+	{
+		// check if both points are in grid
+		if
+		(
+			NoShitPointInBoxSingle
+			(
+				x1, y1, z1,
+
+				vMapVoxelBoundaryMinX,
+				vMapVoxelBoundaryMinY,
+				vMapVoxelBoundaryMinZ,
+
+				vMapVoxelBoundaryMaxX-Epsilon,
+				vMapVoxelBoundaryMaxY-Epsilon,
+				vMapVoxelBoundaryMaxZ-Epsilon
+			)
+			&&
+			NoShitPointInBoxSingle
+			(
+				x2, y2, z2,
+
+				vMapVoxelBoundaryMinX,
+				vMapVoxelBoundaryMinY,
+				vMapVoxelBoundaryMinZ,
+
+				vMapVoxelBoundaryMaxX-Epsilon,
+				vMapVoxelBoundaryMaxY-Epsilon,
+				vMapVoxelBoundaryMaxZ-Epsilon
+			)
+		)
+		{
+			// just fall through to next code below
+			// traverse
+		}
+		else
+		// check if line intersects box
+		if
+		(
+			NoShitLineSegmentIntersectsBoxSingle
+			(
+				x1,y1,z1,
+				x2,y2,z2,
+
+				vMapVoxelBoundaryMinX,
+				vMapVoxelBoundaryMinY,
+				vMapVoxelBoundaryMinZ,
+
+				vMapVoxelBoundaryMaxX-Epsilon,
+				vMapVoxelBoundaryMaxY-Epsilon,
+				vMapVoxelBoundaryMaxZ-Epsilon,
+
+				&IntersectionPoint1,
+				&IntersectionPointX1,
+				&IntersectionPointY1,
+				&IntersectionPointZ1,
+
+				&IntersectionPoint2,
+				&IntersectionPointX2,
+				&IntersectionPointY2,
+				&IntersectionPointZ2
+			) == true
+		)
+		{
+			if (IntersectionPoint1 == true)
+			{
+				TraverseX1 = IntersectionPointX1;
+				TraverseY1 = IntersectionPointY1;
+				TraverseZ1 = IntersectionPointZ1;
+			}
+			else
+			{
+				TraverseX1 = x1;
+				TraverseY1 = y1;
+				TraverseZ1 = z1;
+			}
+
+			// compensate for any floating point errors (inaccuracies)
+			TraverseX1 = NoShitMaxSingle( TraverseX1, vMapVoxelBoundaryMinX );
+			TraverseY1 = NoShitMaxSingle( TraverseY1, vMapVoxelBoundaryMinY );
+			TraverseZ1 = NoShitMaxSingle( TraverseZ1, vMapVoxelBoundaryMinZ );
+
+			TraverseX1 = NoShitMinSingle( TraverseX1, vMapVoxelBoundaryMaxX-Epsilon );
+			TraverseY1 = NoShitMinSingle( TraverseY1, vMapVoxelBoundaryMaxY-Epsilon );
+			TraverseZ1 = NoShitMinSingle( TraverseZ1, vMapVoxelBoundaryMaxZ-Epsilon );
+
+			if (IntersectionPoint2 == true)
+			{
+				TraverseX2 = IntersectionPointX2;
+				TraverseY2 = IntersectionPointY2;
+				TraverseZ2 = IntersectionPointZ2;
+			}
+			else
+			{
+				TraverseX2 = x2;
+				TraverseY2 = y2;
+				TraverseZ2 = z2;
+			}
+
+			// compensate for any floating point errors (inaccuracies)
+			TraverseX2 = NoShitMaxSingle( TraverseX2, vMapVoxelBoundaryMinX );
+			TraverseY2 = NoShitMaxSingle( TraverseY2, vMapVoxelBoundaryMinY );
+			TraverseZ2 = NoShitMaxSingle( TraverseZ2, vMapVoxelBoundaryMinZ );
+
+			TraverseX2 = NoShitMinSingle( TraverseX2, vMapVoxelBoundaryMaxX-Epsilon );
+			TraverseY2 = NoShitMinSingle( TraverseY2, vMapVoxelBoundaryMaxY-Epsilon );
+			TraverseZ2 = NoShitMinSingle( TraverseZ2, vMapVoxelBoundaryMaxZ-Epsilon );
+
+			{
+				// just fall through below
+				// traverse
+				x1 = TraverseX1; 
+				y1 = TraverseY1;
+				z1 = TraverseZ1; 
+
+				x2 = TraverseX2; 
+				y2 = TraverseY2;
+				z2 = TraverseZ2; 
+			}
+		}
+	}
+
+	// traverse code, fast voxel traversal algorithm
+	int dx = NoShitSignSingle(x2 - x1);
+	if (dx != 0) tDeltaX = fmin(dx / (x2 - x1), 10000000.0f); else tDeltaX = 10000000.0f;
+	if (dx > 0) tMaxX = tDeltaX * NoShitFrac1Single(x1); else tMaxX = tDeltaX * NoShitFrac0Single(x1);
+	VoxelX = (int) x1;
+
+	int dy = NoShitSignSingle(y2 - y1);
+	if (dy != 0) tDeltaY = fmin(dy / (y2 - y1), 10000000.0f); else tDeltaY = 10000000.0f;
+	if (dy > 0) tMaxY = tDeltaY * NoShitFrac1Single(y1); else tMaxY = tDeltaY * NoShitFrac0Single(y1);
+	VoxelY = (int) y1;
+
+	int dz = NoShitSignSingle(z2 - z1);
+	if (dz != 0) tDeltaZ = fmin(dz / (z2 - z1), 10000000.0f); else tDeltaZ = 10000000.0f;
+	if (dz > 0) tMaxZ = tDeltaZ * NoShitFrac1Single(z1); else tMaxZ = tDeltaZ * NoShitFrac0Single(z1);
+	VoxelZ = (int) z1;
+
+	if (dx > 0) OutX = vMapVoxelBoundaryMaxX+1; else OutX = vMapVoxelBoundaryMinX-1;
+	if (dy > 0) OutY = vMapVoxelBoundaryMaxY+1; else OutY = vMapVoxelBoundaryMinY-1;
+	if (dz > 0) OutZ = vMapVoxelBoundaryMaxZ+1; else OutZ = vMapVoxelBoundaryMinZ-1;
+
+	bool Hits = 0;
+	t = 0;
+	while (t <= 1.0)
+	{
+		// process voxel
+
+		Tile *CheckTile = ParaSave->getTile(Position(CollisionTileX,CollisionTileY,CollisionTileZ));
+
+		VoxelCheckResult = WhoreOfAVoxelCheck( ParaSave->getTileEngine(), Position(VoxelX,VoxelY,VoxelZ), CheckTile );
+
+		if (VoxelCheckResult != V_EMPTY)
+		{
+			*CollisionVoxelX = VoxelX;
+			*CollisionVoxelY = VoxelY;
+			*CollisionVoxelZ = VoxelZ;
+			return true;
+		}
+
+		// go to next voxel
+		if ( (tMaxX < tMaxY) && (tMaxX < tMaxZ) )
+		{
+			t = tMaxX;
+			VoxelX += dx;
+			tMaxX += tDeltaX;
+
+			if (VoxelX == OutX) break;
+		}
+		else
+		if (tMaxY < tMaxZ)
+		{
+			t = tMaxY;
+			VoxelY += dy;
+			tMaxY += tDeltaY;
+
+			if (VoxelY == OutY) break;
+		}
+		else
+		{
+			t = tMaxZ;
+			VoxelZ += dz;
+			tMaxZ += tDeltaZ;
+
+			if (VoxelZ == OutZ) break;
+		}
+	}
+
+	return false;
+}
+
+bool TileTraverseCollision
+(
+	SavedBattleGame *ParaSave,
+	float StartX, float StartY, float StartZ,
+	float StopX, float StopY, float StopZ,
+	int *CollisionTileX, int *CollisionTileY, int *CollisionTileZ
+)
+{
+	int result;
+	float x1, y1, z1; // start point
+	float x2, y2, z2; // end point
+
+	float tMaxX, tMaxY, tMaxZ, t, tDeltaX, tDeltaY, tDeltaZ;
+
+	int TileX, TileY, TileZ;
+
+	int OutX, OutY, OutZ;
+
+	bool IntersectionPoint1;
+	bool IntersectionPoint2;
+
+	float IntersectionPointX1, IntersectionPointY1, IntersectionPointZ1;
+	float IntersectionPointX2, IntersectionPointY2, IntersectionPointZ2;
+
+	float TraverseX1, TraverseY1, TraverseZ1;
+	float TraverseX2, TraverseY2, TraverseZ2;
+
+	float Epsilon;
+
+	VoxelType VoxelCheckResult;
+
+	//	Epsilon := 0.001;
+	Epsilon = 0.1;
+
+	float TileWidth = 16.0;
+	float TileHeight = 16.0;
+	float TileDepth = 24.0;
+
+	// calculate max voxel position
+	int vMapVoxelBoundaryMinX = 0;
+	int vMapVoxelBoundaryMinY = 0;
+	int vMapVoxelBoundaryMinZ = 0;
+
+	int vFirstMapTileX = 0;
+	int vFirstMapTileY = 0;
+	int vFirstMapTileZ = 0;
+
+	int vLastMapTileX = (ParaSave->getMapSizeX()-1);
+	int vLastMapTileY = (ParaSave->getMapSizeY()-1);
+	int vLastMapTileZ = (ParaSave->getMapSizeZ()-1);
+
+	//start and end points
+	x1 = StartX;	 x2 = StopX;
+	y1 = StartY;	 y2 = StopY;
+	z1 = StartZ;	 z2 = StopZ;
+
+	{
+		// check if both points are in grid
+		if
+		(
+			NoShitPointInBoxSingle
+			(
+				x1, y1, z1,
+
+				vFirstMapTileX,
+				vFirstMapTileY,
+				vFirstMapTileZ,
+
+				vLastMapTileX-Epsilon,
+				vLastMapTileY-Epsilon,
+				vLastMapTileZ-Epsilon
+			)
+			&&
+			NoShitPointInBoxSingle
+			(
+				x2, y2, z2,
+
+				vFirstMapTileX,
+				vFirstMapTileY,
+				vFirstMapTileZ,
+
+				vLastMapTileX-Epsilon,
+				vLastMapTileY-Epsilon,
+				vLastMapTileZ-Epsilon
+			)
+		)
+		{
+			// just fall through to next code below
+			// traverse
+		}
+		else
+		// check if line intersects box
+		if
+		(
+			NoShitLineSegmentIntersectsBoxSingle
+			(
+				x1,y1,z1,
+				x2,y2,z2,
+
+				vFirstMapTileX,
+				vFirstMapTileY,
+				vFirstMapTileZ,
+
+				vLastMapTileX-Epsilon,
+				vLastMapTileY-Epsilon,
+				vLastMapTileZ-Epsilon,
+
+				&IntersectionPoint1,
+				&IntersectionPointX1,
+				&IntersectionPointY1,
+				&IntersectionPointZ1,
+
+				&IntersectionPoint2,
+				&IntersectionPointX2,
+				&IntersectionPointY2,
+				&IntersectionPointZ2
+			) == true
+		)
+		{
+			if (IntersectionPoint1 == true)
+			{
+				TraverseX1 = IntersectionPointX1;
+				TraverseY1 = IntersectionPointY1;
+				TraverseZ1 = IntersectionPointZ1;
+			}
+			else
+			{
+				TraverseX1 = x1;
+				TraverseY1 = y1;
+				TraverseZ1 = z1;
+			}
+
+			// compensate for any floating point errors (inaccuracies)
+			TraverseX1 = NoShitMaxSingle( TraverseX1, vFirstMapTileX );
+			TraverseY1 = NoShitMaxSingle( TraverseY1, vFirstMapTileY );
+			TraverseZ1 = NoShitMaxSingle( TraverseZ1, vFirstMapTileZ );
+
+			TraverseX1 = NoShitMinSingle( TraverseX1, vLastMapTileX-Epsilon );
+			TraverseY1 = NoShitMinSingle( TraverseY1, vLastMapTileY-Epsilon );
+			TraverseZ1 = NoShitMinSingle( TraverseZ1, vLastMapTileZ-Epsilon );
+
+			if (IntersectionPoint2 == true)
+			{
+				TraverseX2 = IntersectionPointX2;
+				TraverseY2 = IntersectionPointY2;
+				TraverseZ2 = IntersectionPointZ2;
+			}
+			else
+			{
+				TraverseX2 = x2;
+				TraverseY2 = y2;
+				TraverseZ2 = z2;
+			}
+
+			// compensate for any floating point errors (inaccuracies)
+			TraverseX2 = NoShitMaxSingle( TraverseX2, vFirstMapTileX );
+			TraverseY2 = NoShitMaxSingle( TraverseY2, vFirstMapTileY );
+			TraverseZ2 = NoShitMaxSingle( TraverseZ2, vFirstMapTileZ );
+
+			TraverseX2 = NoShitMinSingle( TraverseX2, vLastMapTileX-Epsilon );
+			TraverseY2 = NoShitMinSingle( TraverseY2, vLastMapTileY-Epsilon );
+			TraverseZ2 = NoShitMinSingle( TraverseZ2, vLastMapTileZ-Epsilon );
+
+			{
+				// just fall through below
+				// traverse
+				x1 = TraverseX1; 
+				y1 = TraverseY1;
+				z1 = TraverseZ1; 
+
+				x2 = TraverseX2; 
+				y2 = TraverseY2;
+				z2 = TraverseZ2; 
+			}
+		}
+	}
+
+	// traverse code, fast voxel traversal algorithm
+	int dx = NoShitSignSingle(x2 - x1);
+	if (dx != 0) tDeltaX = fmin(dx / (x2 - x1), 10000000.0f); else tDeltaX = 10000000.0f;
+	if (dx > 0) tMaxX = tDeltaX * NoShitFrac1Single(x1); else tMaxX = tDeltaX * NoShitFrac0Single(x1);
+	TileX = (int) x1;
+
+	int dy = NoShitSignSingle(y2 - y1);
+	if (dy != 0) tDeltaY = fmin(dy / (y2 - y1), 10000000.0f); else tDeltaY = 10000000.0f;
+	if (dy > 0) tMaxY = tDeltaY * NoShitFrac1Single(y1); else tMaxY = tDeltaY * NoShitFrac0Single(y1);
+	TileY = (int) y1;
+
+	int dz = NoShitSignSingle(z2 - z1);
+	if (dz != 0) tDeltaZ = fmin(dz / (z2 - z1), 10000000.0f); else tDeltaZ = 10000000.0f;
+	if (dz > 0) tMaxZ = tDeltaZ * NoShitFrac1Single(z1); else tMaxZ = tDeltaZ * NoShitFrac0Single(z1);
+	TileZ = (int) z1;
+
+	if (dx > 0) OutX = vLastMapTileX+1; else OutX = vFirstMapTileX-1;
+	if (dy > 0) OutY = vLastMapTileY+1; else OutY = vFirstMapTileY-1;
+	if (dz > 0) OutZ = vLastMapTileZ+1; else OutZ = vFirstMapTileZ-1;
+
+	bool Hits = 0;
+	t = 0;
+	while (t <= 1.0)
+	{
+		Tile *CheckTile = ParaSave->getTile(Position(TileX,TileY,TileZ));
+
+		if (!(CheckTile->isVoid()))
+		{
+			*CollisionTileX = TileX;
+			*CollisionTileY = TileY;
+			*CollisionTileZ = TileZ;
+			return true;
+		}
+
+		// go to next voxel
+		if ( (tMaxX < tMaxY) && (tMaxX < tMaxZ) )
+		{
+			t = tMaxX;
+			TileX += dx;
+			tMaxX += tDeltaX;
+
+			if (TileX == OutX) break;
+		}
+		else
+		if (tMaxY < tMaxZ)
+		{
+			t = tMaxY;
+			TileY += dy;
+			tMaxY += tDeltaY;
+
+			if (TileY == OutY) break;
+		}
+		else
+		{
+			t = tMaxZ;
+			TileZ += dz;
+			tMaxZ += tDeltaZ;
+
+			if (TileZ == OutZ) break;
+		}
+	}
+
+	return false;
+}
+
+
+
+
+
+void LightCasting( SavedBattleGame *ParaSave, TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src, Position MapPosition )
+{
+/*
+	static const int VoxelXtoSpriteX[16] =
+	{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+
+	static const int VoxelXtoSpriteY[16] =
+	{0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+
+	static const int VoxelYtoSpriteX[16] =
+	{0,-1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15};
+
+	static const int VoxelYtoSpriteY[16] =
+	{0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+*/
+
+	int ComputedX[40 * 32];
+	int ComputedY[40 * 32];
+	int ComputedZ[40 * 32];
+
+	int x, y;
+	Uint8 VoxelColor;
+	Uint8 FinalColor;
+
+	int SpriteStartX, SpriteStartY;
+	int SpriteX;
+	float SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+	int MapVoxelX, MapVoxelY, MapVoxelZ;
+	Uint8 TestColor;
+
+//	double ComponentX, ComponentY;
+	float ComponentX, ComponentY;
+	int Component;
+
+	Position VoxelPosition;
+	VoxelType VoxelCheckResult;
+
+	int SunX, SunY, SunZ;
+
+	int vIndex;
+
+	int Hits;
+
+	bool TileCollision;
+	bool VoxelHit;
+
+	int CollisionTileX, CollisionTileY, CollisionTileZ;
+	int CollisionVoxelX, CollisionVoxelY, CollisionVoxelZ;
+
+
+	for ( vIndex = 0; vIndex < (40*32); vIndex++ )
+	{
+		ComputedZ[vIndex] = -1;
+	}
+
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	Te->voxelCheckFlush();
+
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+			{
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+
+				// original:
+//				SpriteY = ((SpriteStartY + (VoxelX / 2)) + (VoxelY / 2)) - VoxelZ;
+
+				// more accurate:
+//				ComponentX = VoxelX / 2;
+//				ComponentY = VoxelY / 2;
+//				SpriteY = (SpriteStartY + (ComponentX  + ComponentY)) - VoxelZ;
+
+				// speed up:
+				Component = VoxelX + VoxelY;
+				Component = Component >> 1;
+
+				SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+				// look up table version, not usefull
+//				SpriteX = SpriteStartX + VoxelXtoSpriteX[VoxelX] + VoxelYtoSpriteX[VoxelY];
+//				SpriteY = SpriteStartY + VoxelXtoSpriteY[VoxelX] + VoxelXtoSpriteY[VoxelY] - VoxelZ;
+
+				vIndex = (SpriteY * 32) + SpriteX;
+
+				if (ComputedZ[vIndex]==-1)
+				{
+					VoxelPosition.x = VoxelX;
+					VoxelPosition.y = VoxelY;
+					VoxelPosition.z = VoxelZ;
+
+					VoxelCheckResult = WhoreOfAVoxelCheck( Te, VoxelPosition, Src );
+
+					if (VoxelCheckResult != V_EMPTY)
+					{
+						ComputedX[vIndex] = VoxelX;
+						ComputedY[vIndex] = VoxelY;
+						ComputedZ[vIndex] = VoxelZ;
+					}
+
+
+				}
+			}
+		}
+	}
+
+//	SunX = 25 * 16;
+//	SunY = 25 * 16;
+//	SunZ = 10 * 24;
+
+	SunX = 25;
+	SunY = 25;
+	SunZ = 10;
+
+
+//	SunX = 10;
+//	SunY = 13;
+//	SunZ = 20;
+
+	for (SpriteY = 0; SpriteY < 40; SpriteY++)
+	{
+		for (SpriteX = 0; SpriteX < 32; SpriteX++)
+		{
+			vIndex = (SpriteY * 32) + SpriteX;
+			if (ComputedZ[vIndex]!=-1)
+			{
+				MapVoxelX = ComputedX[vIndex] + MapPosition.x * 16;
+				MapVoxelY = ComputedY[vIndex] + MapPosition.y * 16;
+				MapVoxelZ = ComputedZ[vIndex] + MapPosition.z * 24;
+
+				TileCollision = TileTraverseCollision
+				(
+					ParaSave,
+					SunX, SunY, SunZ,
+					MapPosition.x,MapPosition.y,MapPosition.z,
+					&CollisionTileX, &CollisionTileY, &CollisionTileZ
+				);
+
+				/*
+				// tile voxel boundary in total voxel coordinates
+				CollisionTileBoundaryMinX = CollisionTileX * 16;
+				CollisionTileBoundaryMinY = CollisionTileY * 16;
+				CollisionTileBoundaryMinZ = CollisionTileZ * 16;
+
+				CollisionTileBoundaryMaxX = CollisionTileBoundaryMinX + 15;
+				CollisionTileBoundaryMaxY = CollisionTileBoundaryMinY + 15;
+				CollisionTileBoundaryMaxZ = CollisionTileBoundaryMinZ + 23;
+				*/
+
+				if (TileCollision)
+				{
+					VoxelHit = VoxelTraverseHit
+					(
+						ParaSave,
+						SunX, SunY, SunZ,
+						MapVoxelX, MapVoxelY, MapVoxelZ,
+						CollisionTileX, CollisionTileY, CollisionTileZ,
+						&CollisionVoxelX,&CollisionVoxelY,&CollisionVoxelZ
+					);	
+
+					if (VoxelHit)
+					{
+						if
+						(
+							(
+								(CollisionVoxelX == VoxelX) &&
+								(CollisionVoxelY == VoxelY) &&
+								(CollisionVoxelZ == VoxelZ)
+							) == false
+						)
+						{
+							Dst->setPixel( DstX + SpriteX, DstY + SpriteY, 0);
+						}
+					}
+
+				}
+
+
+			}
+		}
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+void rotate( float OldX, float OldY, float *NewX, float *NewY, float Radians )
+{
+    *NewX = (OldX * cos( Radians )) - (OldX * sin( Radians ));
+    *NewY = (OldX * sin( Radians )) + (OldX * cos( Radians ));
+}
+
+void FullRetardModeOn( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src )
+{
+	int x, y;
+	int VoxelX, VoxelY, VoxelZ;
+	int SpriteX, SpriteY;
+
+	for (SpriteY=0; SpriteY<40; SpriteY++)
+	{
+		for (SpriteX=15; SpriteX>=0; SpriteX--)
+		{
+			// shoot ray into voxel cube ???? yes...
+
+			VoxelY = VoxelY 
+
+
+		}
+
+		for (SpriteX=16; SpriteX<32; SpriteX++)
+		{
+			// shoot ray into voxel cube... where SpriteX-1 ?!
+		}
+	}
+}
+
+*/
+
 /**
  * Draw the terrain.
  * Keep this function as optimised as possible. It's big to minimise overhead of function calls.
@@ -770,7 +2474,7 @@ void Map::drawTerrain(Surface *surface)
 	EatShitAndDie++;
 
 
-	for (int itZ = beginZ; itZ <= endZ; itZ = itZ + 1)
+	for (int itZ = beginZ; itZ <= 0; itZ = itZ + 1)
 	{
 		bool topLayer = itZ == endZ;
 		for (int itX = beginX; itX <= endX; itX = itX + 1)
@@ -1105,8 +2809,15 @@ void Map::drawTerrain(Surface *surface)
 							DrawSprite( surface, screenPosition.x, screenPosition.y, tmpSurface );
 					}
 */
-					DrawVoxelDataInsteadOfSprite( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );  
 
+//					DrawVoxelDataInsteadOfSprite( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );  
+//					DrawLoftInsteadOfSprite( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );  
+
+
+//					DrawCombinedSurfaceAndLoft( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );  
+
+
+					LightCasting( _save, _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, mapPosition );  
 
 				}
 			}
