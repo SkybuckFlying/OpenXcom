@@ -614,7 +614,7 @@ void ProcessSpriteVoxel( Surface *Dst, int DstX, int DstY, int VoxelX, int Voxel
 	Uint8 VoxelColor;
 
 //	VoxelColor = SpriteX % 256;
-	Dst->setPixel( DstX + SpriteX, DstY + SpriteY, TestColor );	
+	Dst->setPixel( DstX + SpriteX, DstY + SpriteY, TestColor );
 }
 
 void DrawVoxelDataInsteadOfSprite( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src)
@@ -1136,6 +1136,307 @@ void DrawCombinedSurfaceAndLoft( TileEngine *Te, Surface *Dst, int DstX, int Dst
 					if (FinalColor > 0)
 					{
 						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+						Computed[vIndex] = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+
+void DrawLoftInsteadOfSpriteFatVoxels( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src )
+{
+/*
+	static const int VoxelXtoSpriteX[16] =
+	{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+
+	static const int VoxelXtoSpriteY[16] =
+	{0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+
+	static const int VoxelYtoSpriteX[16] =
+	{0,-1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15};
+
+	static const int VoxelYtoSpriteY[16] =
+	{0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+*/
+
+	bool Computed[40 * 32];
+
+	int x, y;
+	Uint8 VoxelColor;
+	Uint8 FinalColor;
+
+	int SpriteStartX, SpriteStartY;
+	int SpriteX;
+	float SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+	Uint8 TestColor;
+
+//	double ComponentX, ComponentY;
+	float ComponentX, ComponentY;
+	int Component;
+
+	Position VoxelPosition;
+	VoxelType VoxelCheckResult;
+
+	int vIndex;
+
+	for ( vIndex = 0; vIndex < (40*32); vIndex++ )
+	{
+		Computed[vIndex] = false;
+	}
+
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	Te->voxelCheckFlush();
+
+//	for (VoxelZ=0; VoxelZ < 24; VoxelZ++)
+//		for (VoxelY=0; VoxelY < 16; VoxelY++)
+//			for (VoxelX=0; VoxelX < 16; VoxelX++)
+
+
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+//		VoxelY = 0;
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+//			VoxelX = 0;
+			{
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+
+//				SpriteX = (SpriteStartX - VoxelY) + (1+VoxelX);
+//				SpriteY = ((SpriteStartY + (VoxelX / 2)) + (VoxelY / 2)) - VoxelZ;
+
+//				ComponentX = VoxelX / 2;
+//				ComponentY = VoxelY / 2;
+
+//				SpriteY = (SpriteStartY + (ComponentX  + ComponentY)) - VoxelZ;
+
+				Component = VoxelX + VoxelY;
+				Component = Component >> 1;
+
+				SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+//				SpriteX = SpriteStartX + VoxelXtoSpriteX[VoxelX] + VoxelYtoSpriteX[VoxelY];
+//				SpriteY = SpriteStartY + VoxelXtoSpriteY[VoxelX] + VoxelXtoSpriteY[VoxelY] - VoxelZ;
+
+
+				vIndex = (SpriteY * 32) + SpriteX;
+
+				if (!Computed[vIndex])
+				{
+					VoxelPosition.x = VoxelX;
+					VoxelPosition.y = VoxelY;
+					VoxelPosition.z = VoxelZ;
+
+					VoxelCheckResult = WhoreOfAVoxelCheck( Te, VoxelPosition, Src );
+
+					FinalColor = 0;
+
+					/*
+					VoxelColor = 225;
+
+					switch(VoxelCheckResult)
+					{
+						case V_EMPTY:
+							VoxelColor = 0;
+							break;
+						case V_FLOOR:
+							VoxelColor = 50;
+							break;
+						case V_WESTWALL:
+							VoxelColor = 75;
+							break;
+						case V_NORTHWALL:
+							VoxelColor = 100;
+							break;
+						case V_OBJECT:
+							VoxelColor = 125;
+							break;
+						case V_UNIT:
+							VoxelColor = 150;
+							break;
+						case V_OUTOFBOUNDS:
+							VoxelColor = 175;
+							break;
+						default:
+							VoxelColor = 200;
+					}
+					*/
+
+					if (VoxelCheckResult != V_EMPTY)
+					{
+						FinalColor = 16 + ((VoxelZ/24.0)*15);
+					}
+
+					if (FinalColor > 0)
+					{
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+
+//						if (SpriteX < 31)
+						{
+							ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX+1, SpriteY, FinalColor );
+						}
+						Computed[vIndex] = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+void DrawLoftAndSurfaceCombinedFatVoxels( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src )
+{
+/*
+	static const int VoxelXtoSpriteX[16] =
+	{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16};
+
+	static const int VoxelXtoSpriteY[16] =
+	{0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+
+	static const int VoxelYtoSpriteX[16] =
+	{0,-1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-12,-13,-14,-15};
+
+	static const int VoxelYtoSpriteY[16] =
+	{0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+*/
+
+	bool Computed[40 * 32];
+
+	int x, y;
+	Uint8 SurfaceColor;
+	Uint8 VoxelColor;
+	Uint8 FinalColor;
+
+	int SpriteStartX, SpriteStartY;
+	int SpriteX;
+	float SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+	Uint8 TestColor;
+
+//	double ComponentX, ComponentY;
+	float ComponentX, ComponentY;
+	int Component;
+
+	Position VoxelPosition;
+	VoxelType VoxelCheckResult;
+
+	float CrazyDistance;
+
+	int vIndex;
+
+	for ( vIndex = 0; vIndex < (40*32); vIndex++ )
+	{
+		Computed[vIndex] = false;
+	}
+
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	Te->voxelCheckFlush();
+
+//	for (VoxelZ=0; VoxelZ < 24; VoxelZ++)
+//		for (VoxelY=0; VoxelY < 16; VoxelY++)
+//			for (VoxelX=0; VoxelX < 16; VoxelX++)
+
+
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+//		VoxelY = 0;
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+//			VoxelX = 0;
+			{
+				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) ); 
+
+
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+
+//				SpriteX = (SpriteStartX - VoxelY) + (1+VoxelX);
+//				SpriteY = ((SpriteStartY + (VoxelX / 2)) + (VoxelY / 2)) - VoxelZ;
+
+//				ComponentX = VoxelX / 2;
+//				ComponentY = VoxelY / 2;
+
+//				SpriteY = (SpriteStartY + (ComponentX  + ComponentY)) - VoxelZ;
+
+				Component = VoxelX + VoxelY;
+				Component = Component >> 1;
+
+				SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+//				SpriteX = SpriteStartX + VoxelXtoSpriteX[VoxelX] + VoxelYtoSpriteX[VoxelY];
+//				SpriteY = SpriteStartY + VoxelXtoSpriteY[VoxelX] + VoxelXtoSpriteY[VoxelY] - VoxelZ;
+
+
+				vIndex = (SpriteY * 32) + SpriteX;
+
+				if (!Computed[vIndex])
+				{
+					VoxelPosition.x = VoxelX;
+					VoxelPosition.y = VoxelY;
+					VoxelPosition.z = VoxelZ;
+
+					VoxelCheckResult = WhoreOfAVoxelCheck( Te, VoxelPosition, Src );
+
+					FinalColor = 0;
+
+					/*
+					VoxelColor = 225;
+
+					switch(VoxelCheckResult)
+					{
+						case V_EMPTY:
+							VoxelColor = 0;
+							break;
+						case V_FLOOR:
+							VoxelColor = 50;
+							break;
+						case V_WESTWALL:
+							VoxelColor = 75;
+							break;
+						case V_NORTHWALL:
+							VoxelColor = 100;
+							break;
+						case V_OBJECT:
+							VoxelColor = 125;
+							break;
+						case V_UNIT:
+							VoxelColor = 150;
+							break;
+						case V_OUTOFBOUNDS:
+							VoxelColor = 175;
+							break;
+						default:
+							VoxelColor = 200;
+					}
+					*/
+
+					if (VoxelCheckResult != V_EMPTY)
+					{
+						SurfaceColor = Dst->getPixel( DstX + SpriteX, DstY + SpriteY );
+						SurfaceColor = SurfaceColor / 16;
+						SurfaceColor = SurfaceColor * 16;
+
+						FinalColor = SurfaceColor + ((CrazyDistance/16.0)*15);
+					}
+
+					if (FinalColor > 0)
+					{
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+
+//						if (SpriteX < 31)
+						{
+							ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX+1, SpriteY, FinalColor );
+						}
 						Computed[vIndex] = true;
 					}
 				}
@@ -2474,7 +2775,7 @@ void Map::drawTerrain(Surface *surface)
 	EatShitAndDie++;
 
 
-	for (int itZ = beginZ; itZ <= 0; itZ = itZ + 1)
+	for (int itZ = beginZ; itZ <= endZ; itZ = itZ + 1)
 	{
 		bool topLayer = itZ == endZ;
 		for (int itX = beginX; itX <= endX; itX = itX + 1)
@@ -2816,8 +3117,11 @@ void Map::drawTerrain(Surface *surface)
 
 //					DrawCombinedSurfaceAndLoft( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );  
 
+//					DrawLoftInsteadOfSpriteFatVoxels( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile ); 
+					DrawLoftAndSurfaceCombinedFatVoxels( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile ); 
 
-					LightCasting( _save, _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, mapPosition );  
+
+//					LightCasting( _save, _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, mapPosition );  
 
 				}
 			}
