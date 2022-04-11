@@ -252,6 +252,14 @@ void MapDataSet::loadData(MCDPatch *patch)
 	_surfaceSet = new SurfaceSet(32, 40);
 	_surfaceSet->loadPck(FileMap::getFilePath("TERRAIN/" + _name + ".PCK"),
 			     FileMap::getFilePath("TERRAIN/" + _name + ".TAB"));
+
+	// Skybuck: could be an interesting location to pre-compute voxel x,y,z per sprite pixel
+	// Skybuck: one little problem is that loft data/voxel data is only 12 layers
+	// Skybuck: and these are only identifiers to the "real loft data" that still might have to be loaded at this point
+	// so maybe it's not there yet, so maybe this is not a suited point to do these pre-computations.
+	// Skybuck: Maybe there are loaded, a debug session could shed some light on this ! ;)
+//	_surfaceSet->CreateSpriteToVoxel( _frames ); // this is not the correct location because the relation is not there
+	// code implemented in Tile->ComputeSpriteVoxelFrame( TileEngine );
 }
 
 /**

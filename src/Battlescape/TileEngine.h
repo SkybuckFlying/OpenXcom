@@ -52,7 +52,6 @@ private:
 	Position _cacheTilePos;
 public:
 	std::vector<Uint16> *_voxelData;
-
 	static const int MAX_DARKNESS_TO_SEE_UNITS = 9;
 	/// Creates a new TileEngine class.
 	TileEngine(SavedBattleGame *save, std::vector<Uint16> *voxelData);

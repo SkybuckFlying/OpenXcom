@@ -30,6 +30,7 @@
 #include "SerializationHelper.h"
 #include "../Battlescape/Particle.h"
 #include "../fmath.h"
+#include "../Battlescape/SpriteVoxelFrame.h"
 
 namespace OpenXcom
 {
@@ -1008,6 +1009,215 @@ void Tile::setObstacle(int part)
 void Tile::resetObstacle(void)
 {
 	_obstacle = 0;
+}
+
+void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
+{
+	SpriteVoxelFrameComputed Computed;
+
+	int ObjectIndex;
+	int SpriteAnimationIndex;
+	int SpriteSurfaceSetFrameIndex;
+	Surface *SpriteAnimationFrameSurface;
+
+	int SpriteStartX, SpriteStartY;
+	int Component;
+	int SpriteX, SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+
+	VoxelPosition vVoxelPosition;
+
+	int vIndex;
+
+	MapData *vMapData;
+
+	int XBitIndex;
+	int YIntegerIndex;
+	int ZLoftSliceIndex;
+
+	int LoftLayer;
+	int LoftID;
+
+	Uint16 LoftBits;
+
+	bool VoxelPresent;
+
+	Uint8 SpritePixelColor;
+
+	// walk objects, floor, wall that kind of thing, "render" them together into a sprite to voxel
+	for (ObjectIndex = 0; ObjectIndex < 4; ObjectIndex++) // TilePart
+	{
+		// walk existing animation frames
+		for (SpriteAnimationIndex = 0; SpriteAnimationIndex < 8; SpriteAnimationIndex++)
+		{
+			// reset sprite voxel frame voxel positions for each animation frame.
+			for ( SpriteY = 0; SpriteY < 40; SpriteY++ )
+			{
+				for (SpriteX = 0; SpriteX < 32; SpriteX++)
+				{
+					vVoxelPosition.X = -1;
+					vVoxelPosition.Y = -1;
+					vVoxelPosition.Z = -1;
+					_SpriteVoxelFrame[SpriteAnimationIndex]._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;					
+				}
+			}
+
+			vMapData = _objects[ObjectIndex];
+
+			if (vMapData != 0)
+			{
+
+				SpriteSurfaceSetFrameIndex = vMapData->getSprite( SpriteAnimationIndex );
+				SpriteAnimationFrameSurface = vMapData->getDataset()->getSurfaceset()->getFrame( SpriteSurfaceSetFrameIndex );
+
+				// reset sprite voxel frame computed
+				for ( SpriteY = 0; SpriteY < 40; SpriteY++ )
+				{
+						for (SpriteX = 0; SpriteX < 32; SpriteX++)
+						{
+							Computed._Computed[SpriteY][SpriteX] = false;
+						}
+				}
+
+				// setup sprite start x, sprite start y
+				SpriteStartX = 15; // tile width
+				SpriteStartY = 24; // tile depth
+
+				// walk over all voxels of the tile object
+				for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+				{
+					for (VoxelY=15; VoxelY >= 0; VoxelY--)
+					{
+						for (VoxelX=15; VoxelX >= 0; VoxelX--)
+						{
+							// calculate sprite x position based on voxel position (x,y,z)
+							SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+							Component = VoxelX + VoxelY;
+							Component = Component >> 1; // should this be a float ? is this causing imprecise graphics ? probably not maybe check it later
+
+							SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+							// maybe skip over this sprite x and sprite y if the sprite color is black/0/transparent ?!?
+							// could save us some processing so call me interested.
+
+							SpritePixelColor = SpriteAnimationFrameSurface->getPixel( SpriteX, SpriteY );
+
+							// don't compute transparent sprite pixels for now... if the voxel does have data ?!? that would be weird...
+							// maybe secret force fields ?! I dont know.
+							if (SpritePixelColor != 0)
+							{
+
+								if (!Computed._Computed[SpriteY][SpriteX])
+								{
+									//		if (((tp == O_WESTWALL) || (tp == O_NORTHWALL)) && tile->isUfoDoorOpen(tp))
+									//			continue;
+
+
+									XBitIndex = 15 - (VoxelX % 16);
+									YIntegerIndex = VoxelY % 16;
+
+									LoftLayer = (VoxelZ % 24) / 2; // does mod first matter for negative z ?!?
+		//							LoftLayer = (VoxelZ / 2) % 12; // Skybuck: I like this better but not sure if it's mathetically 100% equivalent concerning negative values for VoxelZ.
+
+									LoftID = vMapData->getLoftID( LoftLayer );
+									ZLoftSliceIndex = (LoftID * 16) + YIntegerIndex; // 16 = size of a loft slice in the loft slice array down below
+
+									LoftBits = ParaTileEngine->_voxelData->at(ZLoftSliceIndex); // voxel data = loft slice array from tile engine... loft slices re-used for many tiles.
+
+									VoxelPresent = LoftBits & (1 << XBitIndex);
+
+		//							FinalColor = 0;
+
+									// Skybuck: 
+									// it would actually be usefull to store the pixel color across the all the voxels that lie
+									// behind it, or do some other color approximation for unknown voxels colors, for example
+									// based on adjcent walls and there sprite colors, this would be usefull for indirect lighting
+									// basically color/color bleeding/photon particles bouncing of wall and assuming their wall color.
+									// however this would require a full 3d voxel map, which is possible, but that is not the idea
+									// of this primary lighting part of the lighting algorithm, this is mostly ment
+									// for the first part of the lighting algorithm, basically the first trace, from a visible
+									// pixel on the screen, torwards a light source, mostly the sun but other lights could be tried
+									// as well for a first "trace" pass, secondary passes would have to be done with a different
+									// data structures, a full 3d data structures most likely, not this 2d data structure, though
+									// it could be used as well, but the colors might be more off and strange looking, but if nothing
+									// else is available it could be tried... until a full blown 3d voxel map with color information
+									// is used/available.
+
+									// Skybuck:
+									// could store a color inside SpriteVoxelFrame.... hmmmm..... then... would not need
+									// to re-acquire sprite later. But what if object animations are at a different frame ?!
+									// oh shit... maybe what I am doing here is wrong or maybe it could be corrected
+									// later if the frames change... wow MIND BLOWN... not sure what is happening on that front...
+									// wow. Now I don't care at this moment cause I have to start somewhere
+									// if this is not correct, then these computations can be done in draw_terrain directly
+									// and only re-compute if something changes for the tile or sprite or animation or whatever
+									// since last computation... maybe that is even a better idea... but for now I am trying
+									// to avoid doing that... but the more I think about this... then more I'm starting to think...
+									// that might not be a bad idea... fortunately this method is available in Tile and can either be
+									// called... or even slightly changed to account for actual animation from or even a branch
+									// could be included if it's at load time or actual run/animation time/whatever.
+									// ok if this is going to be an animation problem is to be determined.
+
+									// Skybuck:
+									// if no voxel is present but there is a sprite pixel, so perhaps check the color of the sprite pixel
+									// then this would imply that the sprite pixel is "floating" in the air... which is a bit strange
+									// maybe we could compute some kind of guess where it might be in the 16x16x24 voxel grid/map.
+									// a fair guess would probable be somewhere half of the ray from the screen that intersect
+									// this rotated diamond cube... but right now I have no rotation formula to calculate such a rotate
+									// ray and traverse it through the side of the diamond cube into it's depth and take half of the
+									// traverse distance or so, PERHARPS something TO DO in the future to HELP SOLDIERS/SPRITES
+									// or other SPRITES that have SHITTY or NO VOXEL MAPS/DATA/LOFTS and such.
+									if (VoxelPresent == true)
+									{
+										vVoxelPosition.X = VoxelX;
+										vVoxelPosition.Y = VoxelY;
+										vVoxelPosition.Z = VoxelZ;
+
+										_SpriteVoxelFrame[SpriteAnimationIndex]._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;
+
+										// check if spritex+1 <= 31 so spritex < 31, saves 1 instruction maybe.
+										if (SpriteX < 31)
+										{
+											_SpriteVoxelFrame[SpriteAnimationIndex]._VoxelPosition[SpriteY][SpriteX+1] = vVoxelPosition;
+										}
+									}
+
+									Computed._Computed[SpriteY][SpriteX] = true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+SpriteVoxelFrame *Tile::getSpriteVoxelFrame( int ParaAnimationFrameIndex )
+{
+	return &_SpriteVoxelFrame[ParaAnimationFrameIndex];
+}
+*/
+
+SpriteVoxelFrame *Tile::getSpriteVoxelFrame( TilePart ParaTilePart )
+{
+	int AnimationFrameIndex;
+
+	/*
+	if
+	(
+		(_currentFrame[0] != _currentFrame[1]) &&
+_		(_currentFrame[2] != _currentFrame[3]) &&
+		(
+	*/
+
+		
+//	AnimationFrameIndex = this->_objects[ParaTilePart]->getSprite(_currentFrame[ParaTilePart]);
+	return &_SpriteVoxelFrame[0];
+//	return &_SpriteVoxelFrame[AnimationFrameIndex];
 }
 
 }

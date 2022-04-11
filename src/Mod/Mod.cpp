@@ -3049,6 +3049,7 @@ void Mod::loadVanillaResources()
 			s->setMaxSharedSounds((int)_sounds["BATTLE.CAT"]->getTotalSounds());
 		}
 	}
+
 }
 
 /**
@@ -3342,7 +3343,156 @@ void Mod::loadBattlescapeResources()
 			}
 		}
 	}
+
 }
+
+/*
+
+VoxelType WhoreOfAVoxelCheck(TileEngine *Te, Position voxel, Tile *tile )
+{
+	// first we check terrain voxel data, not to allow 2x2 units stick through walls
+	for (int i = V_FLOOR; i <= V_OBJECT; ++i)
+	{
+		TilePart tp = (TilePart)i;
+		MapData *mp = tile->getMapData(tp);
+
+//		if (((tp == O_WESTWALL) || (tp == O_NORTHWALL)) && tile->isUfoDoorOpen(tp))
+//			continue;
+		if (mp != 0)
+		{
+			int x = 15 - (voxel.x%16);
+			int y = voxel.y%16;
+			int idx =
+			(
+				mp->getLoftID
+				(
+					(voxel.z%24)/2
+				) * 16
+			) + y;
+			if (Te->_voxelData->at(idx) & (1 << x))
+			{
+				return (VoxelType)i;
+			}
+		}
+	}
+
+	return V_EMPTY;
+}
+
+void DrawLoftAndSurfaceCombinedFatVoxels( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src )
+{
+	bool Computed[40 * 32];
+
+	int x, y;
+	Uint8 SurfaceColor;
+	Uint8 VoxelColor;
+	Uint8 FinalColor;
+
+	int SpriteStartX, SpriteStartY;
+	int SpriteX;
+	float SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+	Uint8 TestColor;
+
+//	double ComponentX, ComponentY;
+	float ComponentX, ComponentY;
+	int Component;
+
+	Position VoxelPosition;
+	VoxelType VoxelCheckResult;
+
+	float CrazyDistance;
+
+	int vIndex;
+
+	for ( vIndex = 0; vIndex < (40*32); vIndex++ )
+	{
+		Computed[vIndex] = false;
+	}
+
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	Te->voxelCheckFlush();
+
+//	for (VoxelZ=0; VoxelZ < 24; VoxelZ++)
+//		for (VoxelY=0; VoxelY < 16; VoxelY++)
+//			for (VoxelX=0; VoxelX < 16; VoxelX++)
+
+
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+//		VoxelY = 0;
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+//			VoxelX = 0;
+			{
+				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) ); 
+
+
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+
+//				SpriteX = (SpriteStartX - VoxelY) + (1+VoxelX);
+//				SpriteY = ((SpriteStartY + (VoxelX / 2)) + (VoxelY / 2)) - VoxelZ;
+
+//				ComponentX = VoxelX / 2;
+//				ComponentY = VoxelY / 2;
+
+//				SpriteY = (SpriteStartY + (ComponentX  + ComponentY)) - VoxelZ;
+
+				Component = VoxelX + VoxelY;
+				Component = Component >> 1;
+
+				SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+//				SpriteX = SpriteStartX + VoxelXtoSpriteX[VoxelX] + VoxelYtoSpriteX[VoxelY];
+//				SpriteY = SpriteStartY + VoxelXtoSpriteY[VoxelX] + VoxelXtoSpriteY[VoxelY] - VoxelZ;
+
+
+				vIndex = (SpriteY * 32) + SpriteX;
+
+				if (!Computed[vIndex])
+				{
+					VoxelPosition.x = VoxelX;
+					VoxelPosition.y = VoxelY;
+					VoxelPosition.z = VoxelZ;
+
+					VoxelCheckResult = WhoreOfAVoxelCheck( Te, VoxelPosition, Src );
+
+					FinalColor = 0;
+
+					if (VoxelCheckResult != V_EMPTY)
+					{
+						SurfaceColor = Dst->getPixel( DstX + SpriteX, DstY + SpriteY );
+						SurfaceColor = SurfaceColor / 16;
+						SurfaceColor = SurfaceColor * 16;
+
+						FinalColor = SurfaceColor + ((CrazyDistance/16.0)*15);
+					}
+
+					if (FinalColor > 0)
+					{
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+
+//						if (SpriteX < 31)
+						{
+							ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX+1, SpriteY, FinalColor );
+						}
+						Computed[vIndex] = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+*/
+
+
+
 
 /**
  * Loads the extra resources defined in rulesets.

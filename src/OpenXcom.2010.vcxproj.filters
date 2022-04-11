@@ -1930,6 +1930,9 @@
     <ClInclude Include="Menu\ModConfirmExtendedState.h">
       <Filter>Menu</Filter>
     </ClInclude>
+    <ClInclude Include="Battlescape\SpriteVoxelFrame.h">
+      <Filter>Battlescape</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Geoscape">

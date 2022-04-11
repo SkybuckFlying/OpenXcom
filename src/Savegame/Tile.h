@@ -22,6 +22,8 @@
 #include "../Battlescape/Position.h"
 #include "../Mod/MapData.h"
 #include "BattleUnit.h"
+#include "../Battlescape/SpriteVoxelFrame.h"
+#include "../Battlescape/TileEngine.h"
 
 #include <SDL_types.h> // for Uint8
 
@@ -34,6 +36,7 @@ class BattleUnit;
 class BattleItem;
 class RuleInventory;
 class Particle;
+class TileEngine;
 
 /**
  * Basic element of which a battle map is build.
@@ -80,6 +83,7 @@ protected:
 	bool _danger;
 	std::list<Particle*> _particles;
 	int _obstacle;
+	SpriteVoxelFrame _SpriteVoxelFrame[8];
 public:
 	/// Creates a tile.
 	Tile(Position pos);
@@ -256,6 +260,12 @@ public:
 	}
 	/// reset obstacle flags
 	void resetObstacle(void);
+
+	void ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine );
+
+//	SpriteVoxelFrame *getSpriteVoxelFrame( int ParaAnimationFrameIndex );
+
+	SpriteVoxelFrame *getSpriteVoxelFrame( TilePart ParaTilePart );
 };
 
 }

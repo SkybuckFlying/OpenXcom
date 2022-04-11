@@ -609,6 +609,33 @@ void DrawLoft( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src)
 // to save computation time.
 // for now I try real-time.
 
+void DrawSpriteVoxelFrame( Surface *Dst, int DstX, int DstY, Tile *ParaTile, TilePart ParaTilePart )
+{
+//	VoxelPosition vVoxelPosition;
+	signed char vVoxelPositionZ;
+	int SpriteX, SpriteY;
+
+	Uint8 VoxelColor;
+
+
+	for (SpriteY=0; SpriteY < 40; SpriteY++)
+	{
+		for (SpriteX=0; SpriteX < 32; SpriteX++)
+		{
+			//	VoxelColor = SpriteX % 256;
+
+			vVoxelPositionZ = ParaTile->getSpriteVoxelFrame( ParaTilePart )->_VoxelPosition[SpriteY][SpriteX].Z;
+			if (vVoxelPositionZ >= 0)
+			{
+				VoxelColor = (vVoxelPositionZ  / 24.0 ) * 16;
+
+				Dst->setPixel( DstX + SpriteX, DstY + SpriteY, VoxelColor );
+			}
+		}
+	}
+}
+
+
 void ProcessSpriteVoxel( Surface *Dst, int DstX, int DstY, int VoxelX, int VoxelY, int VoxelZ, int SpriteX, int SpriteY, Uint8 TestColor )
 {
 	Uint8 VoxelColor;
@@ -3118,8 +3145,14 @@ void Map::drawTerrain(Surface *surface)
 //					DrawCombinedSurfaceAndLoft( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );  
 
 //					DrawLoftInsteadOfSpriteFatVoxels( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile ); 
-					DrawLoftAndSurfaceCombinedFatVoxels( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile ); 
+//					DrawLoftAndSurfaceCombinedFatVoxels( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );
 
+					// draws a pre-computed sprite voxel frame
+
+					// tile part doesn't really matter much except for animation frame,
+					// all tile parts are merged together in a single voxel frame
+					// they are seperated per animation though, each animation frame has it's own sprite voxel frame
+					DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, O_FLOOR );
 
 //					LightCasting( _save, _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, mapPosition );  
 
@@ -3127,9 +3160,6 @@ void Map::drawTerrain(Surface *surface)
 			}
 		}
 	}
-
-
-
 
 	surface->unlock();
 }
