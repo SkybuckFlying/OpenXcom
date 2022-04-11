@@ -70,6 +70,7 @@ private:
 	SurfaceSet *_projectileSet;
 
 	void drawUnit(Surface *surface, Tile *unitTile, Tile *currTile, Position tileScreenPosition, int shade, int obstacleShade, bool topLayer);
+	void drawTerrainHeavyModifiedBySkybuck(Surface *surface);
 	void drawTerrain(Surface *surface);
 	int getTerrainLevel(const Position& pos, int size) const;
 	int _iconHeight, _iconWidth, _messageColor;
