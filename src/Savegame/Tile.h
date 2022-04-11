@@ -265,6 +265,7 @@ public:
 
 //	SpriteVoxelFrame *getSpriteVoxelFrame( int ParaAnimationFrameIndex );
 
+	void PrecomputeVoxelMap3D( int ParaAnimationFrameIndex, TileEngine *ParaTileEngine, TileVoxelMap3D *ParaVoxelMap ); // should or could be private.
 	SpriteVoxelFrame *getSpriteVoxelFrame( TilePart ParaTilePart );
 };
 

@@ -616,6 +616,8 @@ void DrawSpriteVoxelFrame( Surface *Dst, int DstX, int DstY, Tile *ParaTile, Til
 	int SpriteX, SpriteY;
 
 	Uint8 VoxelColor;
+	Uint8 SurfaceColor;
+	Uint8 FinalColor;
 
 
 	for (SpriteY=0; SpriteY < 40; SpriteY++)
@@ -627,9 +629,16 @@ void DrawSpriteVoxelFrame( Surface *Dst, int DstX, int DstY, Tile *ParaTile, Til
 			vVoxelPositionZ = ParaTile->getSpriteVoxelFrame( ParaTilePart )->_VoxelPosition[SpriteY][SpriteX].Z;
 			if (vVoxelPositionZ >= 0)
 			{
-				VoxelColor = (vVoxelPositionZ  / 24.0 ) * 16;
+//				VoxelColor = 48 + (vVoxelPositionZ  / 24.0 ) * 16;
+				VoxelColor = 16 - ((vVoxelPositionZ  / 24.0 ) * 16);
 
-				Dst->setPixel( DstX + SpriteX, DstY + SpriteY, VoxelColor );
+				SurfaceColor = Dst->getPixel( DstX + SpriteX, DstY + SpriteY );
+
+//				SubtractColor = SurfaceColor & 15; // mod 16 = and 15
+				SurfaceColor = SurfaceColor & 240; // inverted mask to clear lower 16 colors
+				FinalColor = SurfaceColor + VoxelColor;
+
+				Dst->setPixel( DstX + SpriteX, DstY + SpriteY, FinalColor );
 			}
 		}
 	}

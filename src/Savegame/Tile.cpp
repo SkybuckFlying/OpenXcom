@@ -1011,9 +1011,85 @@ void Tile::resetObstacle(void)
 	_obstacle = 0;
 }
 
+
+void Tile::PrecomputeVoxelMap3D( int ParaAnimationFrameIndex, TileEngine *ParaTileEngine, TileVoxelMap3D *ParaVoxelMap )
+{
+	// MELT FLOOR, WESTWELL, NORTHWELL, OBJECT VOXELS/LOFTS TOGETHER INTO ONE
+	// AND DO IT MEMORY ACCESS PATTERN EFFICIENTLY
+	MapData *vMapData;
+
+	int ObjectIndex;
+	int VoxelX, VoxelY, VoxelZ;
+
+	int XBitIndex;
+	int YIntegerIndex;
+	int ZLoftSliceIndex;
+
+	int LoftLayer;
+	int LoftID;
+	int LoftIDOptimization;
+
+	Uint16 LoftBits;
+
+	bool VoxelPresent;
+
+	// clear voxel map
+
+	// walk over all voxels of the tile object
+	for (VoxelZ=0; VoxelZ < 24; VoxelZ++)
+	{
+		for (VoxelY=0; VoxelY < 16; VoxelY++)
+		{
+			for (VoxelX=0; VoxelX < 16; VoxelX++)
+			{
+				ParaVoxelMap->_Present[VoxelZ][VoxelY][VoxelX] = false;
+			}
+		}
+	}
+
+	for (ObjectIndex = 0; ObjectIndex < 4; ObjectIndex++) // TilePart
+	{
+		vMapData = _objects[ObjectIndex];
+
+		if (vMapData != 0)
+		{
+			// walk over all voxels of the tile object
+			for (VoxelZ=0; VoxelZ < 24; VoxelZ++)
+			{
+				LoftLayer = VoxelZ >> 1; // does mod first matter for negative z ?!?
+//				LoftLayer = (VoxelZ / 2) % 12; // Skybuck: I like this better but not sure if it's mathetically 100% equivalent concerning negative values for VoxelZ.
+				LoftID = vMapData->getLoftID( LoftLayer );
+//				LoftIDOptimization = (LoftID * 16); 
+				LoftIDOptimization = (LoftID << 4); // shl 1 = * 2, shl 2 = * 4, shl 3 = * 8, shl 4 = * 16
+
+				for (VoxelY=0; VoxelY < 16; VoxelY++)
+				{
+					YIntegerIndex = VoxelY;
+					ZLoftSliceIndex = LoftIDOptimization + YIntegerIndex; // 16 = size of a loft slice in the loft slice array down below
+
+					for (VoxelX=0; VoxelX < 16; VoxelX++)
+					{
+						LoftBits = ParaTileEngine->_voxelData->at(ZLoftSliceIndex); // voxel data = loft slice array from tile engine... loft slices re-used for many tiles.
+
+						// maybe the acquisition of this could be made more efficient, these 16 bits maybe only need to be acquired once.
+						XBitIndex = 15 - VoxelX;
+						// (LoftBits & (1 << XBitIndex) // old code doesn't make a nice boolean value
+
+						// new code should make a nice boolean value
+						VoxelPresent = (LoftBits >> XBitIndex) & 1; 
+
+						ParaVoxelMap->_Present[VoxelZ][VoxelY][VoxelX] = ParaVoxelMap->_Present[VoxelZ][VoxelY][VoxelX] || VoxelPresent;
+					}
+				}
+			}
+		}
+	}
+}
+
 void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 {
 	SpriteVoxelFrameComputed Computed;
+	TileVoxelMap3D VoxelMap;
 
 	int ObjectIndex;
 	int SpriteAnimationIndex;
@@ -1045,72 +1121,191 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 
 	Uint8 SpritePixelColor;
 
-	// walk objects, floor, wall that kind of thing, "render" them together into a sprite to voxel
-	for (ObjectIndex = 0; ObjectIndex < 4; ObjectIndex++) // TilePart
+	// walk existing animation frames
+	SpriteAnimationIndex = 0;
+
+	// Skybuck:
+	// I think the eight animation frames might all be sharing the same loft but I am not sure,
+	// and therefore I am disabling this for now to make the game start faster.
+//	for (SpriteAnimationIndex = 0; SpriteAnimationIndex < 8; SpriteAnimationIndex++)
 	{
-		// walk existing animation frames
-		for (SpriteAnimationIndex = 0; SpriteAnimationIndex < 8; SpriteAnimationIndex++)
+		// reset sprite voxel frame voxel positions for each animation frame.
+		for ( SpriteY = 0; SpriteY < 40; SpriteY++ )
 		{
-			// reset sprite voxel frame voxel positions for each animation frame.
-			for ( SpriteY = 0; SpriteY < 40; SpriteY++ )
+			for (SpriteX = 0; SpriteX < 32; SpriteX++)
 			{
+				vVoxelPosition.X = -1;
+				vVoxelPosition.Y = -1;
+				vVoxelPosition.Z = -1;
+				_SpriteVoxelFrame[SpriteAnimationIndex]._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;					
+			}
+		}
+
+		// reset sprite voxel frame computed
+		for ( SpriteY = 0; SpriteY < 40; SpriteY++ )
+		{
 				for (SpriteX = 0; SpriteX < 32; SpriteX++)
 				{
-					vVoxelPosition.X = -1;
-					vVoxelPosition.Y = -1;
-					vVoxelPosition.Z = -1;
-					_SpriteVoxelFrame[SpriteAnimationIndex]._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;					
+					Computed._Computed[SpriteY][SpriteX] = false;
+				}
+		}
+
+		PrecomputeVoxelMap3D( SpriteAnimationIndex, ParaTileEngine, &VoxelMap );
+
+		// setup sprite start x, sprite start y
+		SpriteStartX = 15; // tile width
+		SpriteStartY = 24; // tile depth
+
+		// walk over all voxels of the tile object
+		for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+		{
+			for (VoxelY=15; VoxelY >= 0; VoxelY--)
+			{
+				for (VoxelX=15; VoxelX >= 0; VoxelX--)
+				{
+					// calculate sprite x position based on voxel position (x,y,z)
+					SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+					Component = VoxelX + VoxelY;
+					Component = Component >> 1; // should this be a float ? is this causing imprecise graphics ? probably not maybe check it later
+
+					SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+					if (!Computed._Computed[SpriteY][SpriteX])
+					{
+						VoxelPresent = VoxelMap._Present[VoxelZ][VoxelY][VoxelX];
+
+						if (VoxelPresent == true)
+						{
+							vVoxelPosition.X = VoxelX;
+							vVoxelPosition.Y = VoxelY;
+							vVoxelPosition.Z = VoxelZ;
+
+							_SpriteVoxelFrame[SpriteAnimationIndex]._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;
+
+							// check if spritex+1 <= 31 so spritex < 31, saves 1 instruction maybe.
+							if (SpriteX < 31)
+							{
+								_SpriteVoxelFrame[SpriteAnimationIndex]._VoxelPosition[SpriteY][SpriteX+1] = vVoxelPosition;
+							}
+
+							Computed._Computed[SpriteY][SpriteX] = true;
+						}
+
+						// Computed._Computed[SpriteY][SpriteX] = true; // doesn't matter anymore at this point.
+					}
 				}
 			}
+		}
+	}
+}
 
-			vMapData = _objects[ObjectIndex];
+/*
+// hecked up, slow code, dont use.
+void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
+{
+	SpriteVoxelFrameComputed Computed;
+	TileVoxelMap3D VoxelMap;
 
-			if (vMapData != 0)
+	int ObjectIndex;
+	int SpriteAnimationIndex;
+	int SpriteSurfaceSetFrameIndex;
+	Surface *SpriteAnimationFrameSurface;
+
+	int SpriteStartX, SpriteStartY;
+	int Component;
+	int SpriteX, SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+
+	VoxelPosition vVoxelPosition;
+
+	int vIndex;
+
+	MapData *vMapData;
+
+	int XBitIndex;
+	int YIntegerIndex;
+	int ZLoftSliceIndex;
+
+	int LoftLayer;
+	int LoftID;
+
+	Uint16 LoftBits;
+
+	bool VoxelPresent;
+
+	Uint8 SpritePixelColor;
+
+	// walk existing animation frames
+	for (SpriteAnimationIndex = 0; SpriteAnimationIndex < 8; SpriteAnimationIndex++)
+	{
+		// reset sprite voxel frame voxel positions for each animation frame.
+		for ( SpriteY = 0; SpriteY < 40; SpriteY++ )
+		{
+			for (SpriteX = 0; SpriteX < 32; SpriteX++)
 			{
+				vVoxelPosition.X = -1;
+				vVoxelPosition.Y = -1;
+				vVoxelPosition.Z = -1;
+				_SpriteVoxelFrame[SpriteAnimationIndex]._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;					
+			}
+		}
 
-				SpriteSurfaceSetFrameIndex = vMapData->getSprite( SpriteAnimationIndex );
-				SpriteAnimationFrameSurface = vMapData->getDataset()->getSurfaceset()->getFrame( SpriteSurfaceSetFrameIndex );
-
-				// reset sprite voxel frame computed
-				for ( SpriteY = 0; SpriteY < 40; SpriteY++ )
+		// reset sprite voxel frame computed
+		for ( SpriteY = 0; SpriteY < 40; SpriteY++ )
+		{
+				for (SpriteX = 0; SpriteX < 32; SpriteX++)
 				{
-						for (SpriteX = 0; SpriteX < 32; SpriteX++)
-						{
-							Computed._Computed[SpriteY][SpriteX] = false;
-						}
+					Computed._Computed[SpriteY][SpriteX] = false;
 				}
+		}
 
-				// setup sprite start x, sprite start y
-				SpriteStartX = 15; // tile width
-				SpriteStartY = 24; // tile depth
+		PrecomputeVoxelMap3D( SpriteAnimationIndex, ParaTileEngine, &VoxelMap );
 
-				// walk over all voxels of the tile object
-				for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+		// setup sprite start x, sprite start y
+		SpriteStartX = 15; // tile width
+		SpriteStartY = 24; // tile depth
+
+		// walk over all voxels of the tile object
+		for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+		{
+			for (VoxelY=15; VoxelY >= 0; VoxelY--)
+			{
+				for (VoxelX=15; VoxelX >= 0; VoxelX--)
 				{
-					for (VoxelY=15; VoxelY >= 0; VoxelY--)
+					// calculate sprite x position based on voxel position (x,y,z)
+					SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+					Component = VoxelX + VoxelY;
+					Component = Component >> 1; // should this be a float ? is this causing imprecise graphics ? probably not maybe check it later
+
+					SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+					if (!Computed._Computed[SpriteY][SpriteX])
 					{
-						for (VoxelX=15; VoxelX >= 0; VoxelX--)
+						// *** INTEGRATE O_FLOOR, O_WESTWALL, O_NORTHWALL, O_OBJECT INTO ONE SPRITE VOXEL FRAME ***
+
+						// walk objects, floor, wall that kind of thing, "render" them together into a sprite to voxel
+						for (ObjectIndex = 3; ObjectIndex >= 0; ObjectIndex--) // TilePart
 						{
-							// calculate sprite x position based on voxel position (x,y,z)
-							SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+							vMapData = _objects[ObjectIndex];
 
-							Component = VoxelX + VoxelY;
-							Component = Component >> 1; // should this be a float ? is this causing imprecise graphics ? probably not maybe check it later
-
-							SpriteY = (SpriteStartY + Component) - VoxelZ;
-
-							// maybe skip over this sprite x and sprite y if the sprite color is black/0/transparent ?!?
-							// could save us some processing so call me interested.
-
-							SpritePixelColor = SpriteAnimationFrameSurface->getPixel( SpriteX, SpriteY );
-
-							// don't compute transparent sprite pixels for now... if the voxel does have data ?!? that would be weird...
-							// maybe secret force fields ?! I dont know.
-							if (SpritePixelColor != 0)
+							if (vMapData != 0)
 							{
+								SpriteSurfaceSetFrameIndex = vMapData->getSprite( SpriteAnimationIndex );
+								SpriteAnimationFrameSurface = vMapData->getDataset()->getSurfaceset()->getFrame( SpriteSurfaceSetFrameIndex );
 
-								if (!Computed._Computed[SpriteY][SpriteX])
+								// maybe skip over this sprite x and sprite y if the sprite color is black/0/transparent ?!?
+								// could save us some processing so call me interested.
+
+								SpritePixelColor = SpriteAnimationFrameSurface->getPixel( SpriteX, SpriteY );
+
+								// don't compute transparent sprite pixels for now... if the voxel does have data ?!? that would be weird...
+								// maybe secret force fields ?! I dont know.
+								if (SpritePixelColor != 0)
 								{
+
 									//		if (((tp == O_WESTWALL) || (tp == O_NORTHWALL)) && tile->isUfoDoorOpen(tp))
 									//			continue;
 
@@ -1182,18 +1377,22 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 										{
 											_SpriteVoxelFrame[SpriteAnimationIndex]._VoxelPosition[SpriteY][SpriteX+1] = vVoxelPosition;
 										}
-									}
 
-									Computed._Computed[SpriteY][SpriteX] = true;
+										Computed._Computed[SpriteY][SpriteX] = true;
+										break;
+									}
 								}
 							}
 						}
+						// Computed._Computed[SpriteY][SpriteX] = true; // doesn't matter anymore at this point.
 					}
 				}
 			}
 		}
 	}
 }
+
+*/
 
 /*
 SpriteVoxelFrame *Tile::getSpriteVoxelFrame( int ParaAnimationFrameIndex )
