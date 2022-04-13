@@ -47,6 +47,7 @@
 #include "../Interface/NumberText.h"
 #include "../Interface/Text.h"
 #include "../fmath.h"
+#include "ScreenVoxelFrame.h"
 
 
 /*
@@ -114,6 +115,9 @@ Map::Map(Game *game, int width, int height, int x, int y, int visibleMapHeight) 
 	_txtAccuracy->setPalette(_game->getScreen()->getPalette());
 	_txtAccuracy->setHighContrast(true);
 	_txtAccuracy->initText(_game->getMod()->getFont("FONT_BIG"), _game->getMod()->getFont("FONT_SMALL"), _game->getLanguage());
+
+	_screenVoxelFrame = new ScreenVoxelFrame();
+	_screenVoxelFrame->ReSize( width, height );
 }
 
 /**
@@ -128,6 +132,7 @@ Map::~Map()
 	delete _message;
 	delete _camera;
 	delete _txtAccuracy;
+	delete _screenVoxelFrame;
 }
 
 /**
@@ -609,12 +614,13 @@ void DrawLoft( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src)
 // to save computation time.
 // for now I try real-time.
 
-void DrawSpriteVoxelFrame( Surface *Dst, int DstX, int DstY, Tile *ParaTile, TilePart ParaTilePart )
+void DrawSpriteVoxelFrame( Surface *Dst, int DstX, int DstY, Tile *ParaTile, Surface *ParaSprite )
 {
 //	VoxelPosition vVoxelPosition;
 	signed char vVoxelPositionZ;
 	int SpriteX, SpriteY;
 
+	Uint8 SpriteColor;
 	Uint8 VoxelColor;
 	Uint8 SurfaceColor;
 	Uint8 FinalColor;
@@ -624,21 +630,26 @@ void DrawSpriteVoxelFrame( Surface *Dst, int DstX, int DstY, Tile *ParaTile, Til
 	{
 		for (SpriteX=0; SpriteX < 32; SpriteX++)
 		{
-			//	VoxelColor = SpriteX % 256;
+			SpriteColor = ParaSprite->getPixel( SpriteX, SpriteY ); 
 
-			vVoxelPositionZ = ParaTile->getSpriteVoxelFrame( ParaTilePart )->_VoxelPosition[SpriteY][SpriteX].Z;
-			if (vVoxelPositionZ >= 0)
+			if (SpriteColor != 0)
 			{
-//				VoxelColor = 48 + (vVoxelPositionZ  / 24.0 ) * 16;
-				VoxelColor = 16 - ((vVoxelPositionZ  / 24.0 ) * 16);
 
-				SurfaceColor = Dst->getPixel( DstX + SpriteX, DstY + SpriteY );
+				//	VoxelColor = SpriteX % 256;
+				vVoxelPositionZ = ParaTile->getSpriteVoxelFrame()->_VoxelPosition[SpriteY][SpriteX].Z;
+				if (vVoxelPositionZ >= 0)
+				{
+	//				VoxelColor = 48 + (vVoxelPositionZ  / 24.0 ) * 16;
+					VoxelColor = 16 - ((vVoxelPositionZ  / 24.0 ) * 16);
 
-//				SubtractColor = SurfaceColor & 15; // mod 16 = and 15
-				SurfaceColor = SurfaceColor & 240; // inverted mask to clear lower 16 colors
-				FinalColor = SurfaceColor + VoxelColor;
+					SurfaceColor = Dst->getPixel( DstX + SpriteX, DstY + SpriteY );
 
-				Dst->setPixel( DstX + SpriteX, DstY + SpriteY, FinalColor );
+	//				SubtractColor = SurfaceColor & 15; // mod 16 = and 15
+					SurfaceColor = SurfaceColor & 240; // inverted mask to clear lower 16 colors
+					FinalColor = SurfaceColor + VoxelColor;
+
+					Dst->setPixel( DstX + SpriteX, DstY + SpriteY, FinalColor );
+				}
 			}
 		}
 	}
@@ -2943,7 +2954,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 						// tile part doesn't really matter much except for animation frame,
 						// all tile parts are merged together in a single voxel frame
 						// they are seperated per animation though, each animation frame has it's own sprite voxel frame
-						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, O_FLOOR );
+//						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
 
 
 
@@ -3330,6 +3341,9 @@ void Map::drawTerrain(Surface *surface)
 	}
 
 	surface->lock();
+
+	_screenVoxelFrame->Clear();
+
 	for (int itZ = beginZ; itZ <= endZ; itZ++)
 	{
 		bool topLayer = itZ == endZ;
@@ -3380,6 +3394,10 @@ void Map::drawTerrain(Surface *surface)
 							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), obstacleShade, false);
 						else
 							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tileShade, false);
+
+//						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tile, tmpSurface );
+						_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(),  tile );
+					
 					}
 					unit = tile->getUnit();
 
@@ -3443,6 +3461,11 @@ void Map::drawTerrain(Surface *surface)
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), obstacleShade, false);
 							else
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), wallShade, false);
+
+//							DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), tile, tmpSurface );
+							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(),  tile );
+
+
 						}
 						// Draw north wall
 						tmpSurface = tile->getSprite(O_NORTHWALL);
@@ -3457,7 +3480,12 @@ void Map::drawTerrain(Surface *surface)
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), obstacleShade, tile->getMapData(O_WESTWALL) != 0);
 							else
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), wallShade, tile->getMapData(O_WESTWALL) != 0);
+
+//							DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), tile, tmpSurface );
+							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(),  tile );
+
 						}
+
 						// Draw object
 						if (tile->getMapData(O_OBJECT) && (tile->getMapData(O_OBJECT)->getBigWall() < 6 || tile->getMapData(O_OBJECT)->getBigWall() == 9))
 						{
@@ -3468,6 +3496,10 @@ void Map::drawTerrain(Surface *surface)
 									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), obstacleShade, false);
 								else
 									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tileShade, false);
+
+//								DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tile, tmpSurface );
+								_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(),  tile );
+
 							}
 						}
 
@@ -3477,7 +3509,7 @@ void Map::drawTerrain(Surface *surface)
 						// tile part doesn't really matter much except for animation frame,
 						// all tile parts are merged together in a single voxel frame
 						// they are seperated per animation though, each animation frame has it's own sprite voxel frame
-						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, O_FLOOR );
+//						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
 
 
 						// draw an item on top of the floor (if any)
@@ -3819,6 +3851,36 @@ void Map::drawTerrain(Surface *surface)
 			}
 		}
 	}
+
+	// mix surface color with voxel z position
+	int ScreenPixelOffset = 0;
+	for (int ScreenPixelY = 0; ScreenPixelY < _screenVoxelFrame->mHeight; ScreenPixelY++)
+	{
+		for (int ScreenPixelX = 0; ScreenPixelX < _screenVoxelFrame->mWidth; ScreenPixelX++)
+		{
+			
+			int vVoxelPositionZ = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Z;
+
+			if (vVoxelPositionZ > 0)
+			{
+				Uint8 SurfaceColor = *surface->getRaw( ScreenPixelX, ScreenPixelY );
+	//
+				Uint8 VoxelColor;
+
+				VoxelColor = 48 + (vVoxelPositionZ  / 24.0 ) * 16;
+				VoxelColor = 16 - ((vVoxelPositionZ  / 24.0 ) * 16);
+
+	//				SubtractColor = SurfaceColor & 15; // mod 16 = and 15
+				SurfaceColor = SurfaceColor & 240; // inverted mask to clear lower 16 colors
+				Uint8 FinalColor = SurfaceColor + VoxelColor;
+
+				surface->setPixel( ScreenPixelX, ScreenPixelY, FinalColor );
+			}
+
+			ScreenPixelOffset++;
+		}
+	}
+
 	if (pathfinderTurnedOn)
 	{
 		if (_numWaypid)
@@ -5156,9 +5218,12 @@ void Map::refreshSelectorPosition()
 void Map::setHeight(int height)
 {
 	Surface::setHeight(height);
+	_screenVoxelFrame->SetHeight( height );
+
 	_visibleMapHeight = height - _iconHeight;
 	_message->setHeight((_visibleMapHeight < 200)? _visibleMapHeight : 200);
 	_message->setY((_visibleMapHeight - _message->getHeight()) / 2);
+
 }
 
 /**
@@ -5169,6 +5234,7 @@ void Map::setWidth(int width)
 {
 	int dX = width - getWidth();
 	Surface::setWidth(width);
+	_screenVoxelFrame->SetWidth( width );
 	_message->setX(_message->getX() + dX / 2);
 }
 

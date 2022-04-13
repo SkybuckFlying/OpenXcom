@@ -1,12 +1,9 @@
 #pragma once
 
+#include "VoxelPosition.h"
+
 namespace OpenXcom
 {
-
-struct VoxelPosition
-{
-	signed char X, Y, Z;
-};
 
 struct SpriteVoxelFrame
 {

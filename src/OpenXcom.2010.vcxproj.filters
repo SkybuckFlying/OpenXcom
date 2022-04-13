@@ -945,6 +945,9 @@
     <ClCompile Include="Menu\ModConfirmExtendedState.cpp">
       <Filter>Menu</Filter>
     </ClCompile>
+    <ClCompile Include="Battlescape\ScreenVoxelFrame.cpp">
+      <Filter>Battlescape</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -1931,6 +1934,12 @@
       <Filter>Menu</Filter>
     </ClInclude>
     <ClInclude Include="Battlescape\SpriteVoxelFrame.h">
+      <Filter>Battlescape</Filter>
+    </ClInclude>
+    <ClInclude Include="Battlescape\VoxelPosition.h">
+      <Filter>Battlescape</Filter>
+    </ClInclude>
+    <ClInclude Include="Battlescape\ScreenVoxelFrame.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
   </ItemGroup>

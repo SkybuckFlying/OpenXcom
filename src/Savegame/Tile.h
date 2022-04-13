@@ -83,7 +83,7 @@ protected:
 	bool _danger;
 	std::list<Particle*> _particles;
 	int _obstacle;
-	SpriteVoxelFrame _SpriteVoxelFrame[8];
+	SpriteVoxelFrame _SpriteVoxelFrame;
 public:
 	/// Creates a tile.
 	Tile(Position pos);
@@ -263,10 +263,8 @@ public:
 
 	void ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine );
 
-//	SpriteVoxelFrame *getSpriteVoxelFrame( int ParaAnimationFrameIndex );
-
-	void PrecomputeVoxelMap3D( int ParaAnimationFrameIndex, TileEngine *ParaTileEngine, TileVoxelMap3D *ParaVoxelMap ); // should or could be private.
-	SpriteVoxelFrame *getSpriteVoxelFrame( TilePart ParaTilePart );
+	void PrecomputeVoxelMap3D( TileEngine *ParaTileEngine, TileVoxelMap3D *ParaVoxelMap ); // should or could be private.
+	SpriteVoxelFrame *getSpriteVoxelFrame();
 };
 
 }

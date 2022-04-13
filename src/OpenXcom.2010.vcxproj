@@ -298,6 +298,7 @@
     <ClCompile Include="Battlescape\PsiAttackBState.cpp" />
     <ClCompile Include="Battlescape\ScannerState.cpp" />
     <ClCompile Include="Battlescape\ScannerView.cpp" />
+    <ClCompile Include="Battlescape\ScreenVoxelFrame.cpp" />
     <ClCompile Include="Battlescape\UnitFallBState.cpp" />
     <ClCompile Include="Battlescape\UnitInfoState.cpp" />
     <ClCompile Include="Battlescape\TileEngine.cpp" />
@@ -615,6 +616,7 @@
     <ClInclude Include="Battlescape\PsiAttackBState.h" />
     <ClInclude Include="Battlescape\ScannerState.h" />
     <ClInclude Include="Battlescape\ScannerView.h" />
+    <ClInclude Include="Battlescape\ScreenVoxelFrame.h" />
     <ClInclude Include="Battlescape\SpriteVoxelFrame.h" />
     <ClInclude Include="Battlescape\UnitFallBState.h" />
     <ClInclude Include="Battlescape\UnitInfoState.h" />
@@ -625,6 +627,7 @@
     <ClInclude Include="Battlescape\UnitTurnBState.h" />
     <ClInclude Include="Battlescape\UnitWalkBState.h" />
     <ClInclude Include="Battlescape\Particle.h" />
+    <ClInclude Include="Battlescape\VoxelPosition.h" />
     <ClInclude Include="Battlescape\WarningMessage.h" />
     <ClInclude Include="dirent.h" />
     <ClInclude Include="Engine\Action.h" />

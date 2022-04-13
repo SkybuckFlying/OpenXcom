@@ -20,6 +20,7 @@
 #include "../Engine/InteractiveSurface.h"
 #include "../Engine/Options.h"
 #include "Position.h"
+#include "ScreenVoxelFrame.h"
 #include <vector>
 
 namespace OpenXcom
@@ -68,6 +69,7 @@ private:
 	PathPreview _previewSetting;
 	Text *_txtAccuracy;
 	SurfaceSet *_projectileSet;
+	ScreenVoxelFrame *_screenVoxelFrame;
 
 	void drawUnit(Surface *surface, Tile *unitTile, Tile *currTile, Position tileScreenPosition, int shade, int obstacleShade, bool topLayer);
 	void drawTerrainHeavyModifiedBySkybuck(Surface *surface);

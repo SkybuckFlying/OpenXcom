@@ -3302,7 +3302,12 @@ VoxelType TileEngine::voxelCheck(Position voxel, BattleUnit *excludeUnit, bool e
 	{
 		TilePart tp = (TilePart)i;
 		MapData *mp = tile->getMapData(tp);
-		if (((tp == O_WESTWALL) || (tp == O_NORTHWALL)) && tile->isUfoDoorOpen(tp))
+		if
+		(
+			(
+				(tp == O_WESTWALL) || (tp == O_NORTHWALL)
+			) && tile->isUfoDoorOpen(tp)
+		)
 			continue;
 		if (mp != 0)
 		{
