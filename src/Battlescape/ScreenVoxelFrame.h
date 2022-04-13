@@ -2,6 +2,7 @@
 
 #include "VoxelPosition.h"
 #include "..\Savegame\Tile.h"
+#include "..\Engine\Surface.h"
 
 namespace OpenXcom
 {
@@ -25,8 +26,8 @@ public:
 
 	void Clear( void );
 
-//	void CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTile, Surface *ParaSprite );
-	void CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTile );
+//	void CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTile );
+	void CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTile, Surface *ParaSprite );
 };
 
 }

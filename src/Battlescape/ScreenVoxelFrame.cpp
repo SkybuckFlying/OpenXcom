@@ -134,6 +134,8 @@ void ScreenVoxelFrame::Clear( void )
 	}
 }
 
+/*
+
 void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTile )
 {
 	int vScreenPixelOffset;
@@ -171,6 +173,99 @@ void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTi
 //			vScreenPixelOffset++;
 		}
 //		vScreenPixelOffset += mWidth; // formula incorrect probably needs subtact 32 maybe even subtract DstX
+	}
+}
+
+*/
+
+
+/*
+void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTile, Surface *ParaSprite )
+{
+	VoxelPosition vVoxelPosition;
+	Position vTilePosition;
+
+	int vScreenPixelOffset;
+	int SpriteX, SpriteY;
+	int vArea = mHeight * mWidth;
+	Uint8 SpriteColor;
+
+	for (SpriteY=0; SpriteY < 40; SpriteY++)
+	{
+		for (SpriteX=0; SpriteX < 32; SpriteX++)
+		{
+			SpriteColor = ParaSprite->getPixel( SpriteX, SpriteY ); 
+
+			if (SpriteColor != 0)
+			{
+				vScreenPixelOffset = (DstY + SpriteY) * mWidth + (DstX + SpriteX);
+				if
+				(
+					(vScreenPixelOffset>=0) && (vScreenPixelOffset < vArea)
+				)
+				{
+					vVoxelPosition = ParaTile->getSpriteVoxelFrame()->_VoxelPosition[SpriteY][SpriteX];
+					vTilePosition = ParaTile->getPosition();
+
+					vVoxelPosition.X = vVoxelPosition.X + vTilePosition.x;
+					vVoxelPosition.Y = vVoxelPosition.Y + vTilePosition.y;
+					vVoxelPosition.Z = vVoxelPosition.Z + vTilePosition.z;
+
+					if (vVoxelPosition.Z >= 0)
+					{
+						mVoxelPosition[vScreenPixelOffset] = vVoxelPosition; 
+					}
+				}
+			}
+		}
+	}
+}
+
+*/
+
+void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTile, Surface *ParaSprite )
+{
+	VoxelPosition vVoxelPosition;
+	Position vTilePosition;
+
+	int vScreenPixelX, vScreenPixelY;
+	int vScreenPixelOffset;
+	int SpriteX, SpriteY;
+	int vArea = mHeight * mWidth;
+	Uint8 SpriteColor;
+
+	for (SpriteY=0; SpriteY < 40; SpriteY++)
+	{
+		for (SpriteX=0; SpriteX < 32; SpriteX++)
+		{
+			SpriteColor = ParaSprite->getPixel( SpriteX, SpriteY ); 
+
+			if (SpriteColor != 0)
+			{
+				vScreenPixelX = (DstX + SpriteX);
+				vScreenPixelY = (DstY + SpriteY);
+
+				if
+				(
+					(vScreenPixelX >= 0) && (vScreenPixelX < mWidth) &&
+					(vScreenPixelY >= 0) && (vScreenPixelY < mHeight)
+				)
+				{
+					vVoxelPosition = ParaTile->getSpriteVoxelFrame()->_VoxelPosition[SpriteY][SpriteX];
+					vTilePosition = ParaTile->getPosition();
+
+					vVoxelPosition.X = vVoxelPosition.X + vTilePosition.x*16;
+					vVoxelPosition.Y = vVoxelPosition.Y + vTilePosition.y*16;
+					vVoxelPosition.Z = vVoxelPosition.Z + vTilePosition.z*24;
+
+					if (vVoxelPosition.Z >= 0)
+					{
+						vScreenPixelOffset = vScreenPixelY * mWidth + vScreenPixelX;
+						mVoxelPosition[vScreenPixelOffset] = vVoxelPosition; 
+					}
+				}
+			}
+		}
 	}
 }
 

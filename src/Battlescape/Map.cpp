@@ -3396,8 +3396,9 @@ void Map::drawTerrain(Surface *surface)
 							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tileShade, false);
 
 //						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tile, tmpSurface );
-						_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(),  tile );
-					
+						_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(),  tile, tmpSurface );
+//						_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile, tmpSurface );
+
 					}
 					unit = tile->getUnit();
 
@@ -3463,7 +3464,8 @@ void Map::drawTerrain(Surface *surface)
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), wallShade, false);
 
 //							DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), tile, tmpSurface );
-							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(),  tile );
+							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(),  tile, tmpSurface );
+//							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile, tmpSurface );
 
 
 						}
@@ -3482,7 +3484,8 @@ void Map::drawTerrain(Surface *surface)
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), wallShade, tile->getMapData(O_WESTWALL) != 0);
 
 //							DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), tile, tmpSurface );
-							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(),  tile );
+							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(),  tile, tmpSurface );
+//							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile, tmpSurface );
 
 						}
 
@@ -3498,7 +3501,8 @@ void Map::drawTerrain(Surface *surface)
 									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tileShade, false);
 
 //								DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tile, tmpSurface );
-								_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(),  tile );
+								_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(),  tile, tmpSurface );
+//								_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile, tmpSurface );
 
 							}
 						}
@@ -3510,6 +3514,7 @@ void Map::drawTerrain(Surface *surface)
 						// all tile parts are merged together in a single voxel frame
 						// they are seperated per animation though, each animation frame has it's own sprite voxel frame
 //						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
+//						_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile );
 
 
 						// draw an item on top of the floor (if any)
@@ -3852,7 +3857,11 @@ void Map::drawTerrain(Surface *surface)
 		}
 	}
 
+
+/*
+	// VOXEL FUN
 	// mix surface color with voxel z position
+	float vMaxZ = _save->getMapSizeZ() * 24;
 	int ScreenPixelOffset = 0;
 	for (int ScreenPixelY = 0; ScreenPixelY < _screenVoxelFrame->mHeight; ScreenPixelY++)
 	{
@@ -3867,8 +3876,11 @@ void Map::drawTerrain(Surface *surface)
 	//
 				Uint8 VoxelColor;
 
-				VoxelColor = 48 + (vVoxelPositionZ  / 24.0 ) * 16;
-				VoxelColor = 16 - ((vVoxelPositionZ  / 24.0 ) * 16);
+//				VoxelColor = 48 + (vVoxelPositionZ  / (24.0) ) * 16;
+//				VoxelColor = 16 - ((vVoxelPositionZ  / (24.0) ) * 16);
+
+				VoxelColor = 48 + (vVoxelPositionZ  / (vMaxZ) ) * 16;
+				VoxelColor = 16 - ((vVoxelPositionZ  / (vMaxZ) ) * 16);
 
 	//				SubtractColor = SurfaceColor & 15; // mod 16 = and 15
 				SurfaceColor = SurfaceColor & 240; // inverted mask to clear lower 16 colors
@@ -3880,6 +3892,80 @@ void Map::drawTerrain(Surface *surface)
 			ScreenPixelOffset++;
 		}
 	}
+*/
+
+	// BAT SHIT CRAZY TRAVERSAL
+	// mix surface color with voxel z position
+
+	float SunX;
+	float SunY;
+	float SunZ;
+
+	SunX = 30*16;
+	SunY = 40*16;
+	SunZ = 3000;
+
+	int ScreenPixelOffset = 0;
+	for (int ScreenPixelY = 0; ScreenPixelY < _screenVoxelFrame->mHeight; ScreenPixelY++)
+	{
+		for (int ScreenPixelX = 0; ScreenPixelX < _screenVoxelFrame->mWidth; ScreenPixelX++)
+		{
+			VoxelPosition vVoxelPosition = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ];
+
+			if (vVoxelPosition.Z > 0)
+			{
+				VoxelRay[ScreenPixelOffset].Setup( SunX, SunY, SunZ, vVoxelPosition.X, vVoxelPosition.Y, vVoxelPosition.Z );
+			}
+
+			ScreenPixelOffset++;
+		}
+	}
+
+	bool AllRaysDone = true;
+
+	while (!AllRaysDone)
+	{
+		int ScreenPixelOffset = 0;
+		for (int ScreenPixelY = 0; ScreenPixelY < _screenVoxelFrame->mHeight; ScreenPixelY++)
+		{
+			for (int ScreenPixelX = 0; ScreenPixelX < _screenVoxelFrame->mWidth; ScreenPixelX++)
+			{
+				if (!VoxelRay[ScreenPixelOffset].Done)
+				{
+					AllRaysDone = false;
+
+					VoxelRay[ScreenPixelOffset].NextStep;
+
+					if (VoxelRay[ScreenPixelOffset].TraverseMode == tmTile)
+					{
+						// check if collission with tile.
+
+
+						// if collission then set traverse mode to tmVoxel
+
+
+
+					};
+
+
+					if (VoxelRay[ScreenPixelOffset].Collision)
+					{
+						CollisionTilePosition = VoxelRay[ScreenPixelOffset].TilePosition;
+						CollisionVoxelPosition = VoxelRay[ScreenPixelOffset].VoxelPosition;
+
+						// some kind of distance or angle shading or whatever..
+						// but for now, it's just lit or dark.
+
+
+					}
+
+				}
+
+				ScreenPixelOffset++;
+			}
+		}
+	}
+
 
 	if (pathfinderTurnedOn)
 	{
