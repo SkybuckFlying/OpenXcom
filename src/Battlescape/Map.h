@@ -21,6 +21,7 @@
 #include "../Engine/Options.h"
 #include "Position.h"
 #include "ScreenVoxelFrame.h"
+#include "ScreenRayBlocks.h"
 #include <vector>
 
 namespace OpenXcom
@@ -70,6 +71,7 @@ private:
 	Text *_txtAccuracy;
 	SurfaceSet *_projectileSet;
 	ScreenVoxelFrame *_screenVoxelFrame;
+	ScreenRayBlocks *_screenRayBlocks;
 
 	void drawUnit(Surface *surface, Tile *unitTile, Tile *currTile, Position tileScreenPosition, int shade, int obstacleShade, bool topLayer);
 	void drawTerrainHeavyModifiedBySkybuck(Surface *surface);
