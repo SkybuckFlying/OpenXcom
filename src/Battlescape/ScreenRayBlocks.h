@@ -15,6 +15,7 @@ struct ScreenRayBlock
 
 class ScreenRayBlocks
 {
+public:
 	ScreenRayBlock *mRayBlock;
 
 	int mScreenWidth;

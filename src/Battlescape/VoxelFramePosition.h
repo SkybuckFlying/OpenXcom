@@ -3,7 +3,7 @@
 namespace OpenXcom
 {
 
-struct VoxelPosition
+struct VoxelFramePosition
 {
 	signed char X, Y, Z;
 };

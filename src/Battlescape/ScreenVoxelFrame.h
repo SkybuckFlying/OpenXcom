@@ -1,6 +1,6 @@
 #pragma once
 
-#include "VoxelPosition.h"
+#include "VoxelFramePosition.h"
 #include "..\Savegame\Tile.h"
 #include "..\Engine\Surface.h"
 
@@ -11,7 +11,7 @@ class ScreenVoxelFrame
 {
 public:
 	Uint8 *mPixelColor;  
-	VoxelPosition *mVoxelPosition;
+	VoxelFramePosition *mVoxelPosition;
 
 	int mWidth;
 	int mHeight;

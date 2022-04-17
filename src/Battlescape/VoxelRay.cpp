@@ -7,6 +7,9 @@
 // for any questions, comments, feedback, improvements: skybuck2000@hotmail.com
 //
 
+#include "VoxelRay.h"
+#include <math.h>
+
 namespace OpenXcom
 { // open/associate OpenXcom namespace
 
@@ -106,9 +109,9 @@ void VoxelRay::ComputeVoxelPosition( float ParaStartX, float ParaStartY, float P
 	// I kinda like this idea.
 	// maybe add these features later, keeping it simple for now.
 
-//	*ParaVoxelX = ParaStartX / VoxelCD.Width;
-//	*ParaVoxelY = ParaStartY / VoxelCD.Height;
-//	*ParaVoxelZ = ParaStartY / VoxelCD.Depth;
+//	*ParaVoxelX = ParaStartX / float VoxelCD.Width;
+//	*ParaVoxelY = ParaStartY / float VoxelCD.Height;
+//	*ParaVoxelZ = ParaStartY / float VoxelCD.Depth;
 
 	// since voxel are just 1 in size don't need this for now.
 	*ParaVoxelX = ParaStartX;
@@ -129,6 +132,8 @@ void VoxelRay::OptimizedComputeVoxelPosition( float ParaStartX, float ParaStartY
 }
 */
 
+float VoxelRay::Epsilon = 0.01;
+
 bool VoxelRay::IsTileDirect()
 {
 
@@ -139,18 +144,19 @@ bool VoxelRay::IsTileDirect()
 
 	// real world/voxel coordinates
 	if
-	(	(ParaStart.X == ParaStop.X) &&
-		(ParaStart.Y == ParaStop.Y) &&
-		(ParaStart.Z == ParaStop.Z)
+	(	(Start.X == Stop.X) &&
+		(Start.Y == Stop.Y) &&
+		(Start.Z == Stop.Z)
 	)
 
 	{
 		// check if single point is inside the tile boundary in real/world/voxel coordinates (as stored in TileBD)
+		if
 		(
 			// alternative more precision solution
 			PointInBoxSingle
 			(
-				ParaStart.X, ParaStart.Y, ParaStart.Z,
+				Start.X, Start.Y, Start.Z,
 
 				TileBD.MinX,
 				TileBD.MinY,
@@ -165,7 +171,7 @@ bool VoxelRay::IsTileDirect()
 			// set traversal mode to tmDirect
 			// could do a seperated tmTileDirect and tmVoxelDirect but for now I see no reason too
 			// and it will just create an unnecessary branch and slow things down.
-			traverseMode = tmDirect; 
+			traverseMode = TraverseMode::tmDirect; 
 
 			// setup voxel coordinate for processing later.
 
@@ -197,9 +203,9 @@ bool VoxelRay::IsTileDirect()
 			// compute voxel position
 			// nothing to compute for now (for simple openxcom grids and such.)
 //			ComputeVoxelPosition( ParaStartX, ParaStartY, ParaStartZ, &VoxelTD.X, &VoxelTD.Y, &VoxelTD.Z ); 
-			VoxelTD.X = ParaStart.X;
-			VoxelTD.Y = ParaStart.Y;
-			VoxelTD.Z = ParaStart.Z;
+			VoxelTD.X = Start.X;
+			VoxelTD.Y = Start.Y;
+			VoxelTD.Z = Start.Z;
 
 //			ModVoxelPositionToTileGrid
 
@@ -207,9 +213,13 @@ bool VoxelRay::IsTileDirect()
 //			if ConfineVoxelSpace
 
 			// do confine it to tile grid width, height, depth and such... 16x16x24 basically.
-			VoxelTD.X = ParaStart.X % TileGD.Width;
-			VoxelTD.Y = ParaStart.Y % TileGD.Height;
-			VoxelTD.Z = ParaStart.Z % TileGD.Depth;
+//			VoxelTD.X = Start.X % TileCD.Width;
+//			VoxelTD.Y = Start.Y % TileCD.Height;
+//			VoxelTD.Z = Start.Z % TileCD.Depth;
+
+			VoxelTD.X = fmod( Start.X, TileCD.Width );
+			VoxelTD.Y = fmod( Start.Y, TileCD.Height );
+			VoxelTD.Z = fmod( Start.Z, TileCD.Depth );
 
 			return true;
 		}
@@ -235,18 +245,19 @@ bool VoxelRay::IsTileDirectScaled()
 
 	// real world/voxel coordinates
 	if
-	(	(ParaTileStartScaled.X == ParaTileStopScaled.X) &&
-		(ParaTileStartScaled.Y == ParaTileStopScaled.Y) &&
-		(ParaTileStartScaled.Z == ParaTileStopScaled.Z)
+	(	(TileStartScaled.X == TileStopScaled.X) &&
+		(TileStartScaled.Y == TileStopScaled.Y) &&
+		(TileStartScaled.Z == TileStopScaled.Z)
 	)
 
 	{
 		// check if single point is inside the tile boundary in real/world/voxel coordinates (as stored in TileBD)
+		// alternative more precision solution
+		if
 		(
-			// alternative more precision solution
 			PointInBoxSingle
 			(
-				ParaTileStartScaled.X, ParaTileStartScaled.Y, ParaTileStartScaled.Z,
+				TileStartScaled.X, TileStartScaled.Y, TileStartScaled.Z,
 
 				TileBDScaled.MinX,
 				TileBDScaled.MinY,
@@ -261,7 +272,7 @@ bool VoxelRay::IsTileDirectScaled()
 			// set traversal mode to tmDirect
 			// could do a seperated tmTileDirect and tmVoxelDirect but for now I see no reason too
 			// and it will just create an unnecessary branch and slow things down.
-			traverseMode = tmDirect; 
+			traverseMode = TraverseMode::tmDirect; 
 
 			// setup voxel coordinate for processing later.
 
@@ -293,9 +304,9 @@ bool VoxelRay::IsTileDirectScaled()
 			// compute voxel position
 			// nothing to compute for now (for simple openxcom grids and such.)
 //			ComputeVoxelPosition( ParaStartX, ParaStartY, ParaStartZ, &VoxelTD.X, &VoxelTD.Y, &VoxelTD.Z ); 
-			VoxelTD.X = ParaStart.X;
-			VoxelTD.Y = ParaStart.Y;
-			VoxelTD.Z = ParaStart.Z;
+			VoxelTD.X = Start.X;
+			VoxelTD.Y = Start.Y;
+			VoxelTD.Z = Start.Z;
 
 //			ModVoxelPositionToTileGrid
 
@@ -303,9 +314,13 @@ bool VoxelRay::IsTileDirectScaled()
 //			if ConfineVoxelSpace
 
 			// do confine it to tile grid width, height, depth and such... 16x16x24 basically.
-			VoxelTD.X = ParaStart.X % TileGD.Width;
-			VoxelTD.Y = ParaStart.Y % TileGD.Height;
-			VoxelTD.Z = ParaStart.Z % TileGD.Depth;
+//			VoxelTD.X = Start.X % TileCD.Width;
+//			VoxelTD.Y = Start.Y % TileCD.Height;
+//			VoxelTD.Z = Start.Z % TileCD.Depth;
+
+			VoxelTD.X = fmod( Start.X, TileCD.Width );
+			VoxelTD.Y = fmod( Start.Y, TileCD.Height );
+			VoxelTD.Z = fmod( Start.Z, TileCD.Depth );
 
 			return true;
 		}
@@ -318,9 +333,9 @@ bool VoxelRay::IsVoxelDirect()
 {
 	if
 	(
-		(VoxelTD.x1 == VoxelTD.x2) &&
-		(VoxelTD.y1 == VoxelTD.y2) &&
-		(VoxelTD.z1 == VoxelTD.z2)
+		(VoxelTD.TraverseX1 == VoxelTD.TraverseX2) &&
+		(VoxelTD.TraverseY1 == VoxelTD.TraverseY2) &&
+		(VoxelTD.TraverseZ1 == VoxelTD.TraverseZ2)
 	)
 	{
 		// check if single point is inside tile boundary could be setup per tile
@@ -330,20 +345,20 @@ bool VoxelRay::IsVoxelDirect()
 		(
 			PointInBoxSingle
 			(
-				VoxelTD.x1, TileTD.y1, TileTD.z1,
+				VoxelTD.TraverseX1, TileTD.TraverseY1, TileTD.TraverseZ1,
 
-				VoxelBD.BoundaryMinX,
-				VoxelBD.BoundaryMinY,
-				VoxelBD.BoundaryMinZ,
+				VoxelBD.MinX,
+				VoxelBD.MinY,
+				VoxelBD.MinZ,
 
-				VoxelBD.BoundaryMaxX-Epsilon,
-				VoxelBD.BoundaryMaxY-Epsilon,
-				VoxelBD.BoundaryMaxZ-Epsilon
+				VoxelBD.MaxX-Epsilon,
+				VoxelBD.MaxY-Epsilon,
+				VoxelBD.MaxZ-Epsilon
 			) == true
 		)
 		{
 			// set traversal mode to tmDirect
-			traverseMode = tmDirect;
+			traverseMode = TraverseMode::tmDirect;
 
 			// setup voxel coordinate for processing later.
 
@@ -352,9 +367,13 @@ bool VoxelRay::IsVoxelDirect()
 			// however these coordinates could be modified/clipped against the tile that they lie in... so must use
 			// VoxelTD coordinates
 
-			VoxelTD.X = VoxelTD.x1 % 16;
-			VoxelTD.Y = VoxelTD.y1 % 16;
-			VoxelTD.Z = VoxelTD.z1 % 24;
+//			VoxelTD.X = VoxelTD.TraverseX1 % 16;
+//			VoxelTD.Y = VoxelTD.TraverseY1 % 16;
+//			VoxelTD.Z = VoxelTD.TraverseZ1 % 24;
+
+			VoxelTD.X = fmod( VoxelTD.TraverseX1, 16 );
+			VoxelTD.Y = fmod( VoxelTD.TraverseY1, 16 );
+			VoxelTD.Z = fmod( VoxelTD.TraverseZ1, 24 );
 
 			return true;
 		}
@@ -371,14 +390,14 @@ bool VoxelRay::IsInsideTileBoundary()
 	(
 		PointInBoxSingle
 		(
-			ParaStart.X, ParaStart.Y, ParaStart.Z,
+			Start.X, Start.Y, Start.Z,
 			TileBD.MinX, TileBD.MinY, TileBD.MinZ,
 			TileBD.MaxX, TileBD.MaxY, TileBD.MaxZ
 		)
 		&&
 		PointInBoxSingle
 		(
-			ParaStop.X, ParaStop.Y, ParaStop.Z,
+			Stop.X, Stop.Y, Stop.Z,
 			TileBD.MinX, TileBD.MinY, TileBD.MinZ,
 			TileBD.MaxX, TileBD.MaxY, TileBD.MaxZ
 		)
@@ -386,7 +405,7 @@ bool VoxelRay::IsInsideTileBoundary()
 	{
 		return true;
 	}
-	return false
+	return false;
 }
 
 // let's also make a scaled version of this, could even translate boundaries later and such but for now not gonna do it ;)
@@ -415,9 +434,11 @@ bool VoxelRay::IsInsideTileBoundaryScaled()
 	{
 		return true;
 	}
-	return false
+	return false;
 }
 
+// Skybuck: THIS CODE HAS TO BE RE-TESTED WHERE ONE OF THE INPUT PARAMETERS IS NEGATIVE, ESPECIALLY THE LINE
+// PERHAPS TEST FOR NEGATIVE BOX COORDINATES AS WELL.
 bool VoxelRay::LineSegmentIntersectsBoxSingle
 (
 	float LineX1, float LineY1, float LineZ1,
@@ -587,7 +608,13 @@ bool VoxelRay::LineSegmentIntersectsBoxSingle
 	}
 
 	// if distances are within the line then there is an intersection
-	if ( (LineMinDistanceToBox > 0) && (LineMinDistanceToBox < 1) )
+	// Skybuck: dangerous change but I am going to do it, untested
+	// this will make code more consistent with point inside box though, otherwise it might come to different conclusions
+	// and this would create logical problems in the setup routine, I fear that doing this might cause stepping outside
+	// of grid but maybe not, re-test this in delphi later on.
+//	if ( (LineMinDistanceToBox > 0) && (LineMinDistanceToBox < 1) )
+	// Skybuck: Tested in Delphi and seems safe for now:
+	if ( (LineMinDistanceToBox >= 0) && (LineMinDistanceToBox <= 1) )
 	{
 		// else the min and max are the intersection points so calculate
 		// those using the parametric equation and return true.
@@ -603,7 +630,12 @@ bool VoxelRay::LineSegmentIntersectsBoxSingle
 		result = true;
 	}
 
-	if ( (LineMaxDistanceToBox > 0) && (LineMaxDistanceToBox < 1) )
+	// Skybuck: Dangerous change:
+	// but this will make code more consistent with point inside box routine above somewhere and also come to same
+	// logical conclusions inside setup routine below.
+//	if ( (LineMaxDistanceToBox > 0) && (LineMaxDistanceToBox < 1) )
+	// Skybuck: Tested in Delphi and seems safe for now:
+	if ( (LineMaxDistanceToBox >= 0) && (LineMaxDistanceToBox <= 1) )
 	{
 		*MaxIntersectionPoint = true;
 		*MaxIntersectionPointX = LineX1 + LineMaxDistanceToBox * LineDeltaX;
@@ -629,8 +661,8 @@ bool VoxelRay::IsIntersectingTileBoundary()
 	(
 		LineSegmentIntersectsBoxSingle
 		(
-			ParaStart.X, ParaStart.Y, ParaStart.Z,
-			ParaStop.X, ParaStop.Y, ParaStop.Z,
+			Start.X, Start.Y, Start.Z,
+			Stop.X, Stop.Y, Stop.Z,
 
 			TileBD.MinX, TileBD.MinY, TileBD.MinZ,
 			TileBD.MaxY, TileBD.MaxY, TileBD.MaxZ,
@@ -655,19 +687,19 @@ bool VoxelRay::IsIntersectingTileBoundary()
 		}
 		else
 		{
-			TileTD.TraverseX1 = ParaStart.X;
-			TileTD.TraverseY1 = ParaStart.Y;
-			TileTD.TraverseZ1 = ParaStart.Z;
+			TileTD.TraverseX1 = Start.X;
+			TileTD.TraverseY1 = Start.Y;
+			TileTD.TraverseZ1 = Start.Z;
 		}
 
 		// compensate for any floating point errors (inaccuracies)
-		TileTD.TraverseX1 = MaxSingle( TileTD.TraverseX1, TileBD.MinX );
-		TileTD.TraverseY1 = MaxSingle( TileTD.TraverseY1, TileBD.MinY );
-		TileTD.TraverseZ1 = MaxSingle( TileTD.TraverseZ1, TileBD.MinZ );
+		TileTD.TraverseX1 = TraverseData::MaxSingle( TileTD.TraverseX1, TileBD.MinX );
+		TileTD.TraverseY1 = TraverseData::MaxSingle( TileTD.TraverseY1, TileBD.MinY );
+		TileTD.TraverseZ1 = TraverseData::MaxSingle( TileTD.TraverseZ1, TileBD.MinZ );
 
-		TileTD.TraverseX1 = MinSingle( TileTD.TraverseX1, TileBD.MaxX );
-		TileTD.TraverseY1 = MinSingle( TileTD.TraverseY1, TileBD.MaxY );
-		TileTD.TraverseZ1 = MinSingle( TileTD.TraverseZ1, TileBD.MaxZ );
+		TileTD.TraverseX1 = TraverseData::MinSingle( TileTD.TraverseX1, TileBD.MaxX );
+		TileTD.TraverseY1 = TraverseData::MinSingle( TileTD.TraverseY1, TileBD.MaxY );
+		TileTD.TraverseZ1 = TraverseData::MinSingle( TileTD.TraverseZ1, TileBD.MaxZ );
 
 		if (IntersectionPoint2 == true)
 		{
@@ -677,19 +709,19 @@ bool VoxelRay::IsIntersectingTileBoundary()
 		}
 		else
 		{
-			TileTD.TraverseX2 = ParaStop.X;
-			TileTD.TraverseY2 = ParaStop.Y;
-			TileTD.TraverseZ2 = ParaStop.Z;
+			TileTD.TraverseX2 = Stop.X;
+			TileTD.TraverseY2 = Stop.Y;
+			TileTD.TraverseZ2 = Stop.Z;
 		}
 
 		// compensate for any floating point errors (inaccuracies)
-		TileTD.TraverseX2 = MaxSingle( TileTD.TraverseX2, TileBD.MinX );
-		TileTD.TraverseY2 = MaxSingle( TileTD.TraverseY2, TileBD.MinY );
-		TileTD.TraverseZ2 = MaxSingle( TileTD.TraverseZ2, TileBD.MinZ );
+		TileTD.TraverseX2 = TraverseData::MaxSingle( TileTD.TraverseX2, TileBD.MinX );
+		TileTD.TraverseY2 = TraverseData::MaxSingle( TileTD.TraverseY2, TileBD.MinY );
+		TileTD.TraverseZ2 = TraverseData::MaxSingle( TileTD.TraverseZ2, TileBD.MinZ );
 
-		TileTD.TraverseX2 = MinSingle( TileTD.TraverseX2, TileBD.MaxX );
-		TileTD.TraverseY2 = MinSingle( TileTD.TraverseY2, TileBD.MaxY );
-		TileTD.TraverseZ2 = MinSingle( TileTD.TraverseZ2, TileBD.MaxZ );
+		TileTD.TraverseX2 = TraverseData::MinSingle( TileTD.TraverseX2, TileBD.MaxX );
+		TileTD.TraverseY2 = TraverseData::MinSingle( TileTD.TraverseY2, TileBD.MaxY );
+		TileTD.TraverseZ2 = TraverseData::MinSingle( TileTD.TraverseZ2, TileBD.MaxZ );
 
 		// it is possible that after intersection testing the line is just a dot
 		// on the intersection box so check for this and then process voxel
@@ -702,18 +734,24 @@ bool VoxelRay::IsIntersectingTileBoundary()
 		)
 		{
 			// setup traverse mode direct
-			traverseMode = tmDirect;
+			traverseMode = TraverseMode::tmDirect;
 
 			// process voxel
 
 			// keep it within tile grid boundaries
-			VoxelX = TileTD.TraverseX1 % TileGD.Width; 
-			VoxelY = TileTD.TraverseY1 % TileGD.Height; 
-			VoxelZ = TileTD.TraverseZ1 % TileGD.Depth;
+//			VoxelX = TileTD.TraverseX1 % TileCD.Width; 
+//			VoxelY = TileTD.TraverseY1 % TileCD.Height; 
+//			VoxelZ = TileTD.TraverseZ1 % TileCD.Depth;
 
-			return true;
+			VoxelTD.X = fmod( TileTD.TraverseX1, TileCD.Width ); 
+			VoxelTD.Y = fmod( TileTD.TraverseY1, TileCD.Height ); 
+			VoxelTD.Z = fmod( TileTD.TraverseZ1, TileCD.Depth );
+
+			return false;
 		}
+		return true;
 	}
+	return false;
 }
 
 // I apply scaling down to 0..1 for ray coordinates, but also boundary coordinates, I think that is correct and it should be.
@@ -758,19 +796,19 @@ bool VoxelRay::IsIntersectingTileBoundaryScaled()
 		}
 		else
 		{
-			TileTD.TraverseX1 = ParaStart.X;
-			TileTD.TraverseY1 = ParaStart.Y;
-			TileTD.TraverseZ1 = ParaStart.Z;
+			TileTD.TraverseX1 = Start.X;
+			TileTD.TraverseY1 = Start.Y;
+			TileTD.TraverseZ1 = Start.Z;
 		}
 
 		// compensate for any floating point errors (inaccuracies)
-		TileTD.TraverseX1 = MaxSingle( TileTD.TraverseX1, TileBDScaled.MinX );
-		TileTD.TraverseY1 = MaxSingle( TileTD.TraverseY1, TileBDScaled.MinY );
-		TileTD.TraverseZ1 = MaxSingle( TileTD.TraverseZ1, TileBDScaled.MinZ );
+		TileTD.TraverseX1 = TraverseData::MaxSingle( TileTD.TraverseX1, TileBDScaled.MinX );
+		TileTD.TraverseY1 = TraverseData::MaxSingle( TileTD.TraverseY1, TileBDScaled.MinY );
+		TileTD.TraverseZ1 = TraverseData::MaxSingle( TileTD.TraverseZ1, TileBDScaled.MinZ );
 
-		TileTD.TraverseX1 = MinSingle( TileTD.TraverseX1, TileBDScaled.MaxX );
-		TileTD.TraverseY1 = MinSingle( TileTD.TraverseY1, TileBDScaled.MaxY );
-		TileTD.TraverseZ1 = MinSingle( TileTD.TraverseZ1, TileBDScaled.MaxZ );
+		TileTD.TraverseX1 = TraverseData::MinSingle( TileTD.TraverseX1, TileBDScaled.MaxX );
+		TileTD.TraverseY1 = TraverseData::MinSingle( TileTD.TraverseY1, TileBDScaled.MaxY );
+		TileTD.TraverseZ1 = TraverseData::MinSingle( TileTD.TraverseZ1, TileBDScaled.MaxZ );
 
 		if (IntersectionPoint2 == true)
 		{
@@ -780,19 +818,19 @@ bool VoxelRay::IsIntersectingTileBoundaryScaled()
 		}
 		else
 		{
-			TileTD.TraverseX2 = ParaStop.X;
-			TileTD.TraverseY2 = ParaStop.Y;
-			TileTD.TraverseZ2 = ParaStop.Z;
+			TileTD.TraverseX2 = Stop.X;
+			TileTD.TraverseY2 = Stop.Y;
+			TileTD.TraverseZ2 = Stop.Z;
 		}
 
 		// compensate for any floating point errors (inaccuracies)
-		TileTD.TraverseX2 = MaxSingle( TileTD.TraverseX2, TileBDScaled.MinX );
-		TileTD.TraverseY2 = MaxSingle( TileTD.TraverseY2, TileBDScaled.MinY );
-		TileTD.TraverseZ2 = MaxSingle( TileTD.TraverseZ2, TileBDScaled.MinZ );
+		TileTD.TraverseX2 = TraverseData::MaxSingle( TileTD.TraverseX2, TileBDScaled.MinX );
+		TileTD.TraverseY2 = TraverseData::MaxSingle( TileTD.TraverseY2, TileBDScaled.MinY );
+		TileTD.TraverseZ2 = TraverseData::MaxSingle( TileTD.TraverseZ2, TileBDScaled.MinZ );
 
-		TileTD.TraverseX2 = MinSingle( TileTD.TraverseX2, TileBDScaled.MaxX );
-		TileTD.TraverseY2 = MinSingle( TileTD.TraverseY2, TileBDScaled.MaxY );
-		TileTD.TraverseZ2 = MinSingle( TileTD.TraverseZ2, TileBDScaled.MaxZ );
+		TileTD.TraverseX2 = TraverseData::MinSingle( TileTD.TraverseX2, TileBDScaled.MaxX );
+		TileTD.TraverseY2 = TraverseData::MinSingle( TileTD.TraverseY2, TileBDScaled.MaxY );
+		TileTD.TraverseZ2 = TraverseData::MinSingle( TileTD.TraverseZ2, TileBDScaled.MaxZ );
 
 		// it is possible that after intersection testing the line is just a dot
 		// on the intersection box so check for this and then process voxel
@@ -805,20 +843,25 @@ bool VoxelRay::IsIntersectingTileBoundaryScaled()
 		)
 		{
 			// setup traverse mode direct
-			traverseMode = tmDirect;
+			traverseMode = TraverseMode::tmDirect;
 
 			// process voxel
 
 			// keep it within tile grid boundaries
-			VoxelX = TileTD.TraverseX1 % TileGD.Width; 
-			VoxelY = TileTD.TraverseY1 % TileGD.Height; 
-			VoxelZ = TileTD.TraverseZ1 % TileGD.Depth;
+//			VoxelTD.X = TileTD.TraverseX1 % TileCD.Width; 
+//			VoxelTD.Y = TileTD.TraverseY1 % TileCD.Height; 
+//			VoxelTD.Z = TileTD.TraverseZ1 % TileCD.Depth;
 
-			return true;
+			VoxelTD.X = fmod( TileTD.TraverseX1, TileCD.Width ); 
+			VoxelTD.Y = fmod( TileTD.TraverseY1, TileCD.Height ); 
+			VoxelTD.Z = fmod( TileTD.TraverseZ1, TileCD.Depth );
+
+			return false;
 		}
+		return true;
 	}
+	return false;
 }
-
 
 
 // now we can very easily intersect a voxel boundary if we set it up in 'world voxel coordinates'
@@ -840,8 +883,8 @@ bool VoxelRay::IsIntersectingVoxelBoundary()
 	(
 		LineSegmentIntersectsBoxSingle
 		(
-			ParaStart.X, ParaStart.Y, ParaStart.Z,
-			ParaStop.X, ParaStop.Y, ParaStop.Z,
+			Start.X, Start.Y, Start.Z,
+			Stop.X, Stop.Y, Stop.Z,
 
 			VoxelBD.MinX, VoxelBD.MinY, VoxelBD.MinZ,
 			VoxelBD.MaxY, VoxelBD.MaxY, VoxelBD.MaxZ,
@@ -866,19 +909,19 @@ bool VoxelRay::IsIntersectingVoxelBoundary()
 		}
 		else
 		{
-			VoxelTD.TraverseX1 = ParaStart.X;
-			VoxelTD.TraverseY1 = ParaStart.Y;
-			VoxelTD.TraverseZ1 = ParaStart.Z;
+			VoxelTD.TraverseX1 = Start.X;
+			VoxelTD.TraverseY1 = Start.Y;
+			VoxelTD.TraverseZ1 = Start.Z;
 		}
 
 		// compensate for any floating point errors (inaccuracies)
-		VoxelTD.TraverseX1 = MaxSingle( VoxelTD.TraverseX1, VoxelBD.MinX );
-		VoxelTD.TraverseY1 = MaxSingle( VoxelTD.TraverseY1, VoxelBD.MinY );
-		VoxelTD.TraverseZ1 = MaxSingle( VoxelTD.TraverseZ1, VoxelBD.MinZ );
+		VoxelTD.TraverseX1 = TraverseData::MaxSingle( VoxelTD.TraverseX1, VoxelBD.MinX );
+		VoxelTD.TraverseY1 = TraverseData::MaxSingle( VoxelTD.TraverseY1, VoxelBD.MinY );
+		VoxelTD.TraverseZ1 = TraverseData::MaxSingle( VoxelTD.TraverseZ1, VoxelBD.MinZ );
 
-		VoxelTD.TraverseX1 = MinSingle( VoxelTD.TraverseX1, VoxelBD.MaxX );
-		VoxelTD.TraverseY1 = MinSingle( VoxelTD.TraverseY1, VoxelBD.MaxY );
-		VoxelTD.TraverseZ1 = MinSingle( VoxelTD.TraverseZ1, VoxelBD.MaxZ );
+		VoxelTD.TraverseX1 = TraverseData::MinSingle( VoxelTD.TraverseX1, VoxelBD.MaxX );
+		VoxelTD.TraverseY1 = TraverseData::MinSingle( VoxelTD.TraverseY1, VoxelBD.MaxY );
+		VoxelTD.TraverseZ1 = TraverseData::MinSingle( VoxelTD.TraverseZ1, VoxelBD.MaxZ );
 
 		if (IntersectionPoint2 == true)
 		{
@@ -888,19 +931,19 @@ bool VoxelRay::IsIntersectingVoxelBoundary()
 		}
 		else
 		{
-			VoxelTD.TraverseX2 = ParaStop.X;
-			VoxelTD.TraverseY2 = ParaStop.Y;
-			VoxelTD.TraverseZ2 = ParaStop.Z;
+			VoxelTD.TraverseX2 = Stop.X;
+			VoxelTD.TraverseY2 = Stop.Y;
+			VoxelTD.TraverseZ2 = Stop.Z;
 		}
 
 		// compensate for any floating point errors (inaccuracies)
-		VoxelTD.TraverseX2 = MaxSingle( VoxelTD.TraverseX2, VoxelBD.MinX );
-		VoxelTD.TraverseY2 = MaxSingle( VoxelTD.TraverseY2, VoxelBD.MinY );
-		VoxelTD.TraverseZ2 = MaxSingle( VoxelTD.TraverseZ2, VoxelBD.MinZ );
+		VoxelTD.TraverseX2 = TraverseData::MaxSingle( VoxelTD.TraverseX2, VoxelBD.MinX );
+		VoxelTD.TraverseY2 = TraverseData::MaxSingle( VoxelTD.TraverseY2, VoxelBD.MinY );
+		VoxelTD.TraverseZ2 = TraverseData::MaxSingle( VoxelTD.TraverseZ2, VoxelBD.MinZ );
 
-		VoxelTD.TraverseX2 = MinSingle( VoxelTD.TraverseX2, VoxelBD.MaxX );
-		VoxelTD.TraverseY2 = MinSingle( VoxelTD.TraverseY2, VoxelBD.MaxY );
-		VoxelTD.TraverseZ2 = MinSingle( VoxelTD.TraverseZ2, VoxelBD.MaxZ );
+		VoxelTD.TraverseX2 = TraverseData::MinSingle( VoxelTD.TraverseX2, VoxelBD.MaxX );
+		VoxelTD.TraverseY2 = TraverseData::MinSingle( VoxelTD.TraverseY2, VoxelBD.MaxY );
+		VoxelTD.TraverseZ2 = TraverseData::MinSingle( VoxelTD.TraverseZ2, VoxelBD.MaxZ );
 
 		// it is possible that after intersection testing the line is just a dot
 		// on the intersection box so check for this and then process voxel
@@ -913,32 +956,38 @@ bool VoxelRay::IsIntersectingVoxelBoundary()
 		)
 		{
 			// setup traverse mode direct
-			traverseMode = tmDirect;
+			traverseMode = TraverseMode::tmDirect;
 
 			// process voxel
 
 			// keep it within tile grid boundaries
-			VoxelX = VoxelTD.TraverseX1 % TileGD.Width; 
-			VoxelY = VoxelTD.TraverseY1 % TileGD.Height; 
-			VoxelZ = VoxelTD.TraverseZ1 % TileGD.Depth;
+//			VoxelTD.X = VoxelTD.TraverseX1 % TileCD.Width; 
+//			VoxelTD.Y = VoxelTD.TraverseY1 % TileCD.Height; 
+//			VoxelTD.Z = VoxelTD.TraverseZ1 % TileCD.Depth;
 
-			return true;
+			VoxelTD.X = fmod( VoxelTD.TraverseX1, TileCD.Width ); 
+			VoxelTD.Y = fmod( VoxelTD.TraverseY1, TileCD.Height ); 
+			VoxelTD.Z = fmod( VoxelTD.TraverseZ1, TileCD.Depth );
+
+			return false;
 		}
+		return true;
 	}
+	return false;
 }
 
-void VoxelRay::SetupTileDimensions( int ParaTileWidth, int ParaTileHeight, int ParaTileWidth )
+void VoxelRay::SetupTileDimensions( int ParaTileWidth, int ParaTileHeight, int ParaTileDepth )
 {
 	TileCD.Width = ParaTileWidth;
 	TileCD.Height = ParaTileHeight;
-	TileCD.Depth = ParaTileWidth;
+	TileCD.Depth = ParaTileDepth;
 }
 
-void VoxelRay::SetupVoxelDimensions( int ParaVoxelWidth, int ParaVoxelHeight, int ParaVoxelWidth )
+void VoxelRay::SetupVoxelDimensions( int ParaVoxelWidth, int ParaVoxelHeight, int ParaVoxelDepth )
 {
 	VoxelCD.Width = ParaVoxelWidth;
 	VoxelCD.Height = ParaVoxelHeight;
-	VoxelCD.Depth = ParaVoxelWidth;
+	VoxelCD.Depth = ParaVoxelDepth;
 }
 
 // in grid index coordates, much cooler. can start at a different offset min basically.
@@ -972,9 +1021,9 @@ void VoxelRay::ComputeTileBoundary()
 	TileBD.MinY = TileGD.MinY * TileCD.Height;
 	TileBD.MinZ = TileGD.MinZ * TileCD.Depth;
 
-	TileBD.MaxX = (TileGD.MaxX * TileCD.Width) - Epsilon;
-	TileBD.MaxY = (TileGD.MaxY * TileCD.Height) - Epsilon;
-	TileBD.MaxZ = (TileGD.MaxZ * TileCD.Depth) - Epsilon;
+	TileBD.MaxX = ((TileGD.MaxX+1) * TileCD.Width) - Epsilon;
+	TileBD.MaxY = ((TileGD.MaxY+1) * TileCD.Height) - Epsilon;
+	TileBD.MaxZ = ((TileGD.MaxZ+1) * TileCD.Depth) - Epsilon;
 }
 
 void VoxelRay::ComputeTileBoundaryScaled()
@@ -984,23 +1033,25 @@ void VoxelRay::ComputeTileBoundaryScaled()
 	TileBDScaled.MinY = TileGD.MinY;
 	TileBDScaled.MinZ = TileGD.MinZ;
 
-	TileBDScaled.MaxX = TileGD.MaxX - Epsilon;
-	TileBDScaled.MaxY = TileGD.MaxY - Epsilon;
-	TileBDScaled.MaxZ = TileGD.MaxZ - Epsilon;
+	TileBDScaled.MaxX = (TileGD.MaxX+1) - Epsilon;
+	TileBDScaled.MaxY = (TileGD.MaxY+1) - Epsilon;
+	TileBDScaled.MaxZ = (TileGD.MaxZ+1) - Epsilon;
 }
 
 void VoxelRay::ComputeTileStartScaled()
 {
-	TileStartScaled.X = Start.X / TileCD.Width;
-	TileStartScaled.Y = Start.Y / TileCD.Height;
-	TileStartScaled.Z = Start.Z / TileCD.Depth;
+	// force floating point division, must also make sure that the left side is a float
+	TileStartScaled.X = Start.X / (float)(TileCD.Width);
+	TileStartScaled.Y = Start.Y / (float)(TileCD.Height);
+	TileStartScaled.Z = Start.Z / (float)(TileCD.Depth);
 }
 
 void VoxelRay::ComputeTileStopScaled()
 {
-	TileStopScaled.X = Stop.X / TileCD.Width;
-	TileStopScaled.Y = Stop.Y / TileCD.Height;
-	TileStopScaled.Z = Stop.Z / TileCD.Depth;
+	// force floating point division, must also make sure that the left side is a float
+	TileStopScaled.X = Stop.X / (float)(TileCD.Width);
+	TileStopScaled.Y = Stop.Y / (float)(TileCD.Height);
+	TileStopScaled.Z = Stop.Z / (float)(TileCD.Depth);
 }
 
 // old version
@@ -1039,7 +1090,7 @@ void VoxelRay.ComputeVoxelBoundary( int ParaTileX, int ParaTileY, int ParatileZ 
 // new version
 // we are going to compute a voxel boundary in voxel/world space so that later a line can be clipped/intersected against it
 // so that it can return nice traversal coordinates and make sure everything is nice and stable.
-void VoxelRay::ComputeVoxelBoundary( int ParaTileX, int ParaTileY, int ParatileZ )
+void VoxelRay::ComputeVoxelBoundary( int ParaTileX, int ParaTileY, int ParaTileZ )
 {
 	// if not zero-offset, and tile based offsets
 	// could also do something with VoxelGD and such to offset it even further
@@ -1055,19 +1106,19 @@ void VoxelRay::ComputeVoxelBoundary( int ParaTileX, int ParaTileY, int ParatileZ
 void VoxelRay::SetupTileTraversal()
 {
 	// traverse code, fast voxel traversal algorithm
-	int TileTD.dx = TileTD.SignSingle(TileTD.TraverseX2 - TileTD.TraverseX1);
-	if (TileTD.dx != 0) TileTD.tDeltaX = TileTD.fmin(TileTD.dx / (TileTD.TraverseX2 - TileTD.TraverseX1), 10000000.0f); else TileTD.tDeltaX = 10000000.0f;
-	if (TileTD.dx > 0) TileTD.tMaxX = TileTD.tDeltaX * TileTD.Frac1Single(TileTD.TraverseX1); else TileTD.tMaxX = TileTD.tDeltaX * TileTD.Frac0Single(TileTD.TraverseX1);
+	TileTD.dx = TraverseData::SignSingle(TileTD.TraverseX2 - TileTD.TraverseX1);
+	if (TileTD.dx != 0) TileTD.tDeltaX = fmin(TileTD.dx / (TileTD.TraverseX2 - TileTD.TraverseX1), 10000000.0f); else TileTD.tDeltaX = 10000000.0f;
+	if (TileTD.dx > 0) TileTD.tMaxX = TileTD.tDeltaX * TraverseData::Frac1Single(TileTD.TraverseX1); else TileTD.tMaxX = TileTD.tDeltaX * TraverseData::Frac0Single(TileTD.TraverseX1);
 	TileTD.X = (int) TileTD.TraverseX1;
 
-	int TileTD.dy = TileTD.SignSingle(TileTD.TraverseY2 - TileTD.TraverseY1);
-	if (TileTD.dy != 0) TiletDeltaY = TileTD.fmin(TileTD.dy / (TileTD.TraverseY2 - TileTD.y1), 10000000.0f); else TileTD.tDeltaY = 10000000.0f;
-	if (TileTD.dy > 0) TileTD.tMaxY = TileTD.tDeltaY * TileTD.Frac1Single(TileTD.TraverseY1); else TileTD.tMaxY = TileTD.tDeltaY * Frac0Single(TileTD.TraverseY1);
+	TileTD.dy = TraverseData::SignSingle(TileTD.TraverseY2 - TileTD.TraverseY1);
+	if (TileTD.dy != 0) TileTD.tDeltaY = fmin(TileTD.dy / (TileTD.TraverseY2 - TileTD.TraverseY1), 10000000.0f); else TileTD.tDeltaY = 10000000.0f;
+	if (TileTD.dy > 0) TileTD.tMaxY = TileTD.tDeltaY * TraverseData::Frac1Single(TileTD.TraverseY1); else TileTD.tMaxY = TileTD.tDeltaY * TraverseData::Frac0Single(TileTD.TraverseY1);
 	TileTD.Y = (int) TileTD.TraverseY1;
 
-	int TileTD.dz = TileTD.SignSingle(TileTD.TraverseZ2 - TileTD.TraverseZ1);
-	if (TileTD.dz != 0) TileTD.tDeltaZ = TileTD.fmin(TileTD.dz / (TileTD.TraverseZ2 - TileTD.TraverseZ1), 10000000.0f); else TileTD.tDeltaZ = 10000000.0f;
-	if (TileTD.dz > 0) TileTD.tMaxZ = TileTD.tDeltaZ * TileTD.Frac1Single(TileTD.TraverseZ1); else TiletMaxZ = TileTD.tDeltaZ * TileTD.Frac0Single(TileTD.TraverseZ1);
+	TileTD.dz = TraverseData::SignSingle(TileTD.TraverseZ2 - TileTD.TraverseZ1);
+	if (TileTD.dz != 0) TileTD.tDeltaZ = fmin(TileTD.dz / (TileTD.TraverseZ2 - TileTD.TraverseZ1), 10000000.0f); else TileTD.tDeltaZ = 10000000.0f;
+	if (TileTD.dz > 0) TileTD.tMaxZ = TileTD.tDeltaZ * TraverseData::Frac1Single(TileTD.TraverseZ1); else TileTD.tMaxZ = TileTD.tDeltaZ * TraverseData::Frac0Single(TileTD.TraverseZ1);
 	TileTD.Z = (int) TileTD.TraverseZ1;
 
 	if (TileTD.dx > 0) TileTD.OutX = TileGD.MaxX+1; else TileTD.OutX = TileGD.MinX-1;
@@ -1092,19 +1143,19 @@ void VoxelRay::SetupVoxelBoundary( float ParaMinX, float ParaMinY, float ParaMin
 void VoxelRay::SetupVoxelTraversal()
 {
 	// traverse code, fast voxel traversal algorithm
-	int VoxelTD.dx = VoxelTD.SignSingle(VoxelTD.TraverseX2 - VoxelTD.TraverseX1);
-	if (VoxelTD.dx != 0) VoxelTD.tDeltaX = VoxelTD.fmin(VoxelTD.dx / (VoxelTD.TraverseX2 - VoxelTD.TraverseX1), 10000000.0f); else VoxelTD.tDeltaX = 10000000.0f;
-	if (VoxelTD.dx > 0) VoxelTD.tMaxX = VoxelTD.tDeltaX * VoxelTD.Frac1Single(VoxelTD.TraverseX1); else VoxelTD.tMaxX = VoxelTD.tDeltaX * VoxelTD.Frac0Single(VoxelTD.TraverseX1);
+	VoxelTD.dx = TraverseData::SignSingle(VoxelTD.TraverseX2 - VoxelTD.TraverseX1);
+	if (VoxelTD.dx != 0) VoxelTD.tDeltaX = fmin(VoxelTD.dx / (VoxelTD.TraverseX2 - VoxelTD.TraverseX1), 10000000.0f); else VoxelTD.tDeltaX = 10000000.0f;
+	if (VoxelTD.dx > 0) VoxelTD.tMaxX = VoxelTD.tDeltaX * TraverseData::Frac1Single(VoxelTD.TraverseX1); else VoxelTD.tMaxX = VoxelTD.tDeltaX * TraverseData::Frac0Single(VoxelTD.TraverseX1);
 	VoxelTD.X = (int) VoxelTD.TraverseX1;
 
-	int VoxelTD.dy = VoxelTD.SignSingle(VoxelTD.TraverseY2 - VoxelTD.TraverseY1);
-	if (VoxelTD.dy != 0) VoxelTD.tDeltaY = VoxelTD.fmin(Voxeldy / (VoxelTD.TraverseY2 - VoxelTD.TraverseY1), 10000000.0f); else VoxelTD.tDeltaY = 10000000.0f;
-	if (VoxelTD.dy > 0) VoxelTD.tMaxY = tDeltaY * VoxelTD.Frac1Single(VoxelTD.TraverseY1); else VoxelTD.tMaxY = VoxelTD.tDeltaY * VoxelTD.Frac0Single(VoxelTD.TraverseY1);
+	VoxelTD.dy = TraverseData::SignSingle(VoxelTD.TraverseY2 - VoxelTD.TraverseY1);
+	if (VoxelTD.dy != 0) VoxelTD.tDeltaY = fmin(VoxelTD.dy / (VoxelTD.TraverseY2 - VoxelTD.TraverseY1), 10000000.0f); else VoxelTD.tDeltaY = 10000000.0f;
+	if (VoxelTD.dy > 0) VoxelTD.tMaxY = VoxelTD.tDeltaY * TraverseData::Frac1Single(VoxelTD.TraverseY1); else VoxelTD.tMaxY = VoxelTD.tDeltaY * TraverseData::Frac0Single(VoxelTD.TraverseY1);
 	VoxelTD.Y = (int) VoxelTD.TraverseY1;
 
-	int VoxelTD.dz = VoxelTD.SignSingle(VoxelTD.TraverseZ2 - VoxelTD.TraverseZ1);
-	if (VoxelTD.dz != 0) VoxelTD.tDeltaZ = VoxelTD.fmin(VoxelTD.dz / (VoxelTD.TraverseZ2 - VoxelTD.TraverseZ1), 10000000.0f); else VoxelTD.tDeltaZ = 10000000.0f;
-	if (VoxelTD.dz > 0) VoxeltMaxZ = VoxelTD.tDeltaZ * VoxelTD.Frac1Single(VoxelTD.TraverseZ1); else VoxelTD.tMaxZ = VoxelTD.tDeltaZ * VoxelTD.Frac0Single(VoxelTD.TraverseZ1);
+	VoxelTD.dz = TraverseData::SignSingle(VoxelTD.TraverseZ2 - VoxelTD.TraverseZ1);
+	if (VoxelTD.dz != 0) VoxelTD.tDeltaZ = fmin(VoxelTD.dz / (VoxelTD.TraverseZ2 - VoxelTD.TraverseZ1), 10000000.0f); else VoxelTD.tDeltaZ = 10000000.0f;
+	if (VoxelTD.dz > 0) VoxelTD.tMaxZ = VoxelTD.tDeltaZ * TraverseData::Frac1Single(VoxelTD.TraverseZ1); else VoxelTD.tMaxZ = VoxelTD.tDeltaZ * TraverseData::Frac0Single(VoxelTD.TraverseZ1);
 	VoxelTD.Z = (int) VoxelTD.TraverseZ1;
 
 	if (VoxelTD.dx > 0) VoxelTD.OutX = VoxelGD.MaxX+1; else VoxelTD.OutX = VoxelGD.MinX-1;
@@ -1117,7 +1168,14 @@ void VoxelRay::SetupVoxelTraversal()
 
 void VoxelRay::Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileWidth, int TileHeight, int TileDepth )
 {
-	traverseMode = tmUnknown;
+	traverseMode = TraverseMode::tmUnknown;
+
+	// Skybuck: I AM UNSURE ABOUT THIS CODE, DOES C++ HAVE A DEFAULT COPY CONSTRUCTOR FOR STRUCTURES ?! HOLY MOTHERFUCKING SHIT
+	// LET'S GOOGLE IT.
+	// can't really find it on the fucking web cause they all fucking idiots, not documenting default behaviour properly
+	// nobody ever asked this question for a struct ?! fuck them.
+	Start = ParaStart;
+	Stop = ParaStop;
 
 //	SetupTileBoundary();
 
@@ -1143,12 +1201,35 @@ void VoxelRay::Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileW
 				// could set done to true or whatever... but there is no boolean yet... could create it
 				// or just skip over rays that don't need traversing, might be nicer to use a boolean to keep things
 				// easy processing in arrays and such. I think this could/might be better and probably is ! ;) =D
-				TraverseDone = true;
+				traverseDone = true;
 //				TileTD.TraverseDone = true;
 //				VoxelTD.TraverseDone = true;
 				return;
 			}
+		} else
+		{
+			// for a none-scaled future version, possiby.
+//			TileTD.TraverseX1 = Start.X;
+//			TileTD.TraverseY1 = Start.Y;
+//			TileTD.TraverseZ1 = Start.Z;
+
+//			TileTD.TraverseX2 = Stop.X;
+//			TileTD.TraverseY2 = stop.Y;
+//			TileTD.TraverseZ2 = Stop.Z;
+
+			// both points inside boundary/tile grid, setup both traverse points and fall/pass through to below traversal code
+			TileTD.TraverseX1 = TileStartScaled.X;
+			TileTD.TraverseY1 = TileStartScaled.Y;
+			TileTD.TraverseZ1 = TileStartScaled.Z;
+
+			TileTD.TraverseX2 = TileStopScaled.X;
+			TileTD.TraverseY2 = TileStopScaled.Y;
+			TileTD.TraverseZ2 = TileStopScaled.Z;
 		}
+	} else
+	{
+		traverseDone = true;
+		return;
 	}
 
 	// what about this ?! ;)
@@ -1171,8 +1252,8 @@ void VoxelRay::Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileW
 	// the ray is now ready for traversing
 	// setup the ray traversal data for traversing
 	SetupTileTraversal();
-	TraverseMode = tmTile;
-	TraverseDone = false;
+	traverseMode = TraverseMode::tmTile;
+	traverseDone = false;
 
 	// maybe do this later/dynamicallu
 /*
@@ -1214,60 +1295,167 @@ bool VoxelRay::IsTraverseDone()
 }
 */
 
-// different techniques possible
-// I think I will like one boolean only better to avoid some instructions and to prevent boolean logic confusion and limitations and such.
-// also a little bit less data usage/data space.
-// simplified logic, also less bug prone ;)
-bool VoxelRay::IsTraverseDone()
+
+bool VoxelRay::IsTileTraverseDone()
 {
-	if (!TraverseDone)
+	if (!TileTD.TraverseDone)
 	{
-		if (TraverseMode == tmTile)
+		if (traverseMode == TraverseMode::tmTile)
 		{
 			if (TileTD.T > 1.0)
 			{
-				TraverseDone = true;
-			}
-		)
-		else
-		{
-			if (VoxelTD.T > 1.0)
-			{
-				TraverseDone = true;
+				TileTD.TraverseDone = true;
+
 			}
 		}
 	}
 
-	return TraverseDone;
+	return TileTD.TraverseDone;
 }
+
+bool VoxelRay::IsVoxelTraverseDone()
+{
+	if (!VoxelTD.TraverseDone)
+	{
+		if (traverseMode == TraverseMode::tmVoxel)
+		{
+			// to support backward traversal could also check for smaller than 0. but for now gonna let it be.
+			// user could just reverse start/stop point and thus this code does not need to be slowed down unnecessarily
+			// unless user wants to step back and forth, back and forth and such... but then also the NextStep
+			// could be copied and also made a PreviousStep which is kinda a cool idea but ok.
+			if (VoxelTD.T > 1.0)
+			{
+				VoxelTD.TraverseDone = true;
+			}
+		}
+	}
+
+	return VoxelTD.TraverseDone;
+}
+
+// different techniques possible
+// I think I will like one boolean only better to avoid some instructions and to prevent boolean logic confusion and limitations and such.
+// also a little bit less data usage/data space.
+// simplified logic, also less bug prone ;)
+// SHIITTTZZZZ... this code is inflexible... it does not allow traversing multiple voxel grids insides multiple tiles
+// I will leave the code like it is for now, but create a different version down below...
+// ya know what... I am just gonna split it into two functions for now maybe... and let the user decide what to do
+// maybe not though... I don't know yet holyshit.... I just want to have something generic so I am gonna fix it below
+// in a new version... to make it nice and easy for end user for now.
+/// but it might be wise to have custom functions anyway in case the user has any doubts about what this function does.
+// let's start with that ! =D for custom stepping/traversing through grids yeah ! =D maximum flexibility and shit.
+// could be good and handy in certain cases maybe but could also lead to inefficiency or even bugs but maybe not
+// it depends on brain of user hahahahaha. >=D
+bool VoxelRay::IsTraverseDone()
+{
+	if (!traverseDone)
+	{
+		if (traverseMode == TraverseMode::tmTile)
+		{
+			if (TileTD.T > 1.0)
+			{
+				TileTD.TraverseDone = true;
+				traverseDone = true;
+				return true;
+			}
+		} else
+//		if (traverseMode == tmVoxel)
+		{
+			if (VoxelTD.T > 1.0)
+			{
+				VoxelTD.TraverseDone = true;
+				traverseDone = true;
+			}
+		}
+
+		if (TileTD.TraverseDone && VoxelTD.TraverseDone)
+		{
+			traverseDone = true;
+		}
+	}
+
+	return traverseDone;
+}
+
+// more correct version, which allows tracing/collision detection through multiple voxel grids basically, assuming
+// at least that the voxel t will end inside a voxel/tile grid basically, in case algorithm changes, then above
+// version would have been good, but not now, not in this version... where t stops at the tile boundary for now, there it
+// should be 1 already. So that is the problem with above code sort of it assumes, that the ray traversal is done after
+// entering one tile, for voxel checking, but there might be no collisions, so it should be able to continue back into
+// tile tracing mode !
+
+// it depends on brain of user hahahahaha. >=D
+// I don't want to fix this yet... cause it's killing my brain...
+// let's seperate into seperate see above functions for now, might be helpfull too.
+/*
+bool VoxelRay::IsTraverseDone()
+{
+	if (!traverseDone)
+	{
+		if (traverseMode == tmTile)
+		{
+			if (TileTD.T > 1.0)
+			{
+				TileTD.TraverseDone = true;
+				traverseDone = true;
+				return true;
+			}
+		} else
+//		if (traverseMode == tmVoxel)
+		{
+			if (VoxelTD.T > 1.0)
+			{
+				VoxelTD.TraverseDone = true;
+				traverseDone = true;
+			}
+		}
+
+		if (TileTD.TraverseDone && VoxelTD.TraverseDone)
+		{
+			traverseDone = true;
+		}
+	}
+
+	return traverseDone;
+}
+*/
+
 
 void VoxelRay::NextStep()
 {
 	// direct end result
-	if (TraverseMode == tmDirect)
+	if (traverseMode == TraverseMode::tmDirect)
 	{
-		TraverseDone = true;
+		traverseDone = true;
 	} else
 	// traverse tiles
-	if (TraverseMode == tmTile)
+	if (traverseMode == TraverseMode::tmTile)
 	{
 		// go to next voxel
 		if ( (TileTD.tMaxX < TileTD.tMaxY) && (TileTD.tMaxX < TileTD.tMaxZ) )
 		{
 			TileTD.T = TileTD.tMaxX;
 			TileTD.X += TileTD.dx;
-			TiletTD.MaxX += TileTD.tDeltaX;
+			TileTD.tMaxX += TileTD.tDeltaX;
 
-			if (TileTD.X == TileTD.OutX) break;
+			if (TileTD.X == TileTD.OutX)
+			{
+				TileTD.TraverseDone = true;
+				return;
+			}
 		}
 		else
-		if (TileTD.tMaxY < TiletMaxZ)
+		if (TileTD.tMaxY < TileTD.tMaxZ)
 		{
 			TileTD.T = TileTD.tMaxY;
 			TileTD.Y += TileTD.dy;
 			TileTD.tMaxY += TileTD.tDeltaY;
 
-			if (TileTD.Y == TileTD.OutY) break;
+			if (TileTD.Y == TileTD.OutY)
+			{
+				TileTD.TraverseDone = true;
+				return;
+			}
 		}
 		else
 		{
@@ -1275,31 +1463,41 @@ void VoxelRay::NextStep()
 			TileTD.Z += TileTD.dz;
 			TileTD.tMaxZ += TileTD.tDeltaZ;
 
-			if (TileTD.Z == TileTD.OutZ) break;
+			if (TileTD.Z == TileTD.OutZ)
+			{
+				TileTD.TraverseDone = true;
+				return;
+			}
 		}
-
-
 	} else
 	// traverse voxels
-//	if (TraverseMode == tmVoxel)
+//	if (traverseMode == TraverseMode::tmVoxel)
 	{
 		// go to next voxel
-		if ( (VoxelTD.tMaxX < VoxeltMaxY) && (VoxeltMaxX < VoxeltMaxZ) )
+		if ( (VoxelTD.tMaxX < VoxelTD.tMaxY) && (VoxelTD.tMaxX < VoxelTD.tMaxZ) )
 		{
 			VoxelTD.T = VoxelTD.tMaxX;
 			VoxelTD.X += VoxelTD.dx;
 			VoxelTD.tMaxX += VoxelTD.tDeltaX;
 
-			if (VoxelTD.X == VoxelTD.OutX) break;
+			if (VoxelTD.X == VoxelTD.OutX)
+			{
+				VoxelTD.TraverseDone = true;
+				return;
+			}
 		}
 		else
-		if (VoxelTD.tMaxY < VoxeltMaxZ)
+		if (VoxelTD.tMaxY < VoxelTD.tMaxZ)
 		{
 			VoxelTD.T = VoxelTD.tMaxY;
 			VoxelTD.Y += VoxelTD.dy;
 			VoxelTD.tMaxY += VoxelTD.tDeltaY;
 
-			if (VoxelTD.Y == VoxelTD.OutY) break;
+			if (VoxelTD.Y == VoxelTD.OutY)
+			{
+				VoxelTD.TraverseDone = true;
+				return;
+			}
 		}
 		else
 		{
@@ -1307,7 +1505,11 @@ void VoxelRay::NextStep()
 			VoxelTD.Z += VoxelTD.dz;
 			VoxelTD.tMaxZ += VoxelTD.tDeltaZ;
 
-			if (VoxelTD.Z == VoxelTD.OutZ) break;
+			if (VoxelTD.Z == VoxelTD.OutZ)
+			{
+				VoxelTD.TraverseDone = true;
+				return;
+			}
 		}
 	}
 }
@@ -1342,6 +1544,7 @@ bool VoxelRay::Collision()
 }
 */
 
+// bla
 void VoxelRay::GetTraverseTilePosition( int *ParaTileX, int *ParaTileY, int *ParaTileZ )
 {
 	*ParaTileX = TileTD.X;

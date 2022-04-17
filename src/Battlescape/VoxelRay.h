@@ -12,7 +12,19 @@
 namespace OpenXcom
 { // open/associate OpenXcom namespace
 
-enum TraverseMode { tmUnknown, tmDirect, tmTile, tmVoxel }; 
+// scoped enum
+enum struct TraverseMode { tmUnknown, tmDirect, tmTile, tmVoxel }; 
+
+
+struct VoxelPosition
+{
+	int X, Y, Z;
+};
+
+struct VoxelPositionFloat
+{
+	float X, Y, Z;
+};
 
 struct TraverseData
 {
@@ -45,11 +57,11 @@ struct TraverseData
 
 	// note: the floating point type below in these helper functions should match the floating point type in calculateLine
 	//       for maximum accuracy and correctness, otherwise problems will occur !
-	float SignSingle( float x );
-	float Frac0Single( float x );
-	float Frac1Single( float x );
-	float MaxSingle( float A, float B );
-	float MinSingle( float A, float B );
+	static float SignSingle( float x );
+	static float Frac0Single( float x );
+	static float Frac1Single( float x );
+	static float MaxSingle( float A, float B );
+	static float MinSingle( float A, float B );
 };
 
 struct GridData
@@ -81,8 +93,8 @@ struct VoxelRay
 	VoxelPosition Stop;
 
 	// Skybuck: not absolutely necessary to store this maybe but doing it anyway for now.
-	VoxelPosition TileStartScaled;
-	VoxelPosition TileStopScaled;
+	VoxelPositionFloat TileStartScaled;
+	VoxelPositionFloat TileStopScaled;
 
 	TraverseMode traverseMode;
 	bool traverseDone;
@@ -90,7 +102,10 @@ struct VoxelRay
 	TraverseData TileTD;
 	TraverseData VoxelTD;
 
-	GridData TileGD;
+	// maybe fix this later through a TileVoxelTraverseEngine class or struct or something but for now I am gonna let it be
+	// because I already spent so much time on restructuring things... I want to debug it and see if it works and how it looks
+	// like, yes I know performance is important but it should have some performance already to be able to look at it.
+	GridData TileGD;		// this could and should be moved outside to some "engine" so there is only one copy instead of multiple/each time... BOEHOE :(........
 	GridData VoxelGD;
 
 	BoundaryData TileBD;
@@ -105,7 +120,7 @@ struct VoxelRay
 //	int CollisionTileX, CollisionTileY, CollisionTileZ;
 //	int CollisionVoxelX, CollisionVoxelY, CollisionVoxelZ;
 
-	static float Epsilon = 0.1; // static ? ;)
+	static float Epsilon; // static ? ;)
 
 	bool PointInBoxSingle
 	(
@@ -148,9 +163,9 @@ struct VoxelRay
 
 	bool IsIntersectingVoxelBoundary();
 
-	void SetupTileDimensions( int ParaTileWidth, int ParaTileHeight, int ParaTileWidth );
+	void SetupTileDimensions( int ParaTileWidth, int ParaTileHeight, int ParaTileDepth );
 
-	void SetupVoxelDimensions( int ParaVoxelWidth, int ParaVoxelHeight, int ParaVoxelWidth );
+	void SetupVoxelDimensions( int ParaVoxelWidth, int ParaVoxelHeight, int ParaVoxelDepth );
 
 	// in grid index coordates, much cooler. can start at a different offset min basically.
 	void SetupGridData( int ParaMinX, int ParaMinY, int ParaMinZ, int ParaMaxX, int ParaMaxY, int ParaMaxZ );
@@ -167,7 +182,7 @@ struct VoxelRay
 
 	void ComputeTileStopScaled();
 
-	void ComputeVoxelBoundary( int ParaTileX, int ParaTileY, int ParatileZ );
+	void ComputeVoxelBoundary( int ParaTileX, int ParaTileY, int ParaTileZ );
 
 	void SetupTileTraversal();
 
@@ -178,7 +193,22 @@ struct VoxelRay
 	// maybe do this different with x,y,z individual parameters, would make code usage more independent from these
 	// data struvctures, I will probably do that.
 
+	// when the TilevoxelTraverseEngine is created then these tile properties width,height depth can be setup
+	// just once... makes it easier to create all kinds of rays in all kinds of positions
+	// HEY it could also be usefull to create a setup routine, that can create a ray into a certain direction
+	// maybe make the code inside optional so it doesn't check for ending conditions of ray
+	// or even better it can compute an almost infite ray... but just extending it outside of the boundary
+	// and then clipping it for faster ray ending/exit condition... though it will bounce against
+	// the border / boundary anyway if the algorithm/code is working properly ! but it's still a bit risky
+	// because of floating point instability but that should be solved mostly, though I cannot 100% garantuee it right now
+	// because of fmod... I know complex mambo jambo talk but it might help me later in the future to diagnose problems.
+	// or to improve code.
+
+	// Tile Width, HEight Depth not used for now... use the SetupTileDimension routine to set it up.
 	void Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileWidth, int TileHeight, int TileDepth );
+
+	bool IsTileTraverseDone();
+	bool IsVoxelTraverseDone();
 
 	bool IsTraverseDone();
 

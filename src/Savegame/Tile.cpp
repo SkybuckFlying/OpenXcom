@@ -1099,7 +1099,7 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 
 	int VoxelX, VoxelY, VoxelZ;
 
-	VoxelPosition vVoxelPosition;
+	VoxelFramePosition vVoxelPosition;
 
 	int vIndex;
 
@@ -1191,6 +1191,16 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 SpriteVoxelFrame *Tile::getSpriteVoxelFrame()
 {
 	return &_SpriteVoxelFrame;
+}
+
+bool Tile::getTraversed( void )
+{
+	return _traversed;
+}
+
+void Tile::setTraversed( bool ParaTraversed )
+{
+	_traversed = ParaTraversed;
 }
 
 }

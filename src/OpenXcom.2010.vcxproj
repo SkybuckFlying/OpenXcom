@@ -630,7 +630,7 @@
     <ClInclude Include="Battlescape\UnitTurnBState.h" />
     <ClInclude Include="Battlescape\UnitWalkBState.h" />
     <ClInclude Include="Battlescape\Particle.h" />
-    <ClInclude Include="Battlescape\VoxelPosition.h" />
+    <ClInclude Include="Battlescape\VoxelFramePosition.h" />
     <ClInclude Include="Battlescape\VoxelRay.h" />
     <ClInclude Include="Battlescape\WarningMessage.h" />
     <ClInclude Include="dirent.h" />

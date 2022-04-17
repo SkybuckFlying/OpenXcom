@@ -1,13 +1,13 @@
 #pragma once
 
-#include "VoxelPosition.h"
+#include "VoxelFramePosition.h"
 
 namespace OpenXcom
 {
 
 struct SpriteVoxelFrame
 {
-	VoxelPosition _VoxelPosition[40][32]; // [Y, X] 
+	VoxelFramePosition _VoxelPosition[40][32]; // [Y, X] 
 };
 
 struct SpriteVoxelFrameComputed

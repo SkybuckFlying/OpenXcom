@@ -50,6 +50,7 @@
 #include "ScreenVoxelFrame.h"
 #include "ScreenRayBlocks.h"
 #include <math.h> // for pi
+#include "VoxelRay.h"
 
 
 /*
@@ -231,7 +232,8 @@ void Map::draw()
 
 	if ((_save->getSelectedUnit() && _save->getSelectedUnit()->getVisible()) || _unitDying || _save->getSelectedUnit() == 0 || _save->getDebugMode() || _projectileInFOV || _explosionInFOV)
 	{
-		drawTerrain(this);
+//		drawTerrain(this);
+		drawTerrainHeavyModifiedBySkybuck(this);
 	}
 	else
 	{
@@ -2780,6 +2782,17 @@ void FullRetardModeOn( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *S
 
 */
 
+// NEW STUFF COMPLETE LATER
+/*
+Uint8 Map::Shade( Uint8 ParaColorIn,   
+
+
+	//				SubtractColor = SurfaceColor & 15; // mod 16 = and 15
+				SurfaceColor = SurfaceColor & 240; // inverted mask to clear lower 16 colors
+				Uint8 FinalColor = SurfaceColor + VoxelColor;
+*/
+
+
 /**
  * Draw the terrain.
  * Keep this function as optimised as possible. It's big to minimise overhead of function calls.
@@ -2825,8 +2838,94 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 
 	surface->lock();
 
-	EatShitAndDie++;
+	EatShitAndDie++; // HAHAHAHAHA this still in there... hahaha cool, it's for ufo disco ! LOL. or shading experiment/whatever/animation frame number, cause you shits wrap it back to zero and I dont know how to deal with that or I dont want to deal with that, wrap it back at int64 and then maybe let users do custom wrapping back at animation frame 8 or something... just an idea so it can be used for others things too ok... where animation has to be more consistent/fluent time was... order wise... no wrapping back ! unless absolutely necessarya nd when you do wrap back make sure it was on a 8 frame boundary or so hehe.. cool idea bye.. this is probably the longest comment I ever wrote... now I am becoming curious if visual studio or the compiler will crash because of a line overflow... PIEEEEEE BYE maybe some synthax high lighter haha in another tool. KABOOOEEM ENJOY ! =D
 
+
+
+	// ****************************************************************************************
+	// Example code by Skybuck Flying ! =D the creator of voxelray.h and voxelray.cpp
+	// ****************************************************************************************
+	// *** EXAMPLE CODE HOW TO USE VOXELRAY.H TO TRACE/TRAVERSE A RAY THROUGH THE TILE GRID ***
+	// ****************************************************************************************
+	// So far VoxelRay.h has been debugged to produce correct Tile traversing.
+	// Perhaps tomorrow I will debug the voxel part of it.
+	// SO !!! ATTENTION !!! VOXELRAY.H NOT FULLY DEBUGGED YET, BUT IN A USUABLE STATE
+	// SO BELOW FOR WORKING EXAMPLE CODE FOR TILE TRACING/TRAVERSING YEAH ! =D
+	// ****************************************************************************************
+
+	// reset traversed before traversing and before drawing the graphics ofcourse ! ;) :)
+	for (int itZ = beginZ; itZ <= endZ; itZ = itZ + 1)
+	{
+		for (int itX = beginX; itX <= endX; itX = itX + 1)
+		{
+			for (int itY = beginY; itY <= endY; itY = itY + 1)
+			{
+				mapPosition = Position(itX, itY, itZ);
+				tile = _save->getTile(mapPosition);
+				if (!tile) continue;
+				tile->setTraversed( false );
+			}
+		}
+	}
+
+	VoxelPosition vVoxelPositionStart;
+	VoxelPosition vVoxelPositionStop;
+
+	// this might have been problem code but Z was X by accident
+	// set voxel position start to maximum x,y,z of the map
+	// position center of last tile
+	vVoxelPositionStart.X = (_save->getMapSizeX() * 16) - 1;
+	vVoxelPositionStart.Y = (_save->getMapSizeY() * 16) - 1;
+	vVoxelPositionStart.Z = (_save->getMapSizeZ() * 24) - 1;
+
+	// set voxel position stop to minimum x,y,z of the map which is probably 0,0,0
+	// position center of tile 0,0,0
+	vVoxelPositionStop.X = 0; 
+	vVoxelPositionStop.Y = 0;
+	vVoxelPositionStop.Z = 0;
+
+/*
+	// Skybuck:
+	// safe code in case traverse code can't handle when start/stop is right on first or last voxel
+	// but traverse code in voxelray.h can handle it right now ! So don't worry/no worries ! ;) =D
+	// set voxel position start to maximum x,y,z of the map
+	// position center of last tile
+	vVoxelPositionStart.X = (_save->getMapSizeX() * 16) - (16/2);
+	vVoxelPositionStart.Y = (_save->getMapSizeY() * 16) - (16/2);
+	vVoxelPositionStart.Z = (_save->getMapSizeZ() * 24) - (24/2);
+
+	// set voxel position stop to minimum x,y,z of the map which is probably 0,0,0
+	// position center of tile 0,0,0
+	vVoxelPositionStop.X = 16/2; 
+	vVoxelPositionStop.Y = 16/2;
+	vVoxelPositionStop.Z = 24/2;
+*/
+
+	VoxelRay vVoxelRay;
+
+	vVoxelRay.SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
+	vVoxelRay.SetupTileDimensions( 16, 16, 24 );
+	vVoxelRay.SetupGridData( 0, 0, 0, _save->getMapSizeX()-1, _save->getMapSizeY()-1, _save->getMapSizeZ()-1 );
+	vVoxelRay.Setup( vVoxelPositionStart, vVoxelPositionStop, 16, 16, 24 ); 
+
+	int TileTraverseX, TileTraverseY, TileTraverseZ;
+
+	while (!vVoxelRay.IsTileTraverseDone())
+	{
+		vVoxelRay.GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
+		mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
+		tile = _save->getTile(mapPosition);
+		if (!tile) continue;
+		tile->setTraversed( true );
+
+		vVoxelRay.NextStep();
+	}
+
+	// *******************************************************************************************
+	// END OF VOXELRAY TRAVERSAL CODE EXAMPLE, HOWEVER BELOW IS ALSO SOME RENDERING ASSISTANCE...
+	// IT USES a boolean per tile and getTraversed to known if a tile was traversed or not ! ;)
+	// make sure to enable "z levels with game user interface to see the rest 
+	// *******************************************************************************************
 
 	for (int itZ = beginZ; itZ <= endZ; itZ = itZ + 1)
 	{
@@ -2849,7 +2948,6 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 					tile = _save->getTile(mapPosition);
 
 					if (!tile) continue;
-
 
 					if (tile->isDiscovered(2))
 					{
@@ -2889,11 +2987,19 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 					}
 					unit = tile->getUnit();
 
+					// ***************************************************************
+					// *** BEGIN OF DEBUG CODE FOR VOXEL RAY TRAVERSAL PART 1 OF 2 ***
+					// ***************************************************************
 					// Draw cursor back
-//					frameNumber = 2; // blue box
-//					tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
-//					tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
-
+					if (tile->getTraversed())
+					{
+						frameNumber = 2; // blue box
+						tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
+						tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
+					}
+					// ************************************************************
+					// *** END OF DEBUG CODE FOR VOXEL RAY TRAVERSAL PART 1 OF 2***
+					// ************************************************************
 
 					// special handling for a moving unit in background of tile.
 					const int backPosSize = 3;
@@ -2995,15 +3101,20 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 						drawUnit(surface, _save->getTile(mapPosition + frontPos[f]), tile, screenPosition, tileShade, obstacleShade, topLayer);
 					}
 
-/*
+					// ***************************************************************
+					// *** BEGIN OF DEBUG CODE FOR VOXEL RAY TRAVERSAL PART 2 OF 2 ***
+					// ***************************************************************
 					// Draw cursor front
+					if (tile->getTraversed())
 					{
 							frameNumber = 5; // blue box
 							tmpSurface = _game->getMod()->getSurfaceSet("CURSOR.PCK")->getFrame(frameNumber);
 							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y, 0);
 //							FaggotShitDraw( surface, screenPosition.x, screenPosition.y, tmpSurface );
 					}
-*/
+					// ************************************************************
+					// *** END OF DEBUG CODE FOR VOXEL RAY TRAVERSAL PART 2 OF 2***
+					// ************************************************************
 
 				}
 
@@ -3999,6 +4110,9 @@ void Map::drawTerrain(Surface *surface)
 	SunZ = 3000;
 */
 
+// TEMP DISABLED
+/* 
+
 	// should first check if there is a sun or a moon
 	// also sun could be restricted but then again, the sun is everywhere so let it be...
 	// for moon the light power could be lower.
@@ -4251,24 +4365,24 @@ void Map::drawTerrain(Surface *surface)
 								// however color could be anything so maybe good to cap it
 								// to it's shade/color palette entry/range and such.... hmmm
 								// must know first in what palette range it lies...
-/*
-								if vRed > 255 then vRed := 255;
-								if vGreen > 255 then vGreen := 255;
-								if vBlue > 255 then vBlue := 255;
 
-								if vRed < 0 then vRed := 0;
-								if vGreen < 0 then vGreen := 0;
-								if vBlue < 0 then vBlue := 0;
-*/
+//								if vRed > 255 then vRed := 255;
+//								if vGreen > 255 then vGreen := 255;
+//								if vBlue > 255 then vBlue := 255;
 
-/*
-								vPixel.Red := Round( vRed );
-								vPixel.Green :=  Round( vGreen );
-								vPixel.Blue := Round( vBlue );
-								vPixel.Alpha := 0;
+//								if vRed < 0 then vRed := 0;
+//								if vGreen < 0 then vGreen := 0;
+//								if vBlue < 0 then vBlue := 0;
+//
 
-								mPixelMap[vPixelX,vPixelY] := vPixel;
-*/
+
+//								vPixel.Red := Round( vRed );
+//								vPixel.Green :=  Round( vGreen );
+//								vPixel.Blue := Round( vBlue );
+//								vPixel.Alpha := 0;
+
+//								mPixelMap[vPixelX,vPixelY] := vPixel;
+
 								// set final screen pixel color
 								surface dst -> set pixel etc....
 

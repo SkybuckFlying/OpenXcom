@@ -59,7 +59,7 @@ void ScreenVoxelFrame::ReSize( int ParaWidth, int ParaHeight )
 		(ParaWidth > 0) && (ParaHeight > 0)
 	)
 	{
-		mVoxelPosition = new VoxelPosition[ParaWidth * ParaHeight];
+		mVoxelPosition = new VoxelFramePosition[ParaWidth * ParaHeight];
 		mWidth = ParaWidth;
 		mHeight = ParaHeight;
 	}
@@ -122,7 +122,7 @@ void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTi
 
 void ScreenVoxelFrame::Clear( void )
 {
-	VoxelPosition vVoxelPosition;
+	VoxelFramePosition vVoxelPosition;
 	int vIndex;
 
 	vVoxelPosition.X = -1;
@@ -225,7 +225,7 @@ void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTi
 
 void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTile, Surface *ParaSprite )
 {
-	VoxelPosition vVoxelPosition;
+	VoxelFramePosition vVoxelPosition;
 	Position vTilePosition;
 
 	int vScreenPixelX, vScreenPixelY;

@@ -84,6 +84,7 @@ protected:
 	std::list<Particle*> _particles;
 	int _obstacle;
 	SpriteVoxelFrame _SpriteVoxelFrame;
+	bool _traversed;
 public:
 	/// Creates a tile.
 	Tile(Position pos);
@@ -265,6 +266,11 @@ public:
 
 	void PrecomputeVoxelMap3D( TileEngine *ParaTileEngine, TileVoxelMap3D *ParaVoxelMap ); // should or could be private.
 	SpriteVoxelFrame *getSpriteVoxelFrame();
+
+	// for debugging purposes
+	bool getTraversed( void );
+
+	void setTraversed( bool ParaTraversed );
 };
 
 }
