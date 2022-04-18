@@ -19,7 +19,7 @@ namespace OpenXcom
 // #define FRAC0(x) (x - floorf(x))
 // #define FRAC1(x) (1 - x + floorf(x))
 
-// note: the floating point type below in these helper functions should match the floating point type in calculateLine
+// note: the floating point type below in these helper functions should match the floating point type in funtion below
 //       for maximum accuracy and correctness, otherwise problems will occur !
 float TraverseData::SignSingle( float x )
 {
@@ -134,6 +134,53 @@ void VoxelRay::OptimizedComputeVoxelPosition( float ParaStartX, float ParaStartY
 
 float VoxelRay::Epsilon = 0.01;
 
+
+bool VoxelRay::IsSinglePoint()
+{
+	if
+	(	(Start.X == Stop.X) &&
+		(Start.Y == Stop.Y) &&
+		(Start.Z == Stop.Z)
+	)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool VoxelRay::IsSinglePointInTileBoundary()
+{
+	// check if single point is inside the tile boundary in real/world/voxel coordinates (as stored in TileBD)
+	return 
+	(
+		// alternative more precision solution
+		PointInBoxSingle
+		(
+			Start.X, Start.Y, Start.Z,
+
+			TileBD.MinX,
+			TileBD.MinY,
+			TileBD.MinZ,
+
+			TileBD.MaxX,
+			TileBD.MaxY,
+			TileBD.MaxZ
+		)
+	);
+}
+
+void VoxelRay::ComputeVoxelStartPosition()
+{
+	VoxelTD.X = fmod( Start.X, TileCD.Width );
+	VoxelTD.Y = fmod( Start.Y, TileCD.Height );
+	VoxelTD.Z = fmod( Start.Z, TileCD.Depth );
+}
+
+
+
 bool VoxelRay::IsTileDirect()
 {
 
@@ -203,9 +250,9 @@ bool VoxelRay::IsTileDirect()
 			// compute voxel position
 			// nothing to compute for now (for simple openxcom grids and such.)
 //			ComputeVoxelPosition( ParaStartX, ParaStartY, ParaStartZ, &VoxelTD.X, &VoxelTD.Y, &VoxelTD.Z ); 
-			VoxelTD.X = Start.X;
-			VoxelTD.Y = Start.Y;
-			VoxelTD.Z = Start.Z;
+//			VoxelTD.X = Start.X;
+//			VoxelTD.Y = Start.Y;
+//			VoxelTD.Z = Start.Z;
 
 //			ModVoxelPositionToTileGrid
 
@@ -304,9 +351,9 @@ bool VoxelRay::IsTileDirectScaled()
 			// compute voxel position
 			// nothing to compute for now (for simple openxcom grids and such.)
 //			ComputeVoxelPosition( ParaStartX, ParaStartY, ParaStartZ, &VoxelTD.X, &VoxelTD.Y, &VoxelTD.Z ); 
-			VoxelTD.X = Start.X;
-			VoxelTD.Y = Start.Y;
-			VoxelTD.Z = Start.Z;
+//			VoxelTD.X = Start.X;
+//			VoxelTD.Y = Start.Y;
+//			VoxelTD.Z = Start.Z;
 
 //			ModVoxelPositionToTileGrid
 
@@ -371,9 +418,9 @@ bool VoxelRay::IsVoxelDirect()
 //			VoxelTD.Y = VoxelTD.TraverseY1 % 16;
 //			VoxelTD.Z = VoxelTD.TraverseZ1 % 24;
 
-			VoxelTD.X = fmod( VoxelTD.TraverseX1, 16 );
-			VoxelTD.Y = fmod( VoxelTD.TraverseY1, 16 );
-			VoxelTD.Z = fmod( VoxelTD.TraverseZ1, 24 );
+			VoxelTD.X = fmod( VoxelTD.TraverseX1, TileCD.Width );
+			VoxelTD.Y = fmod( VoxelTD.TraverseY1, TileCD.Height );
+			VoxelTD.Z = fmod( VoxelTD.TraverseZ1, TileCD.Depth );
 
 			return true;
 		}
@@ -414,7 +461,7 @@ bool VoxelRay::IsInsideTileBoundary()
 // I know crazy comments ! ;) =D
 bool VoxelRay::IsInsideTileBoundaryScaled()
 {
-	// check if both world points are in tile grid, but multiple boundary by tile size to get world voxel coordinates for good check.
+	// check if both world points are in tile grid, scaled down version.
 	if
 	(
 		PointInBoxSingle
@@ -429,6 +476,34 @@ bool VoxelRay::IsInsideTileBoundaryScaled()
 			TileStopScaled.X, TileStopScaled.Y, TileStopScaled.Z,
 			TileBDScaled.MinX, TileBDScaled.MinY, TileBDScaled.MinZ,
 			TileBDScaled.MaxX, TileBDScaled.MaxY, TileBDScaled.MaxZ
+		)
+	)
+	{
+		return true;
+	}
+	return false;
+}
+
+
+bool VoxelRay::IsInsideVoxelBoundary()
+{
+	// check if both world points are in voxel boundary
+	if
+	(
+		PointInBoxSingle
+		(
+//			VoxelTD.TraverseX1, VoxelTD.TraverseY1, VoxelTD.TraverseZ1,
+			Start.X, Start.Y, Start.Z,
+			VoxelBD.MinX, VoxelBD.MinY, VoxelBD.MinZ,
+			VoxelBD.MaxX, VoxelBD.MaxY, VoxelBD.MaxZ
+		)
+		&&
+		PointInBoxSingle
+		(
+//			VoxelTD.TraverseX2, VoxelTD.TraverseY2, VoxelTD.TraverseZ2,
+			Stop.X, Stop.Y, Stop.Z,
+			VoxelBD.MinX, VoxelBD.MinY, VoxelBD.MinZ,
+			VoxelBD.MaxX, VoxelBD.MaxY, VoxelBD.MaxZ
 		)
 	)
 	{
@@ -1166,14 +1241,12 @@ void VoxelRay::SetupVoxelTraversal()
 	VoxelTD.TraverseDone = false;
 }
 
+// could rename this to tile setup if I really wanted to or copy it... allows custom traversing for user
+// maybe a bit safr.
 void VoxelRay::Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileWidth, int TileHeight, int TileDepth )
 {
 	traverseMode = TraverseMode::tmUnknown;
 
-	// Skybuck: I AM UNSURE ABOUT THIS CODE, DOES C++ HAVE A DEFAULT COPY CONSTRUCTOR FOR STRUCTURES ?! HOLY MOTHERFUCKING SHIT
-	// LET'S GOOGLE IT.
-	// can't really find it on the fucking web cause they all fucking idiots, not documenting default behaviour properly
-	// nobody ever asked this question for a struct ?! fuck them.
 	Start = ParaStart;
 	Stop = ParaStop;
 
@@ -1268,6 +1341,260 @@ void VoxelRay::Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileW
 
 //	SetupVoxelTraversal();
 }
+
+
+
+
+// only use this if not following the main setup and main traversal code
+// this function will re-check the ray.
+void VoxelRay::SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileX, int TileY, int TileZ )
+{
+	traverseMode = TraverseMode::tmUnknown;
+
+	Start = ParaStart;
+	Stop = ParaStop;
+
+	ComputeVoxelBoundary( TileX, TileY, TileZ );
+
+	if (IsSinglePoint())
+	{
+		if (IsSinglePointInTileBoundary())
+		{
+			ComputeVoxelStartPosition();
+			VoxelTD.ForwardStart = true;
+			VoxelTD.ForwardStop = false;
+			return;
+		} else
+		{
+			VoxelTD.ForwardStart = false;
+			VoxelTD.ForwardStop = true;
+			return;
+		}
+	}
+	else
+	{
+
+
+
+
+	}
+
+
+
+
+	// check if start and stop positions are a single point
+	if (IsTileDirect())
+	{
+		VoxelTD.TraverseDone = true;
+		return;
+	}
+	else
+	{
+		// check if start and stop positions are fully inside the world voxel boundary
+		if (IsInsideVoxelBoundary())
+		{
+			VoxelTD.TraverseX1 = Start.X;
+			VoxelTD.TraverseY1 = Start.Y;
+			VoxelTD.TraverseZ1 = Start.Z;
+
+			VoxelTD.TraverseX2 = Stop.X;
+			VoxelTD.TraverseY2 = Stop.Y;
+			VoxelTD.TraverseZ2 = Stop.Z;
+		}
+		else
+		{
+			if (IsIntersectingVoxelBoundary())
+			{
+
+
+
+			} else
+			{
+				if (IsVoxelDirect())
+				{
+					VoxelTD.TraverseDone = true;
+					return;
+				}
+				else
+				{
+
+					// setup the traverse points so that there are within voxel space of the tile 0..15 and such
+					VoxelTD.TraverseX1 = fmod( VoxelTD.TraverseX1, TileCD.Width );
+					VoxelTD.TraverseY1 = fmod( VoxelTD.TraverseY1, TileCD.Height );
+					VoxelTD.TraverseZ1 = fmod( VoxelTD.TraverseZ1, TileCD.Depth );
+
+					VoxelTD.TraverseX2 = fmod( VoxelTD.TraverseX2, TileCD.Width );
+					VoxelTD.TraverseY2 = fmod( VoxelTD.TraverseY2, TileCD.Height );
+					VoxelTD.TraverseZ2 = fmod( VoxelTD.TraverseZ2, TileCD.Depth );
+
+				}
+
+			}
+		}
+	}
+	else
+	{
+
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	// new to check the original start coordinates and such
+
+	// check if original start and stop position is a single point
+	if (!IsTileDirect())
+	{
+		// check if start and stop position lie fully inside the tile boundary, if so the intersection calculate will fail, and thus it should not be done
+		// so only do intersection calculation if ray is not fully inside the tile boundary
+		if (!IsInsideVoxelBoundary())
+		{
+			// now instead of computing a line intersection with the entire tile boundary it is now computed
+			// against a single voxel boundary which basically means the single tile boundary which is computed at start of function
+			if (!IsIntersectingVoxelBoundary())
+			{
+				// if it's not interesting the single tile boundary then that would be kinda strange
+				// I think this is where we have to do another check
+				// so check if the voxel ray inside this tile is only one point
+				if (!IsVoxelDirect())
+				{
+					// setup the traverse points so that there are within voxel space of the tile 0..15 and such
+					VoxelTD.TraverseX1 = fmod( VoxelTD.TraverseX1, TileCD.Width );
+					VoxelTD.TraverseY1 = fmod( VoxelTD.TraverseY1, TileCD.Height );
+					VoxelTD.TraverseZ1 = fmod( VoxelTD.TraverseZ1, TileCD.Depth );
+
+					VoxelTD.TraverseX2 = fmod( VoxelTD.TraverseX2, TileCD.Width );
+					VoxelTD.TraverseY2 = fmod( VoxelTD.TraverseY2, TileCD.Height );
+					VoxelTD.TraverseZ2 = fmod( VoxelTD.TraverseZ2, TileCD.Depth );
+
+				}
+				else
+				{
+					VoxelTD.TraverseDone = true;
+					return;
+				}
+			}
+		}
+		else
+		{
+			TileTD.TraverseX1 = TileStartScaled.X;
+			TileTD.TraverseY1 = TileStartScaled.Y;
+			TileTD.TraverseZ1 = TileStartScaled.Z;
+
+			TileTD.TraverseX2 = TileStopScaled.X;
+			TileTD.TraverseY2 = TileStopScaled.Y;
+			TileTD.TraverseZ2 = TileStopScaled.Z;
+
+		}
+	}
+	else
+	{
+		VoxelTD.TraverseDone = true;
+		return;
+	}
+
+
+
+
+	// check if ray is a point directly in voxel boundary / voxel grid and if so setup for direct traverse/processing of one voxel.
+	if (!IsVoxelDirect())
+	{
+		// check if ray is fully inside voxel boundary/voxel grid if not then 
+		if (!IsInsideVoxelBoundary())
+		{
+			// check if ray is intersecting tile boundary and if so compute one or two intersection points
+// 			if (!IsIntersectingTileBoundary())
+			if (!IsIntersectingTileBoundaryScaled()) // using scaled down version
+			{
+				// ray is not intersecting the tile boundary so return
+				// could set done to true or whatever... but there is no boolean yet... could create it
+				// or just skip over rays that don't need traversing, might be nicer to use a boolean to keep things
+				// easy processing in arrays and such. I think this could/might be better and probably is ! ;) =D
+				traverseDone = true;
+//				TileTD.TraverseDone = true;
+//				VoxelTD.TraverseDone = true;
+				return;
+			}
+		} else
+		{
+			// for a none-scaled future version, possiby.
+//			TileTD.TraverseX1 = Start.X;
+//			TileTD.TraverseY1 = Start.Y;
+//			TileTD.TraverseZ1 = Start.Z;
+
+//			TileTD.TraverseX2 = Stop.X;
+//			TileTD.TraverseY2 = stop.Y;
+//			TileTD.TraverseZ2 = Stop.Z;
+
+			// both points inside boundary/tile grid, setup both traverse points and fall/pass through to below traversal code
+			TileTD.TraverseX1 = TileStartScaled.X;
+			TileTD.TraverseY1 = TileStartScaled.Y;
+			TileTD.TraverseZ1 = TileStartScaled.Z;
+
+			TileTD.TraverseX2 = TileStopScaled.X;
+			TileTD.TraverseY2 = TileStopScaled.Y;
+			TileTD.TraverseZ2 = TileStopScaled.Z;
+		}
+	} else
+	{
+		traverseDone = true;
+		return;
+	}
+
+	// what about this ?! ;)
+	// hmmmm.... maybe compute this after stop is checked below...  hmmmm or store it elsewhere or re-use traversex and such
+	// could be risky though ebcause of return values in intersect box but I think it's ok.
+	// I may have to scale down these coordinates to stay within 0..1 range for the cells for the algorithmetic code of traversal
+	// though I could also change the code and multiplie by tile width and such or divide whatever by it...
+	// and instead of check against 1.0 check against ray length though that would also need a somewhat
+	// expensive square root length computation of ray length, though it might keep seperate traversals compatible with each other
+	// but for now I am not interested in that... also perhaps t 0..1 is also compatible with each other thenagain maybe not
+	// and most likely not for tmax and such and tdelta or maybe... not sure... probably not
+	// anyway I think a scaled down version could be created to solve this problem, with the code above...
+	// and that is what I will try for now.
+
+	// code above is using scaled start position and scaled tile boundary data.
+
+	// now that everything is done with scaled coordinates it should be good to setup the tile traversal below
+	// and then later it can be traversed with next step and such.
+
+	// the ray is now ready for traversing
+	// setup the ray traversal data for traversing
+	SetupTileTraversal();
+	traverseMode = TraverseMode::tmTile;
+	traverseDone = false;
+
+	// maybe do this later/dynamicallu
+/*
+	VoxelTD.x1 = ParaStart.X; // divide by voxel width but there are 1 anyway so not necessary to divide.
+	VoxelTD.y1 = ParaStart.Y;
+	VoxelTD.z1 = ParaStart.Z;
+
+	VoxelTD.x2 = ParaStop.X;
+	VoxelTD.y2 = ParaStop.Y;
+	VoxelTD.z2 = ParaStop.Z;
+*/
+
+//	SetupVoxelTraversal();
+}
+
+
 
 /*
 bool VoxelRay::IsTraverseDone()

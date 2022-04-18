@@ -150,6 +150,8 @@ public:
 	/// mark a region of the map as "dangerous" for a turn.
 	void setDangerZone(const Position& pos, int radius, BattleUnit *unit);
 
+	// voxel coordinates in world also known as map coordinates.
+	void setVoxel( int x, int y, int z, bool Present );
 };
 
 }

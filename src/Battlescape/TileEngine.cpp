@@ -2297,6 +2297,8 @@ int TileEngine::calculateLine(Position origin, Position target, bool storeTrajec
 		if (swap_xz) std::swap(cx, cz);
 		if (swap_xy) std::swap(cx, cy);
 
+		setVoxel( cx, cy, cz, true );
+
 		if (storeTrajectory && trajectory)
 		{
 			trajectory->push_back(Position(cx, cy, cz));
@@ -2355,6 +2357,9 @@ int TileEngine::calculateLine(Position origin, Position target, bool storeTrajec
 				cx = x;	cz = z; cy = y;
 				if (swap_xz) std::swap(cx, cz);
 				if (swap_xy) std::swap(cx, cy);
+
+				setVoxel( cx, cy, cz, true );
+
 				result = voxelCheck(Position(cx, cy, cz), excludeUnit, excludeAllUnits, onlyVisible, excludeAllBut);
 				if (result != V_EMPTY)
 				{
@@ -2379,6 +2384,9 @@ int TileEngine::calculateLine(Position origin, Position target, bool storeTrajec
 				cx = x;	cz = z; cy = y;
 				if (swap_xz) std::swap(cx, cz);
 				if (swap_xy) std::swap(cx, cy);
+
+				setVoxel( cx, cy, cz, true );
+
 				result = voxelCheck(Position(cx, cy, cz), excludeUnit, excludeAllUnits, onlyVisible,  excludeAllBut);
 				if (result != V_EMPTY)
 				{
@@ -2394,6 +2402,7 @@ int TileEngine::calculateLine(Position origin, Position target, bool storeTrajec
 
 	return V_EMPTY;
 }
+*/
 
 /**
  * Calculates a line trajectory, using Amanatides & Woo's "A Fast Voxel Traversal Algorithm" in 3D.
@@ -2664,7 +2673,7 @@ bool LineSegmentIntersectsBoxSingle
 	}
 
 	// if distances are within the line then there is an intersection
-	if ( (LineMinDistanceToBox > 0) && (LineMinDistanceToBox < 1) )
+	if ( (LineMinDistanceToBox >= 0) && (LineMinDistanceToBox <= 1) )
 	{
 		// else the min and max are the intersection points so calculate
 		// those using the parametric equation and return true.
@@ -2680,7 +2689,7 @@ bool LineSegmentIntersectsBoxSingle
 		result = true;
 	}
 
-	if ( (LineMaxDistanceToBox > 0) && (LineMaxDistanceToBox < 1) )
+	if ( (LineMaxDistanceToBox >= 0) && (LineMaxDistanceToBox <= 1) )
 	{
 		*MaxIntersectionPoint = true;
 		*MaxIntersectionPointX = LineX1 + LineMaxDistanceToBox * LineDeltaX;
@@ -2693,6 +2702,30 @@ bool LineSegmentIntersectsBoxSingle
 	return result;
 }
 
+void TileEngine::setVoxel( int x, int y, int z, bool Present )
+{
+	Tile *tile;
+	int TileX, TileY, TileZ;
+	int VoxelX, VoxelY, VoxelZ;
+	Position TilePosition; 
+
+	TileX = x / 16;
+	TileY = y / 16;
+	TileZ = z / 24;
+
+	VoxelX = x % 16;
+	VoxelY = y % 16;
+	VoxelZ = z % 24;
+
+	TilePosition.x = TileX;
+	TilePosition.y = TileY;
+	TilePosition.z = TileZ;
+
+	tile = _save->getTile(TilePosition);
+	tile->VoxelMap._Present[VoxelZ][VoxelY][VoxelX] = Present;
+}
+
+// new one/skybuck's one
 int TileEngine::calculateLine
 (
 	Position origin, Position target,
@@ -2727,7 +2760,7 @@ int TileEngine::calculateLine
 	int steps = 0;
 
 	//	Epsilon := 0.001;
-	Epsilon = 0.1;
+	Epsilon = 0.01;
 
 	float TileWidth = 16.0;
 	float TileHeight = 16.0;
@@ -2784,6 +2817,9 @@ int TileEngine::calculateLine
 			VoxelX = x1;
 			VoxelY = y1;
 			VoxelZ = z1;
+
+			// Skybuck: debugging code
+//			setVoxel( VoxelX, VoxelY, VoxelZ, true );
 
 			// store trajectory even if outside of voxel boundary, other code must solve it, otherwise trajectory empty
 			if (storeTrajectory && trajectory)
@@ -2957,6 +2993,9 @@ int TileEngine::calculateLine
 				VoxelY = TraverseY1; 
 				VoxelZ = TraverseZ1;
 
+				// Skybuck: debugging code
+//				setVoxel( VoxelX, VoxelY, VoxelZ, true );
+
 				// store trajectory even if outside of voxel boundary, other code must solve it, otherwise trajectory empty
 				if (storeTrajectory && trajectory)
 				{
@@ -3046,6 +3085,8 @@ int TileEngine::calculateLine
 	while (t <= 1.0)
 	{
 		// process voxel
+		// Skybuck: debugging code
+//		setVoxel( VoxelX, VoxelY, VoxelZ, true );
 
 		// store trajectory even if outside of voxel boundary, other code must solve it, otherwise trajectory empty
 		if (storeTrajectory && trajectory)
@@ -3123,7 +3164,6 @@ int TileEngine::calculateLine
 
 	return V_EMPTY;
 }
-
 
 /**
  * Calculates a parabola trajectory, used for throwing items.

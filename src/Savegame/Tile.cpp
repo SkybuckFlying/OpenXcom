@@ -1089,7 +1089,7 @@ void Tile::PrecomputeVoxelMap3D( TileEngine *ParaTileEngine, TileVoxelMap3D *Par
 void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 {
 	SpriteVoxelFrameComputed Computed;
-	TileVoxelMap3D VoxelMap;
+//	TileVoxelMap3D VoxelMap;
 
 	int ObjectIndex;
 
@@ -1140,6 +1140,95 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 	}
 
 	PrecomputeVoxelMap3D( ParaTileEngine, &VoxelMap );
+
+	// setup sprite start x, sprite start y
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	// walk over all voxels of the tile object
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+			{
+				// calculate sprite x position based on voxel position (x,y,z)
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+				Component = VoxelX + VoxelY;
+				Component = Component >> 1; // should this be a float ? is this causing imprecise graphics ? probably not maybe check it later
+
+				SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+				if (!Computed._Computed[SpriteY][SpriteX])
+				{
+					VoxelPresent = VoxelMap._Present[VoxelZ][VoxelY][VoxelX];
+
+					if (VoxelPresent == true)
+					{
+						vVoxelPosition.X = VoxelX;
+						vVoxelPosition.Y = VoxelY;
+						vVoxelPosition.Z = VoxelZ;
+
+						_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;
+
+						// check if spritex+1 <= 31 so spritex < 31, saves 1 instruction maybe.
+						if (SpriteX < 31)
+						{
+							_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX+1] = vVoxelPosition;
+						}
+
+						Computed._Computed[SpriteY][SpriteX] = true;
+					}
+
+					// Computed._Computed[SpriteY][SpriteX] = true; // doesn't matter anymore at this point.
+				}
+			}
+		}
+	}
+}
+
+// don't reset voxel map and don't use lofts
+void Tile::UpdateSpriteVoxelFrame( TileEngine *ParaTileEngine )
+{
+	SpriteVoxelFrameComputed Computed;
+//	TileVoxelMap3D VoxelMap;
+
+	int ObjectIndex;
+
+	int SpriteStartX, SpriteStartY;
+	int Component;
+	int SpriteX, SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+
+	VoxelFramePosition vVoxelPosition;
+
+	int vIndex;
+
+	MapData *vMapData;
+
+	int XBitIndex;
+	int YIntegerIndex;
+	int ZLoftSliceIndex;
+
+	int LoftLayer;
+	int LoftID;
+
+	Uint16 LoftBits;
+
+	bool VoxelPresent;
+
+	Uint8 SpritePixelColor;
+
+	// reset sprite voxel frame computed
+	for ( SpriteY = 0; SpriteY < 40; SpriteY++ )
+	{
+			for (SpriteX = 0; SpriteX < 32; SpriteX++)
+			{
+				Computed._Computed[SpriteY][SpriteX] = false;
+			}
+	}
 
 	// setup sprite start x, sprite start y
 	SpriteStartX = 15; // tile width

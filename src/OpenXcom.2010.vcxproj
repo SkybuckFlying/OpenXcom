@@ -300,6 +300,7 @@
     <ClCompile Include="Battlescape\ScannerView.cpp" />
     <ClCompile Include="Battlescape\ScreenRayBlocks.cpp" />
     <ClCompile Include="Battlescape\ScreenVoxelFrame.cpp" />
+    <ClCompile Include="Battlescape\TraverseRay.cpp" />
     <ClCompile Include="Battlescape\UnitFallBState.cpp" />
     <ClCompile Include="Battlescape\UnitInfoState.cpp" />
     <ClCompile Include="Battlescape\TileEngine.cpp" />
@@ -621,6 +622,8 @@
     <ClInclude Include="Battlescape\ScreenRayBlocks.h" />
     <ClInclude Include="Battlescape\ScreenVoxelFrame.h" />
     <ClInclude Include="Battlescape\SpriteVoxelFrame.h" />
+    <ClInclude Include="Battlescape\TraverseBoundary.h" />
+    <ClInclude Include="Battlescape\TraverseCell.h" />
     <ClInclude Include="Battlescape\UnitFallBState.h" />
     <ClInclude Include="Battlescape\UnitInfoState.h" />
     <ClInclude Include="Battlescape\TileEngine.h" />

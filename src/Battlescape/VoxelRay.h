@@ -131,6 +131,10 @@ struct VoxelRay
 
 	// void ComputeVoxelPosition( float ParaStartX, float ParaStartY, float ParaStartZ, int ParaVoxelX, int ParaVoxelY, int ParaVoxelZ )
 
+	bool IsSinglePoint();
+	bool IsSinglePointInTileBoundary();
+	void ComputeVoxelStartPosition();
+
 	bool IsTileDirect();
 	bool IsTileDirectScaled();
 
@@ -139,6 +143,8 @@ struct VoxelRay
 	bool IsInsideTileBoundary();
 
 	bool IsInsideTileBoundaryScaled();
+
+	bool IsInsideVoxelBoundary();
 
 	bool LineSegmentIntersectsBoxSingle
 	(

@@ -1500,6 +1500,134 @@ void DrawLoftAndSurfaceCombinedFatVoxels( TileEngine *Te, Surface *Dst, int DstX
 	}
 }
 
+
+
+void DrawTileVoxelMap3D( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src, int TileZ )
+{
+	bool Computed[40 * 32];
+
+	int x, y;
+	Uint8 SurfaceColor;
+	Uint8 VoxelColor;
+	Uint8 FinalColor;
+
+	int SpriteStartX, SpriteStartY;
+	int SpriteX;
+	float SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+	Uint8 TestColor;
+
+//	double ComponentX, ComponentY;
+	float ComponentX, ComponentY;
+	int Component;
+
+	Position VoxelPosition;
+	bool VoxelPresent;
+
+	float CrazyDistance;
+
+	int vIndex;
+
+	for ( vIndex = 0; vIndex < (40*32); vIndex++ )
+	{
+		Computed[vIndex] = false;
+	}
+
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+//		VoxelY = 0;
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+//			VoxelX = 0;
+			{
+//				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) ); 
+
+
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+
+//				SpriteX = (SpriteStartX - VoxelY) + (1+VoxelX);
+//				SpriteY = ((SpriteStartY + (VoxelX / 2)) + (VoxelY / 2)) - VoxelZ;
+
+//				ComponentX = VoxelX / 2;
+//				ComponentY = VoxelY / 2;
+
+//				SpriteY = (SpriteStartY + (ComponentX  + ComponentY)) - VoxelZ;
+
+				Component = VoxelX + VoxelY;
+				Component = Component >> 1;
+
+				SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+//				SpriteX = SpriteStartX + VoxelXtoSpriteX[VoxelX] + VoxelYtoSpriteX[VoxelY];
+//				SpriteY = SpriteStartY + VoxelXtoSpriteY[VoxelX] + VoxelXtoSpriteY[VoxelY] - VoxelZ;
+
+
+				vIndex = (SpriteY * 32) + SpriteX;
+
+				if (!Computed[vIndex])
+				{
+					VoxelPosition.x = VoxelX;
+					VoxelPosition.y = VoxelY;
+					VoxelPosition.z = VoxelZ;
+
+					VoxelPresent = Src->VoxelMap._Present[VoxelPosition.z][VoxelPosition.y][VoxelPosition.x];
+
+					FinalColor = 0;
+
+					if (VoxelPresent == true)
+					{
+/*
+						SurfaceColor = Dst->getPixel( DstX + SpriteX, DstY + SpriteY );
+						SurfaceColor = SurfaceColor / 16;
+						SurfaceColor = SurfaceColor * 16;
+
+						FinalColor = SurfaceColor + ((CrazyDistance/16.0)*15);
+*/
+
+/*
+						if
+						(
+							(VoxelPosition.z == 12) &&
+							(VoxelPosition.y == 8) &&
+							(VoxelPosition.x == 8)
+						)
+*/
+						{
+							FinalColor = 16 + (TileZ*16) + ((VoxelPosition.z / 24.0) * 16);
+						}
+/*
+						else
+						{
+							FinalColor = 32 + (VoxelPosition.z / 24.0) * 16;
+						}
+*/
+					}
+
+					if (FinalColor > 0)
+					{
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+
+//						if (SpriteX < 31)
+						{
+							ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX+1, SpriteY, FinalColor );
+						}
+						Computed[vIndex] = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+
+
+
 // macros for fast voxel traversal algoritm in code below
 // original macros disabled, to not be reliant on macro language ! ;)
 // #define SIGN(x) (x > 0 ? 1 : (x < 0 ? -1 : 0))
@@ -2910,6 +3038,101 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 
 	int TileTraverseX, TileTraverseY, TileTraverseZ;
 
+
+	if (vVoxelRay.IsTileForwardStart())
+	{
+		vVoxelRay.GoToStartPosition();
+		do
+		{
+			vVoxelRay.GetVoxelPosition( vx, vy, vz );
+
+
+			vVoxelRay.TileForwardNext();
+		} while (!vVoxelRay.IsTileForwardStop())
+	}
+
+
+
+	if (vVoxelRay.TraverseDirection == TraverseDirection::tdForward)
+	{
+		if (vVoxelRay.HasBegin())
+		{
+			vVoxelRay.GoToVoxelBegin();
+
+			do
+			{
+
+			
+				vVoxelRay.GoToNextVoxel();
+
+	//			} while (!vVoxelRay.IsVoxelForwardStop())
+			} while
+			(
+				!
+				(
+					(vVoxelRay.HasEnd() && vVoxelRay.IsBeyondEnd())
+					||
+					(vVoxelRay.IsOutside())
+				)
+			)
+		}
+
+	} else
+	// traverse backwards
+	// if (vVoxelRay.TraverseDirection == TraverseDirection::tdBackward)
+	{
+		if (vVoxelRay.HasEnd())
+		{
+			vVoxelRay.GoToVoxelEnd();
+			do
+			{
+
+
+				vVoxelRay.GoToPreviousVoxel();
+			}
+			while
+			(
+				!
+				(
+					(vVoxelRay.HasBegin() && vVoxelRay.IsBeyondBegin())
+					||
+					(vVoxelRay.IsOutside())
+				)
+			)
+	}
+	
+
+
+
+
+
+
+
+
+
+
+
+
+	if (vVoxelRay.IsStart())
+	{
+		do
+		{
+			// Process Tile or Voxel
+
+
+
+		} while (!vVoxelRay.IsStop())
+
+
+
+
+	}
+
+
+
+
+
+
 	while (!vVoxelRay.IsTileTraverseDone())
 	{
 		vVoxelRay.GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
@@ -2917,6 +3140,18 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 		tile = _save->getTile(mapPosition);
 		if (!tile) continue;
 		tile->setTraversed( true );
+
+		// try and traverse the tile as well, and set each voxel across this ray
+
+		vVoxelRay.
+		while (!vVoxelRay.IsVoxelTraverseDone())
+		{
+
+
+
+
+			vVoxelRay.NextStep();
+		}
 
 		vVoxelRay.NextStep();
 	}
@@ -3062,13 +3297,30 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 						}
 
 						// draws a pre-computed sprite voxel frame
+						// untested code, maybe try this later
+						/*
+						if (tile != 0)
+						{
+							if (tmpSurface !=0)
+							{
 
-						// tile part doesn't really matter much except for animation frame,
-						// all tile parts are merged together in a single voxel frame
-						// they are seperated per animation though, each animation frame has it's own sprite voxel frame
-//						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
+								tile->VoxelMap._Present[12][8][8] = true;
 
+								// update sprite voxel frame after voxelmap is updated with debugged voxel positions and what not
+								tile->UpdateSpriteVoxelFrame( _save->getTileEngine() );
 
+								// tile part doesn't really matter much except for animation frame,
+								// all tile parts are merged together in a single voxel frame
+								// they are seperated per animation though, each animation frame has it's own sprite voxel frame
+								DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
+
+		//						DrawVoxelMap( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
+							}
+						}
+						*/
+
+//						tile->VoxelMap._Present[12][8][8] = true;
+						DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
 
 						// draw an item on top of the floor (if any)
 						int sprite = tile->getTopItemSprite();
@@ -3079,7 +3331,6 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 						}
 
 					}
-
 
 					unit = tile->getUnit();
 					// Draw soldier from this tile or below
@@ -3116,6 +3367,9 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 					// *** END OF DEBUG CODE FOR VOXEL RAY TRAVERSAL PART 2 OF 2***
 					// ************************************************************
 
+					// debug code, draw a tile's voxelmap to the screen's surface.
+//					tile->VoxelMap._Present[12][8][8] = true;
+//					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
 				}
 
 /*
@@ -3293,6 +3547,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 
 //					DrawLoftInsteadOfSpriteFatVoxels( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile ); 
 //					DrawLoftAndSurfaceCombinedFatVoxels( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );
+//					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );
 
 					// draws a pre-computed sprite voxel frame
 
@@ -3692,6 +3947,7 @@ void Map::drawTerrain(Surface *surface)
 //						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
 //						_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile );
 
+						DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
 
 						// draw an item on top of the floor (if any)
 						int sprite = tile->getTopItemSprite();

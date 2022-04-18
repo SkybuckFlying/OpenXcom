@@ -85,7 +85,11 @@ protected:
 	int _obstacle;
 	SpriteVoxelFrame _SpriteVoxelFrame;
 	bool _traversed;
+
+
 public:
+	TileVoxelMap3D VoxelMap; // Skybuck: for debugging voxel traversal only !!!
+
 	/// Creates a tile.
 	Tile(Position pos);
 	/// Cleans up a tile.
@@ -265,6 +269,8 @@ public:
 	void ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine );
 
 	void PrecomputeVoxelMap3D( TileEngine *ParaTileEngine, TileVoxelMap3D *ParaVoxelMap ); // should or could be private.
+	void UpdateSpriteVoxelFrame( TileEngine *ParaTileEngine );
+
 	SpriteVoxelFrame *getSpriteVoxelFrame();
 
 	// for debugging purposes
