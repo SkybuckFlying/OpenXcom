@@ -2819,7 +2819,7 @@ int TileEngine::calculateLine
 			VoxelZ = z1;
 
 			// Skybuck: debugging code
-//			setVoxel( VoxelX, VoxelY, VoxelZ, true );
+			setVoxel( VoxelX, VoxelY, VoxelZ, true );
 
 			// store trajectory even if outside of voxel boundary, other code must solve it, otherwise trajectory empty
 			if (storeTrajectory && trajectory)
@@ -2994,7 +2994,7 @@ int TileEngine::calculateLine
 				VoxelZ = TraverseZ1;
 
 				// Skybuck: debugging code
-//				setVoxel( VoxelX, VoxelY, VoxelZ, true );
+				setVoxel( VoxelX, VoxelY, VoxelZ, true );
 
 				// store trajectory even if outside of voxel boundary, other code must solve it, otherwise trajectory empty
 				if (storeTrajectory && trajectory)
@@ -3086,7 +3086,7 @@ int TileEngine::calculateLine
 	{
 		// process voxel
 		// Skybuck: debugging code
-//		setVoxel( VoxelX, VoxelY, VoxelZ, true );
+		setVoxel( VoxelX, VoxelY, VoxelZ, true );
 
 		// store trajectory even if outside of voxel boundary, other code must solve it, otherwise trajectory empty
 		if (storeTrajectory && trajectory)

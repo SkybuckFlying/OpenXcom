@@ -308,14 +308,14 @@ bool VoxelRay::LineCollidesWithBox
 		(
 			PointInBoxSingle
 			(
-				Start.X, Start.Y, Start.Z,
+				LineX1, LineY1, LineZ1,
 				BoxX1, BoxY1, BoxZ1,
 				BoxX2, BoxY2, BoxZ2
 			)
 			&&
 			PointInBoxSingle
 			(
-				Stop.X, Stop.Y, Stop.Z,
+				LineX2, LineY2, LineZ2,
 				BoxX1, BoxY1, BoxZ1,
 				BoxX2, BoxY2, BoxZ2
 			)
@@ -367,6 +367,217 @@ bool VoxelRay::LineCollidesWithBox
 
 	return result;
 }
+
+// older code, does not return true if line fully inside box, keeping it for now cause tile traversal worked with it.
+bool VoxelRay::LineSegmentIntersectsBoxSingle
+(
+	float LineX1, float LineY1, float LineZ1,
+	float LineX2, float LineY2, float LineZ2,
+
+	float BoxX1, float BoxY1, float BoxZ1,
+	float BoxX2, float BoxY2, float BoxZ2,
+
+	// nearest to line origin, doesn't necessarily mean closes to box...
+	bool *MinIntersectionPoint,
+	float *MinIntersectionPointX, float *MinIntersectionPointY, float *MinIntersectionPointZ,
+
+	// farthest to line origin, doesn't necessarily mean farthest from box...
+	bool *MaxIntersectionPoint,
+	float *MaxIntersectionPointX, float *MaxIntersectionPointY, float *MaxIntersectionPointZ
+)
+{
+	float LineDeltaX;
+	float LineDeltaY;
+	float LineDeltaZ;
+
+	float LineDistanceToBoxX1;
+	float LineDistanceToBoxX2;
+
+	float LineDistanceToBoxY1;
+	float LineDistanceToBoxY2;
+
+	float LineDistanceToBoxZ1;
+	float LineDistanceToBoxZ2;
+
+	float LineMinDistanceToBoxX;
+	float LineMaxDistanceToBoxX;
+
+	float LineMinDistanceToBoxY;
+	float LineMaxDistanceToBoxY;
+
+	float LineMinDistanceToBoxZ;
+	float LineMaxDistanceToBoxZ;
+
+	float LineMaxMinDistanceToBox;
+	float LineMinMaxDistanceToBox;
+
+	float LineMinDistanceToBox;
+	float LineMaxDistanceToBox;
+
+	bool result = false;
+	*MinIntersectionPoint = false;
+	*MaxIntersectionPoint = false;
+
+	LineDeltaX = LineX2 - LineX1;
+	LineDeltaY = LineY2 - LineY1;
+	LineDeltaZ = LineZ2 - LineZ1;
+
+	// T (distance along line) calculations which will be used to figure out Tmins and Tmaxs:
+	// t = (LocationX - x0) / (DeltaX)
+	if (LineDeltaX != 0)
+	{
+		LineDistanceToBoxX1 = (BoxX1 - LineX1) / LineDeltaX;
+		LineDistanceToBoxX2 = (BoxX2 - LineX1) / LineDeltaX;
+	} else
+	{
+		LineDistanceToBoxX1 = (BoxX1 - LineX1);
+		LineDistanceToBoxX2 = (BoxX2 - LineX1);
+	}
+
+	// now we take the minimum's and maximum's
+	if (LineDistanceToBoxX1 < LineDistanceToBoxX2)
+	{
+		LineMinDistanceToBoxX = LineDistanceToBoxX1;
+		LineMaxDistanceToBoxX = LineDistanceToBoxX2;
+	} else
+	{
+		LineMinDistanceToBoxX = LineDistanceToBoxX2;
+		LineMaxDistanceToBoxX = LineDistanceToBoxX1;
+	}
+
+	if (LineDeltaY != 0)
+	{
+		LineDistanceToBoxY1 = (BoxY1 - LineY1) / LineDeltaY;
+		LineDistanceToBoxY2 = (BoxY2 - LineY1) / LineDeltaY;
+	} else
+	{
+		LineDistanceToBoxY1 = BoxY1 - LineY1;
+		LineDistanceToBoxY2 = BoxY2 - LineY1;
+	}
+
+	if (LineDistanceToBoxY1 < LineDistanceToBoxY2)
+	{
+		LineMinDistanceToBoxY = LineDistanceToBoxY1;
+		LineMaxDistanceToBoxY = LineDistanceToBoxY2;
+	} else
+	{
+		LineMinDistanceToBoxY = LineDistanceToBoxY2;
+		LineMaxDistanceToBoxY = LineDistanceToBoxY1;
+	}
+
+	if (LineDeltaZ != 0)
+	{
+		LineDistanceToBoxZ1 = (BoxZ1 - LineZ1) / LineDeltaZ;
+		LineDistanceToBoxZ2 = (BoxZ2 - LineZ1) / LineDeltaZ;
+	} else
+	{
+		LineDistanceToBoxZ1 = (BoxZ1 - LineZ1);
+		LineDistanceToBoxZ2 = (BoxZ2 - LineZ1);
+	}
+
+	if (LineDistanceToBoxZ1 < LineDistanceToBoxZ2)
+	{
+		LineMinDistanceToBoxZ = LineDistanceToBoxZ1;
+		LineMaxDistanceToBoxZ = LineDistanceToBoxZ2;
+	} else
+	{
+		LineMinDistanceToBoxZ = LineDistanceToBoxZ2;
+		LineMaxDistanceToBoxZ = LineDistanceToBoxZ1;
+	}
+
+	// these 6 distances all represent distances on a line.
+	// we want to clip this line to the box.
+	// so the } points of the line which are outside the box need to be clipped.
+	// so we clipping the line to the box.
+	// this means we are interested in the most minimum minimum
+	// and the most maximum, maximum.
+	// these min's and max's represent the outer intersections.
+	// if for whatever reason the minimum is larger than the maximum
+	// then the line misses the box ! ;)
+	// nooooooooooooooooooooooooooooooooo
+	// we want the maximum of the minimums
+	// and we want the minimum of the maximums
+	// that should give us the bounding intersections ! ;)
+
+
+	// find the maximum minimum
+	LineMaxMinDistanceToBox = LineMinDistanceToBoxX;
+
+	if (LineMinDistanceToBoxY > LineMaxMinDistanceToBox)
+	{
+		LineMaxMinDistanceToBox = LineMinDistanceToBoxY;
+	}
+
+	if (LineMinDistanceToBoxZ > LineMaxMinDistanceToBox)
+	{
+		LineMaxMinDistanceToBox = LineMinDistanceToBoxZ;
+	}
+
+	// find the minimum maximum
+	LineMinMaxDistanceToBox = LineMaxDistanceToBoxX;
+
+	if (LineMaxDistanceToBoxY < LineMinMaxDistanceToBox)
+	{
+		LineMinMaxDistanceToBox = LineMaxDistanceToBoxY;
+	}
+
+	if (LineMaxDistanceToBoxZ < LineMinMaxDistanceToBox)
+	{
+		LineMinMaxDistanceToBox = LineMaxDistanceToBoxZ;
+	}
+
+	// these two points are now the minimum and maximum distance to box
+	LineMinDistanceToBox = LineMaxMinDistanceToBox;
+	LineMaxDistanceToBox = LineMinMaxDistanceToBox;
+
+	// now check if the max distance is smaller than the minimum distance
+	// if so then the line segment does not intersect the box.
+	if (LineMaxDistanceToBox < LineMinDistanceToBox)
+	{
+		return result;
+	}
+
+	// if distances are within the line then there is an intersection
+	// Skybuck: dangerous change but I am going to do it, untested
+	// this will make code more consistent with point inside box though, otherwise it might come to different conclusions
+	// and this would create logical problems in the setup routine, I fear that doing this might cause stepping outside
+	// of grid but maybe not, re-test this in delphi later on.
+//	if ( (LineMinDistanceToBox > 0) && (LineMinDistanceToBox < 1) )
+	// Skybuck: Tested in Delphi and seems safe for now:
+	if ( (LineMinDistanceToBox >= 0) && (LineMinDistanceToBox <= 1) )
+	{
+		// else the min and max are the intersection points so calculate
+		// those using the parametric equation and return true.
+		// x = x0 + t(x1 - x0)
+		// y = y0 + t(y1 - y0)
+		// z = z0 + t(z1 - z0)
+
+		*MinIntersectionPoint = true;
+		*MinIntersectionPointX = LineX1 + LineMinDistanceToBox * LineDeltaX;
+		*MinIntersectionPointY = LineY1 + LineMinDistanceToBox * LineDeltaY;
+		*MinIntersectionPointZ = LineZ1 + LineMinDistanceToBox * LineDeltaZ;
+
+		result = true;
+	}
+
+	// Skybuck: Dangerous change:
+	// but this will make code more consistent with point inside box routine above somewhere and also come to same
+	// logical conclusions inside setup routine below.
+//	if ( (LineMaxDistanceToBox > 0) && (LineMaxDistanceToBox < 1) )
+	// Skybuck: Tested in Delphi and seems safe for now:
+	if ( (LineMaxDistanceToBox >= 0) && (LineMaxDistanceToBox <= 1) )
+	{
+		*MaxIntersectionPoint = true;
+		*MaxIntersectionPointX = LineX1 + LineMaxDistanceToBox * LineDeltaX;
+		*MaxIntersectionPointY = LineY1 + LineMaxDistanceToBox * LineDeltaY;
+		*MaxIntersectionPointZ = LineZ1 + LineMaxDistanceToBox * LineDeltaZ;
+
+		result = true;
+	}
+
+	return result;
+}
+
 
 bool VoxelRay::IsSinglePoint( )
 {
@@ -766,7 +977,7 @@ bool VoxelRay::IsIntersectingTileBoundary()
 			Stop.X, Stop.Y, Stop.Z,
 
 			TileBD.MinX, TileBD.MinY, TileBD.MinZ,
-			TileBD.MaxY, TileBD.MaxY, TileBD.MaxZ,
+			TileBD.MaxX, TileBD.MaxY, TileBD.MaxZ,
 
 			&IntersectionPoint1,
 			&IntersectionPointX1,
@@ -1087,7 +1298,7 @@ void VoxelRay::SetupVoxelDimensions( int ParaVoxelWidth, int ParaVoxelHeight, in
 }
 
 // in grid index coordates, much cooler. can start at a different offset min basically.
-void VoxelRay::SetupGridData( int ParaMinX, int ParaMinY, int ParaMinZ, int ParaMaxX, int ParaMaxY, int ParaMaxZ )
+void VoxelRay::SetupTileGridData( int ParaMinX, int ParaMinY, int ParaMinZ, int ParaMaxX, int ParaMaxY, int ParaMaxZ )
 {
 	TileGD.MinX = ParaMinX;
 	TileGD.MinY = ParaMinY;
@@ -1096,6 +1307,17 @@ void VoxelRay::SetupGridData( int ParaMinX, int ParaMinY, int ParaMinZ, int Para
 	TileGD.MaxX = ParaMaxX; 
 	TileGD.MaxY = ParaMaxY;
 	TileGD.MaxZ = ParaMaxZ;
+}
+
+void VoxelRay::SetupVoxelGridData( int ParaMinX, int ParaMinY, int ParaMinZ, int ParaMaxX, int ParaMaxY, int ParaMaxZ )
+{
+	VoxelGD.MinX = ParaMinX;
+	VoxelGD.MinY = ParaMinY;
+	VoxelGD.MinZ = ParaMinZ;
+
+	VoxelGD.MaxX = ParaMaxX; 
+	VoxelGD.MaxY = ParaMaxY;
+	VoxelGD.MaxZ = ParaMaxZ;
 }
 
 // in some kind of world/voxel coordinates or so...
@@ -1199,6 +1421,19 @@ void VoxelRay::ComputeVoxelBoundary( int ParaTileX, int ParaTileY, int ParaTileZ
 	VoxelBD.MaxZ = (VoxelBD.MinZ + TileCD.Depth) - Epsilon;
 }
 
+void VoxelRay::ComputeVoxelGridData( int ParaTileX, int ParaTileY, int ParaTileZ )
+{
+	// if voxel were not 1 big, then I may have to divide or something by voxel width and so forth, though not sure
+	// take it with a grain of salt for now, just debug it in the future if you need voxels of different size than 1 ! ;)
+	VoxelGD.MinX = ParaTileX * TileCD.Width;
+	VoxelGD.MinY = ParaTileY * TileCD.Height;
+	VoxelGD.MinZ = ParaTileZ * TileCD.Depth;
+
+	VoxelGD.MaxX = (VoxelGD.MinX + TileCD.Width)-1; 
+	VoxelGD.MaxY = (VoxelGD.MinY + TileCD.Height)-1;
+	VoxelGD.MaxZ = (VoxelGD.MinZ + TileCD.Depth)-1;
+}
+
 void VoxelRay::SetupTileTraversal()
 {
 	// traverse code, fast voxel traversal algorithm
@@ -1263,7 +1498,7 @@ void VoxelRay::SetupVoxelTraversal()
 }
 
 // could rename this to tile setup if I really wanted to or copy it... allows custom traversing for user
-// maybe a bit safr.
+// maybe a bit safer.
 void VoxelRay::Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileWidth, int TileHeight, int TileDepth )
 {
 	traverseMode = TraverseMode::tmUnknown;
@@ -1392,8 +1627,8 @@ void VoxelRay::SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaS
 	Stop = ParaStop;
 
 	ComputeVoxelBoundary( TileX, TileY, TileZ );
+	ComputeVoxelGridData( TileX, TileY, TileZ );
 
-	
 	// ONE POINT CASE
 	if
 	(
@@ -1417,6 +1652,7 @@ void VoxelRay::SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaS
 			ComputeVoxelPosition( Start.X, Start.Y, Start.Z );
 			VoxelTD.mHasBegin = true;
 			VoxelTD.mHasEnd = true;
+			traverseDone = true;
 			// RETURN
 			return;
 		}
@@ -1442,13 +1678,16 @@ void VoxelRay::SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaS
 		// check if ray collides with box
 		if
 		(
+			// Skybuck: ***problem most likely in here ! ***
+			// maybe fall back to older algorithm and method
 			LineCollidesWithBox
+//			LineSegmentIntersectsBoxSingle
 			(
 				ParaStart.X, ParaStart.Y, ParaStart.Z,
 				ParaStop.X, ParaStop.Y, ParaStop.Z,
 
 				VoxelBD.MinX, VoxelBD.MinY, VoxelBD.MinZ,
-				VoxelBD.MaxY, VoxelBD.MaxY, VoxelBD.MaxZ,
+				VoxelBD.MaxX, VoxelBD.MaxY, VoxelBD.MaxZ,
 
 				&IntersectionPoint1, &IntersectionPointX1, &IntersectionPointY1, &IntersectionPointZ1,
 				&IntersectionPoint2, &IntersectionPointX2, &IntersectionPointY2, &IntersectionPointZ2
@@ -1518,6 +1757,7 @@ void VoxelRay::SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaS
 				ComputeVoxelPosition( Start.X, Start.Y, Start.Z );
 				VoxelTD.mHasBegin = true;
 				VoxelTD.mHasEnd = true;
+				traverseDone = true;
 				// return
 				return; 
 			}
@@ -1535,6 +1775,7 @@ void VoxelRay::SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaS
 		{
 			VoxelTD.mHasBegin = false;
 			VoxelTD.mHasEnd = false;
+			traverseDone = true;
 			// RETURN
 			return;
 		}
@@ -1542,9 +1783,8 @@ void VoxelRay::SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaS
 
 	// SETUP/FALL THROUGH, SETUP TRAVERSAL
 	SetupVoxelTraversal();
-
-
-
+	traverseMode = TraverseMode::tmVoxel;
+	traverseDone = false;
 
 /*
 
@@ -2100,10 +2340,14 @@ void VoxelRay::GetTraverseVoxelPosition( int *ParaVoxelX, int *ParaVoxelY, int *
 	*ParaVoxelZ = VoxelTD.Z;
 }
 
-bool VoxelRay::HasBegin( void )
+bool VoxelRay::HasTileBegin( void )
 {
-	mBegin = true;
+	return TileTD.mHasBegin;
+}
 
+bool VoxelRay::HasVoxelBegin( void )
+{
+	return VoxelTD.mHasBegin;
 }
 
 } // close/de-associate OpenXcom namespace

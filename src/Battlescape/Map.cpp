@@ -2933,7 +2933,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 	Tile *tile;
 	int beginX = 0, endX = _save->getMapSizeX() - 1;
 	int beginY = 0, endY = _save->getMapSizeY() - 1;
-	int beginZ = 0, endZ = _camera->getShowAllLayers()?_save->getMapSizeZ() - 1:_camera->getViewLevel();
+	int beginZ = 1, endZ = _camera->getShowAllLayers()?_save->getMapSizeZ() - 1:_camera->getViewLevel();
 	Position mapPosition, screenPosition, bulletPositionScreen;
 	int bulletLowX=16000, bulletLowY=16000, bulletLowZ=16000, bulletHighX=0, bulletHighY=0, bulletHighZ=0;
 	int dummy;
@@ -3002,9 +3002,18 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 	// this might have been problem code but Z was X by accident
 	// set voxel position start to maximum x,y,z of the map
 	// position center of last tile
-	vVoxelPositionStart.X = (_save->getMapSizeX() * 16) - 1;
+//	vVoxelPositionStart.X = (_save->getMapSizeX() * 16) - 1;
+	vVoxelPositionStart.X = 0;
 	vVoxelPositionStart.Y = (_save->getMapSizeY() * 16) - 1;
 	vVoxelPositionStart.Z = (_save->getMapSizeZ() * 24) - 1;
+
+
+
+//	vVoxelPositionStart.X = ((_save->getMapSizeX()-1) * 16) + 8;
+//	vVoxelPositionStart.Y = ((_save->getMapSizeY()-1) * 16) + 8;
+//	vVoxelPositionStart.Z = ((_save->getMapSizeZ()-1) * 24) + 12;
+
+
 
 	// set voxel position stop to minimum x,y,z of the map which is probably 0,0,0
 	// position center of tile 0,0,0
@@ -3033,10 +3042,24 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 
 	vVoxelRay.SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
 	vVoxelRay.SetupTileDimensions( 16, 16, 24 );
-	vVoxelRay.SetupGridData( 0, 0, 0, _save->getMapSizeX()-1, _save->getMapSizeY()-1, _save->getMapSizeZ()-1 );
-	vVoxelRay.Setup( vVoxelPositionStart, vVoxelPositionStop, 16, 16, 24 ); 
+	vVoxelRay.SetupTileGridData( 0, 0, 0, _save->getMapSizeX()-1, _save->getMapSizeY()-1, _save->getMapSizeZ()-1 );
+	vVoxelRay.Setup( vVoxelPositionStart, vVoxelPositionStop, 16, 16, 24 );
+
+/*
+	_save->getTileEngine()->calculateLine
+	(
+		Position(vVoxelPositionStart.X,vVoxelPositionStart.Y,vVoxelPositionStart.Z),
+		Position(vVoxelPositionStop.X,vVoxelPositionStop.Y,vVoxelPositionStop.Z),
+		false, 0, 0, false, false, 0 
+	);
+*/
+
 
 	int TileTraverseX, TileTraverseY, TileTraverseZ;
+	int VoxelTraverseX, VoxelTraverseY, VoxelTraverseZ;
+
+	// DESIGN SUGGESTION/IDEAS/TRY OUTS/SKETCHES/UNFINISHED
+/*
 
 
 	if (vVoxelRay.IsTileForwardStart())
@@ -3127,7 +3150,71 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 
 
 	}
+*/
 
+
+	// fix it later
+//	if (!vVoxelRay.HasTileBegin())
+
+	// sloppy fix, use HasTileBegin above later
+	if (!vVoxelRay.IsTileTraverseDone())
+	{
+		do
+		{
+			// process tile
+			vVoxelRay.GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
+			mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
+			tile = _save->getTile(mapPosition);
+//			if (!tile) continue;
+			tile->setTraversed( true );
+
+			vVoxelRay.SetupVoxelTraversal( vVoxelPositionStart, vVoxelPositionStop, TileTraverseX, TileTraverseY, TileTraverseZ );
+
+			if (vVoxelRay.HasVoxelBegin())
+			{
+				do
+				{
+					// process voxel
+					vVoxelRay.GetTraverseVoxelPosition( &VoxelTraverseX, &VoxelTraverseY, &VoxelTraverseZ );
+
+					VoxelTraverseX = VoxelTraverseX % 16;
+					VoxelTraverseY = VoxelTraverseY % 16;
+					VoxelTraverseZ = VoxelTraverseZ % 24;
+
+//					VoxelTraverseX = VoxelTraverseX - (TileTraverseX * 16);
+//					VoxelTraverseY = VoxelTraverseY - (TileTraverseY * 16);
+//					VoxelTraverseZ = VoxelTraverseZ - (TileTraverseZ * 24);
+
+					tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+					vVoxelRay.traverseMode = TraverseMode::tmVoxel;
+					vVoxelRay.NextStep();
+				} while (!vVoxelRay.IsVoxelTraverseDone());
+			}
+
+			vVoxelRay.traverseMode = TraverseMode::tmTile;
+			vVoxelRay.NextStep();
+		} while (!vVoxelRay.IsTileTraverseDone());
+	}
+
+
+	// older but somewhat ok code
+	/*
+
+		// try and traverse the tile as well, and set each voxel across this ray
+
+		vVoxelRay.
+		while (!vVoxelRay.IsVoxelTraverseDone())
+		{
+
+
+
+
+			vVoxelRay.NextStep();
+		}
+
+		vVoxelRay.NextStep();
+	}
 
 
 
@@ -3155,6 +3242,10 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 
 		vVoxelRay.NextStep();
 	}
+
+	*/
+
+
 
 	// *******************************************************************************************
 	// END OF VOXELRAY TRAVERSAL CODE EXAMPLE, HOWEVER BELOW IS ALSO SOME RENDERING ASSISTANCE...

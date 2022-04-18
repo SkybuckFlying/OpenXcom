@@ -168,6 +168,22 @@ struct VoxelRay
 		float *MaxIntersectionPointX, float *MaxIntersectionPointY, float *MaxIntersectionPointZ
 	);
 
+	bool LineSegmentIntersectsBoxSingle
+	(
+		float LineX1, float LineY1, float LineZ1,
+		float LineX2, float LineY2, float LineZ2,
+
+		float BoxX1, float BoxY1, float BoxZ1,
+		float BoxX2, float BoxY2, float BoxZ2,
+
+		// nearest to line origin, doesn't necessarily mean closes to box...
+		bool *MinIntersectionPoint,
+		float *MinIntersectionPointX, float *MinIntersectionPointY, float *MinIntersectionPointZ,
+
+		// farthest to line origin, doesn't necessarily mean farthest from box...
+		bool *MaxIntersectionPoint,
+		float *MaxIntersectionPointX, float *MaxIntersectionPointY, float *MaxIntersectionPointZ
+	);
 	bool IsIntersectingTileBoundary();
 
 	bool IsIntersectingTileBoundaryScaled();
@@ -179,7 +195,9 @@ struct VoxelRay
 	void SetupVoxelDimensions( int ParaVoxelWidth, int ParaVoxelHeight, int ParaVoxelDepth );
 
 	// in grid index coordates, much cooler. can start at a different offset min basically.
-	void SetupGridData( int ParaMinX, int ParaMinY, int ParaMinZ, int ParaMaxX, int ParaMaxY, int ParaMaxZ );
+	void SetupTileGridData( int ParaMinX, int ParaMinY, int ParaMinZ, int ParaMaxX, int ParaMaxY, int ParaMaxZ );
+
+	void SetupVoxelGridData( int ParaMinX, int ParaMinY, int ParaMinZ, int ParaMaxX, int ParaMaxY, int ParaMaxZ );
 
 	// in some kind of world/voxel coordinates or so...
 	void SetupTileBoundary( float ParaMinX, float ParaMinY, float ParaMinZ, float ParaMaxX, float ParaMaxY, float ParaMaxZ );
@@ -218,6 +236,7 @@ struct VoxelRay
 	// Tile Width, HEight Depth not used for now... use the SetupTileDimension routine to set it up.
 	void Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileWidth, int TileHeight, int TileDepth );
 
+	void ComputeVoxelGridData( int ParaTileX, int ParaTileY, int ParaTileZ );
 	void SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileX, int TileY, int TileZ );
 
 	bool IsTileTraverseDone();
@@ -233,7 +252,8 @@ struct VoxelRay
 
 	void GetTraverseVoxelPosition( int *ParaVoxelX, int *ParaVoxelY, int *ParaVoxelZ );
 
-	bool HasBegin();
+	bool HasTileBegin();
+	bool HasVoxelBegin();
 };
 
 } // close/de-associate OpenXcom namespace
