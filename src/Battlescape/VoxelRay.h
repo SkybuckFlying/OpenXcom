@@ -49,6 +49,9 @@ struct TraverseData
 	// this is definetly per ray, cause rays can exit at different cell/grid position/indexes
 	int OutX, OutY, OutZ;
 
+	bool mHasBegin;
+	bool mHasEnd;
+
 	// macros for fast voxel traversal algoritm in code below
 	// original macros disabled, to not be reliant on macro language ! ;)
 	// #define SIGN(x) (x > 0 ? 1 : (x < 0 ? -1 : 0))
@@ -133,20 +136,22 @@ struct VoxelRay
 
 	bool IsSinglePoint();
 	bool IsSinglePointInTileBoundary();
-	void ComputeVoxelStartPosition();
+	void ComputeVoxelPosition( float ParaX, float ParaY, float ParaZ );
+
+	bool VoxelTraverseIsSinglePoint();
 
 	bool IsTileDirect();
 	bool IsTileDirectScaled();
 
 	bool IsVoxelDirect();
 
-	bool IsInsideTileBoundary();
+	bool AreBothPointsInTileBoundary();
 
 	bool IsInsideTileBoundaryScaled();
 
 	bool IsInsideVoxelBoundary();
 
-	bool LineSegmentIntersectsBoxSingle
+	bool LineCollidesWithBox
 	(
 		float LineX1, float LineY1, float LineZ1,
 		float LineX2, float LineY2, float LineZ2,
@@ -213,6 +218,8 @@ struct VoxelRay
 	// Tile Width, HEight Depth not used for now... use the SetupTileDimension routine to set it up.
 	void Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileWidth, int TileHeight, int TileDepth );
 
+	void SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileX, int TileY, int TileZ );
+
 	bool IsTileTraverseDone();
 	bool IsVoxelTraverseDone();
 
@@ -225,6 +232,8 @@ struct VoxelRay
 	void GetTraverseTilePosition( int *ParaTileX, int *ParaTileY, int *ParaTileZ );
 
 	void GetTraverseVoxelPosition( int *ParaVoxelX, int *ParaVoxelY, int *ParaVoxelZ );
+
+	bool HasBegin();
 };
 
 } // close/de-associate OpenXcom namespace

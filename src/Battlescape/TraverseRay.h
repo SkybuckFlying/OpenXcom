@@ -25,26 +25,24 @@ TraceStartT and TraceStopT to somewhat associate it with T basically a distance 
 
 */
 
+#include "XYZ.h"
+#include "TraversePoint.h"
+
 template <typename FPT, typename IT> // FPT = Floating Point Type, IT = Integer Type
 struct TraverseRay
 {
-	bool mHasStartPoint, mHasStopPoint;
-
 	TraversePoint mStart, mStop;
 
-	FPT mDirectionX, mDirectionY, mDirectionZ;
+	XYZ<FPT> mDirection;
 
 	FPT T, TraceStartT, TraceStopT;
 
-	IT mCellX, mCellY, mCellZ;
+	XYZ<IT> mCell;
 
-	IT mMinCellX, mMinCellY, mMinCellZ;
-	IT mMaxCellX, mMaxCellY, mMaxCellZ;
+	TraverseGrid<IT> *mTraverseGrid;
+};
 
 
-bool TraverseRay<FPT,IT>::HasStartPoint()
-
-bool TraverseRay<FPT,IT>::HasStopPoint()
 
 bool TraverseRay<FPT,IT>::IsBeyond()
 
@@ -108,18 +106,6 @@ TraverseRay::HasBegin()
 {
 
 
-}
-
-template <typename FPT, typename IT>
-bool TraverseRay<FPT,IT>::HasStartPoint()
-{
-	return mHasStartPoint;
-}
-
-template <typename FPT, typename IT>
-bool TraverseRay<FPT,IT>::HasStopPoint()
-{
-	return mHasStopPoint;
 }
 
 template <typename FPT, typename IT>
@@ -215,7 +201,7 @@ bool TraverseRay<FPT,IT>::IsCellXOutside()
 {
 	if
 	(
-		(mCellX < mMinCellX) || (mCellX > mMaxCellX)
+		(mCellX < *mTraverseGrid.mMin.mX) || (mCellX > *mTraverseGrid.mMax.mX)
 	)
 	{
 		return true;
@@ -230,7 +216,7 @@ bool TraverseRay<FPT,IT>::IsCellYOutside()
 {
 	if
 	(
-		(mCellY < mMinCellY) || (mCellY > mMaxCellY)
+		(mCellY < *mTraverseGrid.mMin.mY) || (mCellY > *mTraverseGrid.mMax.mY)
 	)
 	{
 		return true;
@@ -245,7 +231,7 @@ bool TraverseRay<FPT,IT>::IsCellZOutside()
 {
 	if
 	(
-		(mCellZ < mMinCellZ) || (mCellZ > mMaxCellZ)
+		(mCellZ < *mTraverseGrid.mMin.mZ) || (mCellZ > *mTraverseGrid.mMax.mZ)
 	)
 	{
 		return true;
@@ -335,30 +321,13 @@ void TraverseRay<FPT,IT>::StepBackward()
 	}
 }
 
-template <typename FPT, typename IT>
-void TraverseRay<FPT,IT>::SetStartPoint( FPT ParaX, FPT ParaY, FPT ParaZ )
-{
-	mHasStartPoint = true;
-	mStartX = ParaX;
-	mStartY = ParaY;
-	mStartZ = ParaZ;
-}
-
-template <typename FPT, typename IT>
-void TraverseRay<FPT,IT>::SetStopPoint( FPT ParaX, FPT ParaY, FPT ParaZ )
-{
-	mHasStopPoint = true;
-	mStopX = ParaX;
-	mStopY = ParaY;
-	mStopZ = ParaZ;
-}
 
 template <typename FPT, typename IT>
 void TraverseRay<FPT,IT>::SetDirection( FPT ParaX, FPT ParaY, FPT ParaZ )
 {
-	mDirectionX = ParaX;
-	mDirectionY = ParaY;
-	mDirectionZ = ParaZ;
+	mDirection.mX = ParaX;
+	mDirection.mY = ParaY;
+	mDirection.mZ = ParaZ;
 }
 
 template <typename FPT, typename IT>
@@ -366,14 +335,14 @@ void TraverseRay<FPT,IT>::IsSinglePoint()
 {
 	if
 	(
-		(mHasStartPoint) && (mHasStopPoint)
+		(mStart.Exists()) && (mStop.Exists())
 	)
 	{
 		if 
 		(
-			(mStartX == mStopX) &&
-			(mStartY == mStopY) &&
-			(mStartZ == mStopZ)
+			(mStart.mX == mStop.mX) &&
+			(mStart.mY == mStop.mY) &&
+			(mStart.mZ == mStop.mZ)
 
 		)
 		{
@@ -401,8 +370,10 @@ void TraverseRay<FPT,IT>::GetCell( IT *ParaCellX, IT *ParaCellY, IT *ParaCellZ )
 
 }
 
-
-
+void TraverseRay<FPT,IT>::LinkToGrid( TraverseGrid *ParaTraverseGrid )
+{
+	mTraverseGrid = ParaTraverseGrid;
+}
 
 // I don't know yet about this... overwriting nice fields, could be dangerous
 // but I also don't want to use extra fields for speeeeed, but this code is alread ya little bit slower than usual.. hmm

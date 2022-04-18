@@ -954,9 +954,6 @@
     <ClCompile Include="Battlescape\ScreenRayBlocks.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
-    <ClCompile Include="Battlescape\TraverseRay.cpp">
-      <Filter>Battlescape</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -1957,12 +1954,7 @@
     <ClInclude Include="Battlescape\VoxelRay.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
-    <ClInclude Include="Battlescape\TraverseBoundary.h">
-      <Filter>Battlescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Battlescape\TraverseCell.h">
-      <Filter>Battlescape</Filter>
-    </ClInclude>
+    <ClInclude Include="Battlescape\TraverseRay.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Geoscape">

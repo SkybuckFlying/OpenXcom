@@ -1,0 +1,8 @@
+#pragma once
+
+#include "XYZ.h"
+
+struct BoundingBox
+{
+	XYZ<FPT> mMin, mMax;
+};
