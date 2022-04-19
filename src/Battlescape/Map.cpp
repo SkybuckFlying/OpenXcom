@@ -232,8 +232,8 @@ void Map::draw()
 
 	if ((_save->getSelectedUnit() && _save->getSelectedUnit()->getVisible()) || _unitDying || _save->getSelectedUnit() == 0 || _save->getDebugMode() || _projectileInFOV || _explosionInFOV)
 	{
-//		drawTerrain(this);
-		drawTerrainHeavyModifiedBySkybuck(this);
+		drawTerrain(this);
+//		drawTerrainHeavyModifiedBySkybuck(this);
 	}
 	else
 	{
@@ -2933,7 +2933,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 	Tile *tile;
 	int beginX = 0, endX = _save->getMapSizeX() - 1;
 	int beginY = 0, endY = _save->getMapSizeY() - 1;
-	int beginZ = 1, endZ = _camera->getShowAllLayers()?_save->getMapSizeZ() - 1:_camera->getViewLevel();
+	int beginZ = 0, endZ = _camera->getShowAllLayers()?_save->getMapSizeZ() - 1:_camera->getViewLevel();
 	Position mapPosition, screenPosition, bulletPositionScreen;
 	int bulletLowX=16000, bulletLowY=16000, bulletLowZ=16000, bulletHighX=0, bulletHighY=0, bulletHighZ=0;
 	int dummy;
@@ -2982,7 +2982,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 	// ****************************************************************************************
 
 	// reset traversed before traversing and before drawing the graphics ofcourse ! ;) :)
-	for (int itZ = beginZ; itZ <= endZ; itZ = itZ + 1)
+	for (int itZ = beginZ; itZ <= (_save->getMapSizeZ() - 1); itZ = itZ + 1)
 	{
 		for (int itX = beginX; itX <= endX; itX = itX + 1)
 		{
@@ -2995,6 +2995,37 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 			}
 		}
 	}
+
+/*
+	// draw a big height wall on the left side of the map
+	for (int itZ = beginZ; itZ <= (_save->getMapSizeZ() - 1); itZ = itZ + 1)
+	{
+		for (int itX = beginX; itX <= endX; itX = itX + 1)
+		{
+			for (int itY = beginY; itY <= endY; itY = itY + 1)
+			{
+				if (itX == 0)
+				{
+					mapPosition = Position(itX, itY, itZ);
+					tile = _save->getTile(mapPosition);
+					if (!tile) continue;
+					tile->setTraversed( false );
+				
+					for (int vZ=0; vZ < 23; vZ++)
+					{
+						for (int vY=0; vY < 16; vY++)
+						{
+							for (int vX=0; vX < 16; vX++)
+							{
+								tile->VoxelMap._Present[vZ][vY][vX] = true;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+*/
 
 	VoxelPosition vVoxelPositionStart;
 	VoxelPosition vVoxelPositionStop;
@@ -3411,7 +3442,6 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 						*/
 
 //						tile->VoxelMap._Present[12][8][8] = true;
-						DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
 
 						// draw an item on top of the floor (if any)
 						int sprite = tile->getTopItemSprite();
@@ -3422,6 +3452,11 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 						}
 
 					}
+
+					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					// !!! SKYBUCK: MAKE SURE IT'S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
+					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
 
 					unit = tile->getUnit();
 					// Draw soldier from this tile or below
@@ -4038,8 +4073,6 @@ void Map::drawTerrain(Surface *surface)
 //						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
 //						_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile );
 
-						DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
-
 						// draw an item on top of the floor (if any)
 						int sprite = tile->getTopItemSprite();
 						if (sprite != -1)
@@ -4049,6 +4082,12 @@ void Map::drawTerrain(Surface *surface)
 						}
 
 					}
+
+					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					// !!! SKYBUCK: MAKE SURE IT'S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
+					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
+
 
 					// check if we got bullet && it is in Field Of View
 					if (_projectile && _projectileInFOV)
