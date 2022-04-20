@@ -253,16 +253,20 @@ void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTi
 				)
 				{
 					vSpriteVoxelPosition = ParaTile->getSpriteVoxelFrame()->_VoxelPosition[SpriteY][SpriteX];
-					vTilePosition = ParaTile->getPosition();
 
-					vScreenVoxelPosition.X = vTilePosition.x*16 + vSpriteVoxelPosition.X;
-					vScreenVoxelPosition.Y = vTilePosition.y*16 + vSpriteVoxelPosition.Y;
-					vScreenVoxelPosition.Z = vTilePosition.z*24 + vSpriteVoxelPosition.Z;
-
-					if (vScreenVoxelPosition.Z >= 0)
+//					if (vSpriteVoxelPosition.Z != -1) // all positions will most likely be overwritten anyway
 					{
-						vScreenPixelOffset = vScreenPixelY * mWidth + vScreenPixelX;
-						mVoxelPosition[vScreenPixelOffset] = vScreenVoxelPosition; 
+						vTilePosition = ParaTile->getPosition();
+
+						vScreenVoxelPosition.X = vTilePosition.x*16 + vSpriteVoxelPosition.X;
+						vScreenVoxelPosition.Y = vTilePosition.y*16 + vSpriteVoxelPosition.Y;
+						vScreenVoxelPosition.Z = vTilePosition.z*24 + vSpriteVoxelPosition.Z;
+
+						if (vScreenVoxelPosition.Z >= 0)
+						{
+							vScreenPixelOffset = vScreenPixelY * mWidth + vScreenPixelX;
+							mVoxelPosition[vScreenPixelOffset] = vScreenVoxelPosition; 
+						}
 					}
 				}
 			}

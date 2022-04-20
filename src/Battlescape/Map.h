@@ -73,6 +73,8 @@ private:
 	ScreenVoxelFrame *_screenVoxelFrame;
 	ScreenRayBlocks *_screenRayBlocks;
 
+	VoxelRay *_screenVoxelRay;
+
 	void drawUnit(Surface *surface, Tile *unitTile, Tile *currTile, Position tileScreenPosition, int shade, int obstacleShade, bool topLayer);
 	void drawTerrainHeavyModifiedBySkybuck(Surface *surface);
 	void drawTerrain(Surface *surface);
