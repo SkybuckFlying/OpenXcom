@@ -5,9 +5,14 @@
 namespace OpenXcom
 {
 
+struct SpriteVoxelPosition
+{
+	signed char X, Y, Z; // signed 8 bit
+};
+
 struct SpriteVoxelFrame
 {
-	VoxelFramePosition _VoxelPosition[40][32]; // [Y, X] 
+	SpriteVoxelPosition _VoxelPosition[40][32]; // [Y, X] 
 };
 
 struct SpriteVoxelFrameComputed

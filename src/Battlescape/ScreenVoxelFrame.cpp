@@ -59,7 +59,7 @@ void ScreenVoxelFrame::ReSize( int ParaWidth, int ParaHeight )
 		(ParaWidth > 0) && (ParaHeight > 0)
 	)
 	{
-		mVoxelPosition = new VoxelFramePosition[ParaWidth * ParaHeight];
+		mVoxelPosition = new ScreenVoxelPosition[ParaWidth * ParaHeight];
 		mWidth = ParaWidth;
 		mHeight = ParaHeight;
 	}
@@ -122,7 +122,7 @@ void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTi
 
 void ScreenVoxelFrame::Clear( void )
 {
-	VoxelFramePosition vVoxelPosition;
+	ScreenVoxelPosition vVoxelPosition;
 	int vIndex;
 
 	vVoxelPosition.X = -1;
@@ -225,7 +225,8 @@ void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTi
 
 void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTile, Surface *ParaSprite )
 {
-	VoxelFramePosition vVoxelPosition;
+	SpriteVoxelPosition vSpriteVoxelPosition;
+	ScreenVoxelPosition vScreenVoxelPosition;
 	Position vTilePosition;
 
 	int vScreenPixelX, vScreenPixelY;
@@ -251,17 +252,17 @@ void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTi
 					(vScreenPixelY >= 0) && (vScreenPixelY < mHeight)
 				)
 				{
-					vVoxelPosition = ParaTile->getSpriteVoxelFrame()->_VoxelPosition[SpriteY][SpriteX];
+					vSpriteVoxelPosition = ParaTile->getSpriteVoxelFrame()->_VoxelPosition[SpriteY][SpriteX];
 					vTilePosition = ParaTile->getPosition();
 
-					vVoxelPosition.X = vVoxelPosition.X + vTilePosition.x*16;
-					vVoxelPosition.Y = vVoxelPosition.Y + vTilePosition.y*16;
-					vVoxelPosition.Z = vVoxelPosition.Z + vTilePosition.z*24;
+					vScreenVoxelPosition.X = vTilePosition.x*16 + vSpriteVoxelPosition.X;
+					vScreenVoxelPosition.Y = vTilePosition.y*16 + vSpriteVoxelPosition.Y;
+					vScreenVoxelPosition.Z = vTilePosition.z*24 + vSpriteVoxelPosition.Z;
 
-					if (vVoxelPosition.Z >= 0)
+					if (vScreenVoxelPosition.Z >= 0)
 					{
 						vScreenPixelOffset = vScreenPixelY * mWidth + vScreenPixelX;
-						mVoxelPosition[vScreenPixelOffset] = vVoxelPosition; 
+						mVoxelPosition[vScreenPixelOffset] = vScreenVoxelPosition; 
 					}
 				}
 			}

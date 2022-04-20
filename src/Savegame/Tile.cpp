@@ -1099,7 +1099,7 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 
 	int VoxelX, VoxelY, VoxelZ;
 
-	VoxelFramePosition vVoxelPosition;
+	SpriteVoxelPosition vVoxelPosition;
 
 	int vIndex;
 
@@ -1202,7 +1202,7 @@ void Tile::UpdateSpriteVoxelFrame( TileEngine *ParaTileEngine )
 
 	int VoxelX, VoxelY, VoxelZ;
 
-	VoxelFramePosition vVoxelPosition;
+	SpriteVoxelPosition vVoxelPosition;
 
 	int vIndex;
 
@@ -1291,5 +1291,20 @@ void Tile::setTraversed( bool ParaTraversed )
 {
 	_traversed = ParaTraversed;
 }
+
+void Tile::ClearVoxelTraversedMap()
+{
+	for (int vZ=0; vZ < 23; vZ++)
+	{
+		for (int vY=0; vY < 16; vY++)
+		{
+			for (int vX=0; vX < 16; vX++)
+			{
+				VoxelTraversedMap._Present[vZ][vY][vX] = false;
+			}
+		}
+	}
+}
+
 
 }

@@ -152,6 +152,7 @@ public:
 
 	// voxel coordinates in world also known as map coordinates.
 	void setVoxel( int x, int y, int z, bool Present );
+	void setVoxelTraversed( int x, int y, int z, bool Traversed );
 };
 
 }

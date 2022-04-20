@@ -90,6 +90,8 @@ protected:
 public:
 	TileVoxelMap3D VoxelMap; // Skybuck: for debugging voxel traversal only !!!
 
+	TileVoxelMap3D VoxelTraversedMap; // Skybuck: for debugging voxel traversal and checking the original voxel map positions. 
+
 	/// Creates a tile.
 	Tile(Position pos);
 	/// Cleans up a tile.
@@ -277,6 +279,8 @@ public:
 	bool getTraversed( void );
 
 	void setTraversed( bool ParaTraversed );
+
+	void ClearVoxelTraversedMap();
 };
 
 }

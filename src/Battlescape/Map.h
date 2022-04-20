@@ -163,6 +163,11 @@ public:
 	void enableObstacles();
 	/// Disables obstacle markers.
 	void disableObstacles();
+
+	// Skybuck: for voxel traversal debugging purposes
+	void ClearVoxelTraversedMap();
+
+	Uint8 ComputeShade( Uint8 ParaColorIn, double ParaExposure );
 };
 
 }

@@ -2368,6 +2368,18 @@ void BattlescapeGenerator::generateMap(const std::vector<MapScript*> *script)
 			}
 		}
 	}
+
+	// clear voxel traversed map on each tile
+	for (int z = 0; z < _mapsize_z; ++z)
+	{
+		for (int x = 0; x < _mapsize_x; ++x)
+		{
+			for (int y = 0; y < _mapsize_y; ++y)
+			{
+				_save->getTile(Position(x, y, z))->ClearVoxelTraversedMap();
+			}
+		}
+	}
 }
 
 /**
