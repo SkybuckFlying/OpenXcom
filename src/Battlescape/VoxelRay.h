@@ -236,6 +236,8 @@ struct VoxelRay
 	// Tile Width, HEight Depth not used for now... use the SetupTileDimension routine to set it up.
 	void Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileWidth, int TileHeight, int TileDepth );
 
+	void QuickSetup();
+
 	void ComputeVoxelGridData( int ParaTileX, int ParaTileY, int ParaTileZ );
 	void SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileX, int TileY, int TileZ );
 

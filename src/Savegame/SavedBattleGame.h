@@ -62,6 +62,8 @@ private:
 	UnitFaction _side;
 	int _turn;
 	bool _debugMode;
+	bool _LightCastingOn;
+	bool _LightTraversingOn;
 	bool _aborted;
 	int _itemId;
 	int _objectiveType, _objectivesDestroyed, _objectivesNeeded;
@@ -301,6 +303,12 @@ public:
 	bool isItemUsable(BattleItem *item) const;
 	/// Reset all the unit hit state flags.
 	void resetUnitHitStates();
+
+	void ToggleLightCastingOn();
+	bool IsLightCastingOn() const;
+
+	void ToggleLightTraversingOn();
+	bool IsLightTraversingOn() const;
 };
 
 }

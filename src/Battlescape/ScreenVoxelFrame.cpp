@@ -254,6 +254,12 @@ void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTi
 				{
 					vSpriteVoxelPosition = ParaTile->getSpriteVoxelFrame()->_VoxelPosition[SpriteY][SpriteX];
 
+					if
+					(
+						(vSpriteVoxelPosition.Z != -1) &&
+						(vSpriteVoxelPosition.Y != -1) &&
+						(vSpriteVoxelPosition.X != -1)
+					)
 //					if (vSpriteVoxelPosition.Z != -1) // all positions will most likely be overwritten anyway
 					{
 						vTilePosition = ParaTile->getPosition();

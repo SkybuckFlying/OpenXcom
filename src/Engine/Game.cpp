@@ -265,16 +265,23 @@ void Game::run()
 						}
 						else if (Options::debug)
 						{
+
+							// Skybuck: Some kind of fuck-ed up test state, not mine. Disabling it so I can use control-t for light traversal
+							/*
 							if (action.getDetails()->key.keysym.sym == SDLK_t && (SDL_GetModState() & KMOD_CTRL) != 0)
 							{
 								setState(new TestState);
 							}
+							// Skybuck: seems to draw some lines around UI elements, unfortunately I run out of memory in battlescape to see it in action there
+							// try this out sometime
+						
 							// "ctrl-u" debug UI
 							else if (action.getDetails()->key.keysym.sym == SDLK_u && (SDL_GetModState() & KMOD_CTRL) != 0)
 							{
 								Options::debugUi = !Options::debugUi;
 								_states.back()->redrawText();
 							}
+							*/
 						}
 					}
 					_states.back()->handle(&action);

@@ -690,8 +690,8 @@ void DrawLoft( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src)
 
 void DrawSpriteVoxelFrame( Surface *Dst, int DstX, int DstY, Tile *ParaTile, Surface *ParaSprite )
 {
-//	VoxelPosition vVoxelPosition;
-	signed char vVoxelPositionZ;
+	SpriteVoxelPosition vVoxelPosition;
+//	signed char vVoxelPositionZ;
 	int SpriteX, SpriteY;
 
 	Uint8 SpriteColor;
@@ -710,20 +710,53 @@ void DrawSpriteVoxelFrame( Surface *Dst, int DstX, int DstY, Tile *ParaTile, Sur
 			{
 
 				//	VoxelColor = SpriteX % 256;
-				vVoxelPositionZ = ParaTile->getSpriteVoxelFrame()->_VoxelPosition[SpriteY][SpriteX].Z;
-				if (vVoxelPositionZ >= 0)
+//				vVoxelPositionZ = ParaTile->getSpriteVoxelFrame()->_VoxelPosition[SpriteY][SpriteX].Z;
+				vVoxelPosition = ParaTile->getSpriteVoxelFrame()->_VoxelPosition[SpriteY][SpriteX];
+
+				// ALL IN ON making sure the voxel is present
+				if
+				(
+					(vVoxelPosition.X != -1) &&
+					(vVoxelPosition.Y != -1) &&
+					(vVoxelPosition.Z != -1)
+				)
+//				if (vVoxelPosition.Z != -1)
 				{
 	//				VoxelColor = 48 + (vVoxelPositionZ  / 24.0 ) * 16;
-					VoxelColor = 16 - ((vVoxelPositionZ  / 24.0 ) * 16);
+					VoxelColor = 15 - ((vVoxelPosition.Z  / 24.0 ) * 15);
 
 					SurfaceColor = Dst->getPixel( DstX + SpriteX, DstY + SpriteY );
 
+					Uint8 OriginalShadeColor = SurfaceColor & 15;
+
+
+
 	//				SubtractColor = SurfaceColor & 15; // mod 16 = and 15
-					SurfaceColor = SurfaceColor & 240; // inverted mask to clear lower 16 colors
-					FinalColor = SurfaceColor + VoxelColor;
+					Uint8 BaseColor = SurfaceColor & 240; // inverted mask to clear lower 16 colors
+//					FinalColor = SurfaceColor + VoxelColor;
+
+					// 50% of original color + 50% of voxel color, to give it more texture for fun
+					FinalColor = BaseColor + (OriginalShadeColor >> 1) + (VoxelColor >> 1);
+
+
+
+					// copied the color formula from draw tile voxel map 3d
+//					FinalColor = 16 + (ParaTile->getPosition().z*16) + ((vVoxelPosition.Z / 24.0) * 16);
 
 					Dst->setPixel( DstX + SpriteX, DstY + SpriteY, FinalColor );
 				}
+				/*
+				if
+				(
+					(vVoxelPosition.X == -1) &&
+					(vVoxelPosition.Y == -1) &&
+					(vVoxelPosition.Z == -1)
+				)
+				{
+					Uint8 NoVoxelColor = (Uint8)(200);
+					Dst->setPixel( DstX + SpriteX, DstY + SpriteY, NoVoxelColor );					
+				}
+				*/
 			}
 		}
 	}
@@ -1651,7 +1684,7 @@ void DrawTileVoxelMap3D( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile 
 
 					if
 					(
-						/* (VoxelPresent == true)  && */ (VoxelTraversed == true)
+						(VoxelPresent == true) /* && (VoxelTraversed == true) */
 					)
 					{
 /*
@@ -1688,7 +1721,7 @@ void DrawTileVoxelMap3D( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile 
 					{
 						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
 
-//						if (SpriteX < 31)
+						if (SpriteX < 31)
 						{
 							ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX+1, SpriteY, FinalColor );
 						}
@@ -1700,6 +1733,143 @@ void DrawTileVoxelMap3D( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile 
 	}
 }
 
+
+void DrawTileVoxelTraversedMap3D( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src, int TileZ )
+{
+	bool Computed[40 * 32];
+
+	int x, y;
+	Uint8 SurfaceColor;
+	Uint8 VoxelColor;
+	Uint8 FinalColor;
+
+	int SpriteStartX, SpriteStartY;
+	int SpriteX;
+	float SpriteY;
+
+	int VoxelX, VoxelY, VoxelZ;
+	Uint8 TestColor;
+
+//	double ComponentX, ComponentY;
+	float ComponentX, ComponentY;
+	int Component;
+
+	Position VoxelPosition;
+	bool VoxelPresent;
+	bool VoxelTraversed;
+
+	float CrazyDistance;
+
+	int vIndex;
+
+	for ( vIndex = 0; vIndex < (40*32); vIndex++ )
+	{
+		Computed[vIndex] = false;
+	}
+
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+//		VoxelY = 0;
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+//			VoxelX = 0;
+			{
+//				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) ); 
+
+
+				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
+
+
+//				SpriteX = (SpriteStartX - VoxelY) + (1+VoxelX);
+//				SpriteY = ((SpriteStartY + (VoxelX / 2)) + (VoxelY / 2)) - VoxelZ;
+
+//				ComponentX = VoxelX / 2;
+//				ComponentY = VoxelY / 2;
+
+//				SpriteY = (SpriteStartY + (ComponentX  + ComponentY)) - VoxelZ;
+
+				Component = VoxelX + VoxelY;
+				Component = Component >> 1;
+
+				SpriteY = (SpriteStartY + Component) - VoxelZ;
+
+//				SpriteX = SpriteStartX + VoxelXtoSpriteX[VoxelX] + VoxelYtoSpriteX[VoxelY];
+//				SpriteY = SpriteStartY + VoxelXtoSpriteY[VoxelX] + VoxelXtoSpriteY[VoxelY] - VoxelZ;
+
+
+				vIndex = (SpriteY * 32) + SpriteX;
+
+				if (!Computed[vIndex])
+				{
+					VoxelPosition.x = VoxelX;
+					VoxelPosition.y = VoxelY;
+					VoxelPosition.z = VoxelZ;
+
+//					VoxelPresent = Src->VoxelMap._Present[VoxelPosition.z][VoxelPosition.y][VoxelPosition.x];
+					VoxelTraversed = Src->VoxelTraversedMap._Present[VoxelPosition.z][VoxelPosition.y][VoxelPosition.x];
+					
+					FinalColor = 0;
+
+
+					if
+					(
+						/* (VoxelPresent == true) && */ (VoxelTraversed == true)
+					)
+					{
+/*
+						SurfaceColor = Dst->getPixel( DstX + SpriteX, DstY + SpriteY );
+						SurfaceColor = SurfaceColor / 16;
+						SurfaceColor = SurfaceColor * 16;
+
+						FinalColor = SurfaceColor + ((CrazyDistance/16.0)*15);
+*/
+
+/*
+						if
+						(
+							(VoxelPosition.z == 12) &&
+							(VoxelPosition.y == 8) &&
+							(VoxelPosition.x == 8)
+						)
+*/
+						{
+							Uint8 ColorGarbage = 16;
+							Uint8 ColorRange = 16;
+							Uint8 ColorStart = 15;
+							Uint8 ColorShade = ((VoxelPosition.z / 23.0) * 15);
+
+							FinalColor = (ColorGarbage + (TileZ * ColorRange) + ColorStart) - ColorShade;
+						}
+
+/*
+						else
+						{
+							FinalColor = 32 + (VoxelPosition.z / 24.0) * 16;
+						}
+*/
+					}
+
+
+
+					if (FinalColor > 0)
+					{
+						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
+
+						if (SpriteX < 31)
+						{
+							ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX+1, SpriteY, FinalColor );
+						}
+						Computed[vIndex] = true;
+					}
+				}
+			}
+		}
+	}
+}
 
 
 
@@ -1868,10 +2038,10 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 
 											// check if voxel is "set" if so then done and use it for further computation
 											// possibly set VoxelCollisionX,Y,Z for later usage most likely, like shading
-											FinalColor = 16 + 15;
+											FinalColor = 16; // in light = yellow
 											if (TileCollision->VoxelMap._Present[VoxelCollisionZ][VoxelCollisionY][VoxelCollisionX] == true)
 											{
-												FinalColor = 16;
+												FinalColor = 16 + 15; // in darkness = dark red/brownish
 							/*
 
 												// good question, put screen pixel in darkness or wait till it exits and hits nothing
@@ -2000,6 +2170,12 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 
 //												tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
 */
+
+												if (ParaSave->IsLightTraversingOn())
+												{
+													TileCollision->VoxelTraversedMap._Present[VoxelCollisionZ][VoxelCollisionY][VoxelCollisionX] = true;
+
+												}			
 												// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
 												vVoxelRay.VoxelTD.TraverseDone = true;
 												vVoxelRay.TileTD.TraverseDone = true;
@@ -4157,7 +4333,7 @@ Uint8 Map::ComputeShade( Uint8 ParaColorIn, double ParaExposure )
 	// then use the exposure to calculate the shade offset, 1.0 = maximum shade of 15, 0.0 = 0 shade.
 
 	// add the shade to the base color and done ! nice, effect and fast.
-	Uint8 vShade = ParaExposure * 15; // 15 is the maximum shading level.
+	Uint8 vShade = 15 - (ParaExposure * 15); // 15 is the maximum shading level. 0 = bright 15 = dark
 
 	Uint8 vFinalColor = vBaseColor + vShade;
 
@@ -4230,6 +4406,8 @@ Uint8 Map::ComputeShade( Uint8 ParaColorIn, double ParaExposure )
 
 	return vFinalColor;
 }
+
+int IfThisCaravanIsRockingThenDontComeKnocking = 0;
 
 // slighty modified draw terrain to include "draw sprite voxel frame"
 /**
@@ -4537,7 +4715,7 @@ void Map::drawTerrain(Surface *surface)
 								else
 									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tileShade, false);
 
-//								DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tile, tmpSurface );
+								//DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tile, tmpSurface );
 								_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(),  tile, tmpSurface );
 //								_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile, tmpSurface );
 
@@ -4567,7 +4745,16 @@ void Map::drawTerrain(Surface *surface)
 					// !!! SKYBUCK: MAKE SURE IT'S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
 					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
-					DrawTileVoxelMap3DLightCasting( _save, _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itX, itY, itZ );
+
+					if
+					(
+//						(_save->IsLightCastingOn()) &&
+						(_save->IsLightTraversingOn())
+					)
+					{
+//						DrawTileVoxelTraversedMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
+//						DrawTileVoxelMap3DLightCasting( _save, _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itX, itY, itZ );
+					}
 
 					// check if we got bullet && it is in Field Of View
 					if (_projectile && _projectileInFOV)
@@ -4899,11 +5086,14 @@ void Map::drawTerrain(Surface *surface)
 		}
 	}
 
+	if (true==false) // disabled
+	{
 
-/*
 	// VOXEL FUN
 	// mix surface color with voxel z position
 	float vMaxZ = _save->getMapSizeZ() * 24;
+	float vMaxY = _save->getMapSizeY() * 16;
+	float vMaxX = _save->getMapSizeX() * 16;
 	int ScreenPixelOffset = 0;
 	for (int ScreenPixelY = 0; ScreenPixelY < _screenVoxelFrame->mHeight; ScreenPixelY++)
 	{
@@ -4911,22 +5101,35 @@ void Map::drawTerrain(Surface *surface)
 		{
 			
 			int vVoxelPositionZ = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Z;
+			int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y; 
+			int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X; 
 
-			if (vVoxelPositionZ > 0)
+			if
+			(
+				(vVoxelPositionZ != -1) &&
+				(vVoxelPositionY != -1) &&
+				(vVoxelPositionX != -1)
+			)
 			{
 				Uint8 SurfaceColor = *surface->getRaw( ScreenPixelX, ScreenPixelY );
-	//
+
+				// z color calculation code
+/*
 				Uint8 VoxelColor;
 
 //				VoxelColor = 48 + (vVoxelPositionZ  / (24.0) ) * 16;
 //				VoxelColor = 16 - ((vVoxelPositionZ  / (24.0) ) * 16);
 
-				VoxelColor = 48 + (vVoxelPositionZ  / (vMaxZ) ) * 16;
-				VoxelColor = 16 - ((vVoxelPositionZ  / (vMaxZ) ) * 16);
+//				VoxelColor = (3 * 15) + (vVoxelPositionZ  / (vMaxZ) ) * 15;
+				VoxelColor = 15 - ((vVoxelPositionZ  / (vMaxZ) ) * 15);
 
 	//				SubtractColor = SurfaceColor & 15; // mod 16 = and 15
 				SurfaceColor = SurfaceColor & 240; // inverted mask to clear lower 16 colors
 				Uint8 FinalColor = SurfaceColor + VoxelColor;
+*/
+
+//				Uint8 FinalColor = (vVoxelPositionX / vMaxX) * 255;
+				Uint8 FinalColor = (vVoxelPositionY / vMaxY) * 255;
 
 				surface->setPixel( ScreenPixelX, ScreenPixelY, FinalColor );
 			}
@@ -4934,11 +5137,12 @@ void Map::drawTerrain(Surface *surface)
 			ScreenPixelOffset++;
 		}
 	}
-*/
+
+	}
+
 
 
 /*
-
     // *****************************************************************************************************************
 	// LIGHT CASTING BEGIN OF IMPLEMENTATION 2
 	// *****************************************************************************************************************
@@ -5282,11 +5486,12 @@ void Map::drawTerrain(Surface *surface)
     // *****************************************************************************************************************
 	// LIGHT CASTING END OF IMPLEMENTATION 2
 	// *****************************************************************************************************************
-
 */
 
 
+
 /*
+	// this one was quite alright, but maybe the visibility screws it up, activate debug mode to see the real thing.
     // *****************************************************************************************************************
 	// LIGHT CASTING BEGIN OF IMPLEMENTATION 3
 	// *****************************************************************************************************************
@@ -5334,286 +5539,302 @@ void Map::drawTerrain(Surface *surface)
 	// we may also need to collect the ammount of light from each light source... yikes.
 	// thus it makes sense to use "exposure" maps and such to accumilate this/these.
 
-	VoxelPosition vSunPosition;
-//	vSunPosition.X = 2*16;
-//	vSunPosition.Y = 3*16;
-//	vSunPosition.Z = 6 * 24;
-
-	vSunPosition.X = 30*16;
-	vSunPosition.Y = 40*16;
-	vSunPosition.Z = 3000;
-
-	double vLightPower = 3000;
-	double vLightRange = 300;
-
-	int ScreenWidth = _screenVoxelFrame->mWidth;
-	int ScreenHeight = _screenVoxelFrame->mHeight;
-
-	int MapLastTileX = _save->getMapSizeX()-1;
-	int MapLastTileY = _save->getMapSizeY()-1;
-	int MapLastTileZ = _save->getMapSizeZ()-1;
-
-	// keep same level of indentation... just because.
+	
+	if (_save->IsLightCastingOn())
 	{
+		VoxelPosition vSunPosition;
+		vSunPosition.X = 10*16;
+		vSunPosition.Y = 10*16;
+		vSunPosition.Z = 6 * 24;
 
-		for (int PixelY = 0; PixelY < ScreenHeight; PixelY++)
+	//	vSunPosition.X = 30*16;
+	//	vSunPosition.Y = 40*16;
+	//	vSunPosition.Z = 3000;
+
+	//	double vLightPower = 3000;
+		double vLightPower = 10000;
+	//	double vLightRange = 300;
+		double vLightRange = 300; // not used.
+
+		int ScreenWidth = _screenVoxelFrame->mWidth;
+		int ScreenHeight = _screenVoxelFrame->mHeight;
+
+		int MapLastTileX = _save->getMapSizeX()-1;
+		int MapLastTileY = _save->getMapSizeY()-1;
+		int MapLastTileZ = _save->getMapSizeZ()-1;
+
+		// keep same level of indentation... just because.
 		{
-			for (int PixelX = 0; PixelX < ScreenWidth; PixelX++)
+
+			for (int PixelY = 0; PixelY < ScreenHeight; PixelY++)
 			{
-				int PixelOffset = PixelY * ScreenWidth + PixelX;
-
-				ScreenVoxelPosition vScreenVoxelPosition = _screenVoxelFrame->mVoxelPosition[PixelOffset];
-
-				if (vScreenVoxelPosition.Z != -1)
+				for (int PixelX = 0; PixelX < ScreenWidth; PixelX++)
 				{
+					int PixelOffset = PixelY * ScreenWidth + PixelX;
 
-					VoxelPosition vMapVoxelPosition;
-					vMapVoxelPosition.X = vScreenVoxelPosition.X;
-					vMapVoxelPosition.Y = vScreenVoxelPosition.Y;
-					vMapVoxelPosition.Z = vScreenVoxelPosition.Z;
+					ScreenVoxelPosition vScreenVoxelPosition = _screenVoxelFrame->mVoxelPosition[PixelOffset];
 
-					VoxelRay *vVoxelRay = &_screenVoxelRay[ PixelOffset ];
+//					if (vScreenVoxelPosition.Z != -1)
 
-					// let's first "try" straight from sun to screen voxel, if it looks bad because of missing pixels
-					// then invert it later.
-					vVoxelRay->SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
-					vVoxelRay->SetupTileDimensions( 16, 16, 24 );
-					vVoxelRay->SetupTileGridData( 0, 0, 0, MapLastTileX, MapLastTileY, MapLastTileZ );
-					vVoxelRay->Setup( vSunPosition, vMapVoxelPosition, 16, 16, 24 );  // tile width, height, depth
+					if
+					(
+						(vScreenVoxelPosition.Z != -1) &&
+						(vScreenVoxelPosition.Y != -1) &&
+						(vScreenVoxelPosition.X != -1)
+					)
+					{
+
+						VoxelPosition vMapVoxelPosition;
+						vMapVoxelPosition.X = vScreenVoxelPosition.X;
+						vMapVoxelPosition.Y = vScreenVoxelPosition.Y;
+						vMapVoxelPosition.Z = vScreenVoxelPosition.Z;
+
+						VoxelRay *vVoxelRay = &_screenVoxelRay[ PixelOffset ];
+
+						// let's first "try" straight from sun to screen voxel, if it looks bad because of missing pixels
+						// then invert it later.
+						vVoxelRay->SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
+						vVoxelRay->SetupTileDimensions( 16, 16, 24 );
+						vVoxelRay->SetupTileGridData( 0, 0, 0, MapLastTileX, MapLastTileY, MapLastTileZ );
+						vVoxelRay->Setup( vSunPosition, vMapVoxelPosition, 16, 16, 24 );  // tile width, height, depth
+					}
 				}
 			}
+
 		}
 
-	}
+		// *************************************************
+		// *** SCREEN RAY BLOCK TRAVERSAL TRAVERSE PHASE ***
+		// *************************************************
 
+		// keep processing rays until they are all done
+		bool AllRaysDone = false; // invert for now, to get loop started
 
-	// *************************************************
-	// *** SCREEN RAY BLOCK TRAVERSAL TRAVERSE PHASE ***
-	// *************************************************
-
-	// keep processing rays until they are all done
-	bool AllRaysDone = false; // invert for now, to get loop started
-
-	while (!AllRaysDone)
-	{
-		AllRaysDone = true;
-
-		for (int PixelY = 0; PixelY < ScreenHeight; PixelY++)
+		while (!AllRaysDone)
 		{
-			for (int PixelX = 0; PixelX < ScreenWidth; PixelX++)
+			AllRaysDone = true;
+
+			for (int PixelY = 0; PixelY < ScreenHeight; PixelY++)
 			{
-				int PixelOffset = PixelY * ScreenWidth + PixelX;
-
-				ScreenVoxelPosition vScreenVoxelPosition = _screenVoxelFrame->mVoxelPosition[PixelOffset];
-
-				if (vScreenVoxelPosition.Z != -1)
+				for (int PixelX = 0; PixelX < ScreenWidth; PixelX++)
 				{
-					VoxelPosition vMapVoxelPosition;
-					vMapVoxelPosition.X = vScreenVoxelPosition.X;
-					vMapVoxelPosition.Y = vScreenVoxelPosition.Y;
-					vMapVoxelPosition.Z = vScreenVoxelPosition.Z;
+					int PixelOffset = PixelY * ScreenWidth + PixelX;
 
-					VoxelRay *vVoxelRay = &_screenVoxelRay[ PixelOffset ];
+					ScreenVoxelPosition vScreenVoxelPosition = _screenVoxelFrame->mVoxelPosition[PixelOffset];
 
-					// sloppy fix, use HasTileBegin above later
-					if (!vVoxelRay->IsTileTraverseDone())
+					if (vScreenVoxelPosition.Z != -1)
 					{
-						AllRaysDone = false;
+						VoxelPosition vMapVoxelPosition;
+						vMapVoxelPosition.X = vScreenVoxelPosition.X;
+						vMapVoxelPosition.Y = vScreenVoxelPosition.Y;
+						vMapVoxelPosition.Z = vScreenVoxelPosition.Z;
 
-						do
+						VoxelRay *vVoxelRay = &_screenVoxelRay[ PixelOffset ];
+
+						// sloppy fix, use HasTileBegin above later
+						if (!vVoxelRay->IsTileTraverseDone())
 						{
-							int TileTraverseX, TileTraverseY, TileTraverseZ;
+							AllRaysDone = false;
 
-							// process tile
-							vVoxelRay->GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
-							mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
-							tile = _save->getTile(mapPosition);
-				//			if (!tile) continue;
-	//						tile->setTraversed( true );
-
-							// if tile is not full of air then start voxel traversal 
-							if (!tile->isVoid())
+							do
 							{
-								vVoxelRay->SetupVoxelTraversal( vSunPosition, vMapVoxelPosition, TileTraverseX, TileTraverseY, TileTraverseZ );
+								int TileTraverseX, TileTraverseY, TileTraverseZ;
 
-								if (vVoxelRay->HasVoxelBegin())
+								// process tile
+								vVoxelRay->GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
+								mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
+								tile = _save->getTile(mapPosition);
+					//			if (!tile) continue;
+		//						tile->setTraversed( true );
+
+								// if tile is not full of air then start voxel traversal 
+								if (!tile->isVoid())
 								{
-									// AllRaysDone = false; // Skybuck: maybe do this too ?!? not sure yet.
+									vVoxelRay->SetupVoxelTraversal( vSunPosition, vMapVoxelPosition, TileTraverseX, TileTraverseY, TileTraverseZ );
 
-									do
+									if (vVoxelRay->HasVoxelBegin())
 									{
-										int VoxelTraverseX, VoxelTraverseY, VoxelTraverseZ;
+										// AllRaysDone = false; // Skybuck: maybe do this too ?!? not sure yet.
 
-										// process voxel
-										vVoxelRay->GetTraverseVoxelPosition( &VoxelTraverseX, &VoxelTraverseY, &VoxelTraverseZ );
+										do
+										{
+											int VoxelTraverseX, VoxelTraverseY, VoxelTraverseZ;
 
-										VoxelTraverseX = VoxelTraverseX % 16;
-										VoxelTraverseY = VoxelTraverseY % 16;
-										VoxelTraverseZ = VoxelTraverseZ % 24;
+											// process voxel
+											vVoxelRay->GetTraverseVoxelPosition( &VoxelTraverseX, &VoxelTraverseY, &VoxelTraverseZ );
 
-//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+											VoxelTraverseX = VoxelTraverseX % 16;
+											VoxelTraverseY = VoxelTraverseY % 16;
+											VoxelTraverseZ = VoxelTraverseZ % 24;
 
-										// disable for now, to see the light traversal in action
+	//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+											// disable for now, to see the light traversal in action
 										
 
-					//					VoxelTraverseX = VoxelTraverseX - (TileTraverseX * 16);
-					//					VoxelTraverseY = VoxelTraverseY - (TileTraverseY * 16);
-					//					VoxelTraverseZ = VoxelTraverseZ - (TileTraverseZ * 24);
+						//					VoxelTraverseX = VoxelTraverseX - (TileTraverseX * 16);
+						//					VoxelTraverseY = VoxelTraverseY - (TileTraverseY * 16);
+						//					VoxelTraverseZ = VoxelTraverseZ - (TileTraverseZ * 24);
 
-										// check if voxel is "set" if so then done and use it for further computation
-										// possibly set VoxelCollisionX,Y,Z for later usage most likely, like shading
-										if (tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
-										{
+											// check if voxel is "set" if so then done and use it for further computation
+											// possibly set VoxelCollisionX,Y,Z for later usage most likely, like shading
+											if (tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
+											{
 							
 
-											// good question, put screen pixel in darkness or wait till it exits and hits nothing
-											// and then shade it based on sun distance, most likely this... wowe ;)
+												// good question, put screen pixel in darkness or wait till it exits and hits nothing
+												// and then shade it based on sun distance, most likely this... wowe ;)
 
-			//								Shade( SunX, SunY, SunZ, VoxelX, VoxelY, VoxelZ ); // ?!?
-											// computing it directly for now in here below:
+				//								Shade( SunX, SunY, SunZ, VoxelX, VoxelY, VoxelZ ); // ?!?
+												// computing it directly for now in here below:
 
-											// use doubles are floats, not sure, sticking with doubles for now, though floats is tempting too.
+												// use doubles are floats, not sure, sticking with doubles for now, though floats is tempting too.
 
-											double vLightX = vSunPosition.X;
-											double vLightY = vSunPosition.Y;
-											double vLightZ = vSunPosition.Z;
+												double vLightX = vSunPosition.X;
+												double vLightY = vSunPosition.Y;
+												double vLightZ = vSunPosition.Z;
 
-											// compute real world collision voxel coordinate
-											int vVoxelX = (TileTraverseX * 16) + VoxelTraverseX;
-											int vVoxelY = (TileTraverseY * 16) + VoxelTraverseY;
-											int vVoxelZ = (TileTraverseZ * 24) + VoxelTraverseZ;
+												// compute real world collision voxel coordinate
+												int vVoxelX = (TileTraverseX * 16) + VoxelTraverseX;
+												int vVoxelY = (TileTraverseY * 16) + VoxelTraverseY;
+												int vVoxelZ = (TileTraverseZ * 24) + VoxelTraverseZ;
 
-											// calculate distance from pixel/depth position to light position and use this as a factor to modify the intensity/exposure amount that will be summed.
-											double vDistanceToLightDeltaX = (vLightX - vVoxelX);
-											double vDistanceToLightDeltaY = (vLightY - vVoxelY);
-											double vDistanceToLightDeltaZ = (vLightZ - vVoxelZ);
+												// calculate distance from pixel/depth position to light position and use this as a factor to modify the intensity/exposure amount that will be summed.
+												double vDistanceToLightDeltaX = (vLightX - vVoxelX);
+												double vDistanceToLightDeltaY = (vLightY - vVoxelY);
+												double vDistanceToLightDeltaZ = (vLightZ - vVoxelZ);
 
-								//			vDistanceToLight := mDistanceMap[vPixelX,vPixelY];
-											double vDistanceToLightSquared =
-											(
-												(vDistanceToLightDeltaX * vDistanceToLightDeltaX) +
-												(vDistanceToLightDeltaY * vDistanceToLightDeltaY) +
-												(vDistanceToLightDeltaZ * vDistanceToLightDeltaZ)
-											);
-
-
-											// don't need it's already in the voxel.
-											// vPixelZ := mDepthMap[vPixelX,vPixelY];
-
-											// angle between surface normal/roof tops and light source.
-						//					vAngle := calc_angle_between_two_vectors_3d( vPixelX - (mWidth div 2),vPixelY - (mHeight div 2),vPixelZ - 500, vLightX - vPixelX, vLightY - vPixelY, vLightZ - vPixelZ );
-
-											// what is 0,0,1 is that a normal ? wow... probably depth map normal... might have to change this for OpenXcom
-											// SEE comment: angle between surface normal/roof tops and light source.
-											// OH-OH EMERGENCY ! ;) =D
-											// might have to, and probably have to detect which side of the voxel is hit ! oh my god yeah !
-											// to get a really good normal ? or very normal I can just "pretend" the top side was hit
-											// cause we looking down on it anyway somewhat ! ;)
-											double vAngle = calc_angle_between_two_vectors_3d
-											(
-												0,0,1,
-
-												vLightX - vVoxelX,
-												vLightY - vVoxelY,
-												vLightZ - vVoxelZ
-											);
-
-											// mExposureMap[vPixelX,vPixelY] := mExposureMap[vPixelX,vPixelY] + ( ((pi - vAngle)/pi) * vLightPower ) / vDistanceToLightSquared;
-											double vExposure =
-											(
+									//			vDistanceToLight := mDistanceMap[vPixelX,vPixelY];
+												double vDistanceToLightSquared =
 												(
-													(M_PI  - vAngle) / M_PI 
-												) * vLightPower
-											) / vDistanceToLightSquared;
-
-											// calculate pixel/surface color using exposure value
-
-											// clamp exposure value for safety, maybe not necessary but maybe it is don't know yet
-											// do it anyway for safety, cause original code does it as well
-											// and later if we add more lights it can definetly overflow, so CLAMP IT ! >=D
-
-											if (vExposure > 1.0) vExposure = 1.0;
-											if (vExposure < 0.0) vExposure = 0;
-
-											// get surface color... not gonna bother writing this code now fix it later.
-											Uint8 vSurfaceColor = surface->getPixel( PixelX, PixelY );
-											Uint8 VoxelColor;
-
-	//												vColor =
-
-											// OH OH, we don't have a red, green and blue channel !
-											// but what we do have is a SHADE level capability...
-											// so use that ! problem nicely solved...
-											// use some "and" code and such to set surface color to minimum
-											// and then "scale" up depending on exposure ! Very cool and nice ! =D
-
-											// oh interestingly enough we can keep 25 procent of original color/shade
-											// and then only use the exposure as 75 procent of the shade, that cool.
-											// keep this code idea in here for now in case 24 bit or 32 bit or even higher color bit mode becomes available.
-			//								vRed := vColor.Red * 0.25 + vExposure * (vColor.Red * 0.75);
-			//								vGreen := vColor.Green * 0.25 + vExposure * (vColor.Green * 0.75);
-			//								vBlue := vColor.Blue * 0.25 + vExposure * (vColor.Blue * 0.75);
-
-								//			vRed := mExposureMap[vPixelX,vPixelY] * 255;
-								//			vGreen := mExposureMap[vPixelX,vPixelY] * 255;
-								//			vBlue := mExposureMap[vPixelX,vPixelY] * 255;
+													(vDistanceToLightDeltaX * vDistanceToLightDeltaX) +
+													(vDistanceToLightDeltaY * vDistanceToLightDeltaY) +
+													(vDistanceToLightDeltaZ * vDistanceToLightDeltaZ)
+												);
 
 
-											// to lazy to write shade code now...
-											// but it's something like color % 15 and such... 
-											Uint8 vVoxelColor = ComputeShade( vSurfaceColor, vExposure );
+												// don't need it's already in the voxel.
+												// vPixelZ := mDepthMap[vPixelX,vPixelY];
+
+												// angle between surface normal/roof tops and light source.
+							//					vAngle := calc_angle_between_two_vectors_3d( vPixelX - (mWidth div 2),vPixelY - (mHeight div 2),vPixelZ - 500, vLightX - vPixelX, vLightY - vPixelY, vLightZ - vPixelZ );
+
+												// what is 0,0,1 is that a normal ? wow... probably depth map normal... might have to change this for OpenXcom
+												// SEE comment: angle between surface normal/roof tops and light source.
+												// OH-OH EMERGENCY ! ;) =D
+												// might have to, and probably have to detect which side of the voxel is hit ! oh my god yeah !
+												// to get a really good normal ? or very normal I can just "pretend" the top side was hit
+												// cause we looking down on it anyway somewhat ! ;)
+												double vAngle = calc_angle_between_two_vectors_3d
+												(
+													0,0,1,
+
+													vLightX - vVoxelX,
+													vLightY - vVoxelY,
+													vLightZ - vVoxelZ
+												);
+
+												// mExposureMap[vPixelX,vPixelY] := mExposureMap[vPixelX,vPixelY] + ( ((pi - vAngle)/pi) * vLightPower ) / vDistanceToLightSquared;
+												double vExposure =
+												(
+													(
+														(M_PI  - vAngle) / M_PI 
+													) * vLightPower
+												) / vDistanceToLightSquared;
+
+												// calculate pixel/surface color using exposure value
+
+												// clamp exposure value for safety, maybe not necessary but maybe it is don't know yet
+												// do it anyway for safety, cause original code does it as well
+												// and later if we add more lights it can definetly overflow, so CLAMP IT ! >=D
+
+												if (vExposure > 1.0) vExposure = 1.0;
+												if (vExposure < 0.0) vExposure = 0;
+
+												// get surface color... not gonna bother writing this code now fix it later.
+												Uint8 vSurfaceColor = surface->getPixel( PixelX, PixelY );
+												Uint8 VoxelColor;
+
+		//												vColor =
+
+												// OH OH, we don't have a red, green and blue channel !
+												// but what we do have is a SHADE level capability...
+												// so use that ! problem nicely solved...
+												// use some "and" code and such to set surface color to minimum
+												// and then "scale" up depending on exposure ! Very cool and nice ! =D
+
+												// oh interestingly enough we can keep 25 procent of original color/shade
+												// and then only use the exposure as 75 procent of the shade, that cool.
+												// keep this code idea in here for now in case 24 bit or 32 bit or even higher color bit mode becomes available.
+				//								vRed := vColor.Red * 0.25 + vExposure * (vColor.Red * 0.75);
+				//								vGreen := vColor.Green * 0.25 + vExposure * (vColor.Green * 0.75);
+				//								vBlue := vColor.Blue * 0.25 + vExposure * (vColor.Blue * 0.75);
+
+									//			vRed := mExposureMap[vPixelX,vPixelY] * 255;
+									//			vGreen := mExposureMap[vPixelX,vPixelY] * 255;
+									//			vBlue := mExposureMap[vPixelX,vPixelY] * 255;
+
+
+												// to lazy to write shade code now...
+												// but it's something like color % 15 and such... 
+												Uint8 vVoxelColor = ComputeShade( vSurfaceColor, vExposure );
 
 								 
-											// cap color if absolutely necessary but probably not necessary
-											// as long as it stayed in range of 0..15 when adding to color
-											// however color could be anything so maybe good to cap it
-											// to it's shade/color palette entry/range and such.... hmmm
-											// must know first in what palette range it lies...
+												// cap color if absolutely necessary but probably not necessary
+												// as long as it stayed in range of 0..15 when adding to color
+												// however color could be anything so maybe good to cap it
+												// to it's shade/color palette entry/range and such.... hmmm
+												// must know first in what palette range it lies...
 
-			//								if vRed > 255 then vRed := 255;
-			//								if vGreen > 255 then vGreen := 255;
-			//								if vBlue > 255 then vBlue := 255;
+				//								if vRed > 255 then vRed := 255;
+				//								if vGreen > 255 then vGreen := 255;
+				//								if vBlue > 255 then vBlue := 255;
 
-			//								if vRed < 0 then vRed := 0;
-			//								if vGreen < 0 then vGreen := 0;
-			//								if vBlue < 0 then vBlue := 0;
-			//
-
-
-			//								vPixel.Red := Round( vRed );
-			//								vPixel.Green :=  Round( vGreen );
-			//								vPixel.Blue := Round( vBlue );
-			//								vPixel.Alpha := 0;
-
-			//								mPixelMap[vPixelX,vPixelY] := vPixel;
+				//								if vRed < 0 then vRed := 0;
+				//								if vGreen < 0 then vGreen := 0;
+				//								if vBlue < 0 then vBlue := 0;
+				//
 
 
-											// set final screen pixel color
-											surface->setPixel( PixelX, PixelY, vVoxelColor );
+				//								vPixel.Red := Round( vRed );
+				//								vPixel.Green :=  Round( vGreen );
+				//								vPixel.Blue := Round( vBlue );
+				//								vPixel.Alpha := 0;
+
+				//								mPixelMap[vPixelX,vPixelY] := vPixel;
+
+												// set final screen pixel color
+												surface->setPixel( PixelX, PixelY, vVoxelColor );
 											
+												if (_save->IsLightTraversingOn())
+												{
+													tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+												}
 
-											tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+												// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
+												vVoxelRay->VoxelTD.TraverseDone = true;
+												vVoxelRay->TileTD.TraverseDone = true;
+												vVoxelRay->traverseDone = true;
+											}
 
-											// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
-											vVoxelRay->VoxelTD.TraverseDone = true;
-											vVoxelRay->traverseDone = true;
-										}
-
-										// traverse next voxel
-										vVoxelRay->traverseMode = TraverseMode::tmVoxel;
-										vVoxelRay->NextStep();
-									} while (!vVoxelRay->IsVoxelTraverseDone());
+											// traverse next voxel
+											vVoxelRay->traverseMode = TraverseMode::tmVoxel;
+											vVoxelRay->NextStep();
+										} while (!vVoxelRay->IsVoxelTraverseDone());
+									}
 								}
-							}
 
-							// traverse next tile
-							vVoxelRay->traverseMode = TraverseMode::tmTile;
-							vVoxelRay->NextStep();
-						} while (!vVoxelRay->IsTileTraverseDone());
+								// traverse next tile
+								vVoxelRay->traverseMode = TraverseMode::tmTile;
+								vVoxelRay->NextStep();
+							}
+							while (!vVoxelRay->IsTileTraverseDone());
+						}
 					}
 				}
 			}
 		}
+
 	}
 
     // *****************************************************************************************************************
@@ -5623,36 +5844,1280 @@ void Map::drawTerrain(Surface *surface)
 */
 
 /*
-	for (int itZ = beginZ; itZ <= endZ; itZ++)
+	if (_save->IsLightTraversingOn())
 	{
-		bool topLayer = itZ == endZ;
-		for (int itX = beginX; itX <= endX; itX++)
+		for (int itZ = beginZ; itZ <= endZ; itZ++)
 		{
-			for (int itY = beginY; itY <= endY; itY++)
+			bool topLayer = itZ == endZ;
+			for (int itX = beginX; itX <= endX; itX++)
 			{
-				mapPosition = Position(itX, itY, itZ);
-				_camera->convertMapToScreen(mapPosition, &screenPosition);
-				screenPosition += _camera->getMapOffset();
-
-				// only render cells that are inside the surface
-				if (screenPosition.x > -_spriteWidth && screenPosition.x < surface->getWidth() + _spriteWidth &&
-					screenPosition.y > -_spriteHeight && screenPosition.y < surface->getHeight() + _spriteHeight )
+				for (int itY = beginY; itY <= endY; itY++)
 				{
-					tile = _save->getTile(mapPosition);
+					mapPosition = Position(itX, itY, itZ);
+					_camera->convertMapToScreen(mapPosition, &screenPosition);
+					screenPosition += _camera->getMapOffset();
 
-					if (!tile) continue;
+					// only render cells that are inside the surface
+					if (screenPosition.x > -_spriteWidth && screenPosition.x < surface->getWidth() + _spriteWidth &&
+						screenPosition.y > -_spriteHeight && screenPosition.y < surface->getHeight() + _spriteHeight )
+					{
+						tile = _save->getTile(mapPosition);
+
+						if (!tile) continue;
 
 
-					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-					// !!! SKYBUCK: MAKE SURE IT'S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
-					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
+						// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+						// !!! SKYBUCK: MAKE SURE IT'S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
+						// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
+						DrawTileVoxelTraversedMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
 
+
+					}
 				}
 			}
 		}
 	}
 */
+
+	// HEAVY ARTILLERY TEST
+	// THE IDEA IS TO DRAW VOXEL RAYS ALL ACROSS THE MAP IN A VERY NICE PATTERN, TO TEST HOW IT TRAVERSE THE VOXELS INSIDE... IT
+	// SHOULD PRODUCE MORE OR LESS THE SAME VISUAL AS OTHER METHODS, BUT NOT REALLY, IT DEPENDS ON IF YOU ONLY VISUALIZE
+	// COLLISIONS OR EVERYTHING, BUT THIS IS ACTUALLY GOING TO BE VERY INTERESTING TO TRY AND VISUALIZE COLLISIONS ONLY...
+	// AND THIS THIS NOT FROM SOME SHITTY SUN POINT, BUT BASICALLY VERY NICELY LAYED OUT ACROSS THE MAP
+
+	// SO LET'S START WITH RAYS ACROSS THE Y DIRECTION
+
+
+	// ***************************************
+	// *** BEGIN OF Y LINE TEST (VOXELRAY) ***
+	// ***************************************
+
+	if (true == false) // disabled
+	if (_save->IsLightCastingOn())
+//	if (IfThisCaravanIsRockingThenDontComeKnocking == 0)
+	{
+//		IfThisCaravanIsRockingThenDontComeKnocking = 1;
+		VoxelPosition vStart;
+		VoxelPosition vStop;
+		
+		int ScreenWidth = _screenVoxelFrame->mWidth;
+		int ScreenHeight = _screenVoxelFrame->mHeight;
+
+		int MapLastTileX = _save->getMapSizeX()-1;
+		int MapLastTileY = _save->getMapSizeY()-1;
+		int MapLastTileZ = _save->getMapSizeZ()-1;
+
+		int MapLastWorldVoxelX = (_save->getMapSizeX()*16)-1;
+		int MapLastWorldVoxelY = (_save->getMapSizeY()*16)-1;
+		int MapLastWorldVoxelZ = (_save->getMapSizeZ()*24)-1;
+
+		VoxelRay vVoxelRay; 
+
+		for (int WorldVoxelZ = 0; WorldVoxelZ <= MapLastWorldVoxelZ; WorldVoxelZ++)
+		{
+			for (int WorldVoxelX = 0; WorldVoxelX <= MapLastWorldVoxelX; WorldVoxelX++)
+			{
+				// setup phase
+/*
+				vStart.X = WorldVoxelX;
+				vStart.Y = 0;
+				vStart.Z = WorldVoxelZ;
+
+				vStop.X = WorldVoxelX;
+				vStop.Y = MapLastWorldVoxelY;
+				vStop.Z = WorldVoxelZ;
+*/
+
+/*
+				vStart.X = WorldVoxelX;
+				vStart.Y = MapLastWorldVoxelY;
+				vStart.Z = WorldVoxelZ;
+
+				vStop.X = WorldVoxelX;
+				vStop.Y = 0;
+				vStop.Z = WorldVoxelZ;
+*/
+
+				// diagonal from z high to z low test:
+				vStart.X = WorldVoxelX;
+				vStart.Y = MapLastWorldVoxelY;
+//				vStart.Z = WorldVoxelZ;
+				vStart.Z = WorldVoxelZ;
+
+				vStop.X = WorldVoxelX;
+				vStop.Y = 0;
+//				vStop.Z = WorldVoxelZ;
+				vStop.Z = 0;
+
+
+
+				vVoxelRay.SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
+				vVoxelRay.SetupTileDimensions( 16, 16, 24 );
+				vVoxelRay.SetupTileGridData( 0, 0, 0, MapLastTileX, MapLastTileY, MapLastTileZ );
+				vVoxelRay.Setup( vStart, vStop, 16, 16, 24 );  // tile width, height, depth
+
+				// traverse phase
+				// sloppy fix, use HasTileBegin above later
+				if (!vVoxelRay.IsTileTraverseDone())
+				{
+					do
+					{
+						int TileTraverseX, TileTraverseY, TileTraverseZ;
+
+						// process tile
+						vVoxelRay.GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
+						mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
+						tile = _save->getTile(mapPosition);
+			//			if (!tile) continue;
+//						tile->setTraversed( true );
+
+						// if tile is not full of air then start voxel traversal 
+						if (!tile->isVoid())
+						{
+							vVoxelRay.SetupVoxelTraversal( vStart, vStop, TileTraverseX, TileTraverseY, TileTraverseZ );
+
+							if (vVoxelRay.HasVoxelBegin())
+							{
+								do
+								{
+									int VoxelTraverseX, VoxelTraverseY, VoxelTraverseZ;
+
+									// process voxel
+									vVoxelRay.GetTraverseVoxelPosition( &VoxelTraverseX, &VoxelTraverseY, &VoxelTraverseZ );
+
+									VoxelTraverseX = VoxelTraverseX % 16;
+									VoxelTraverseY = VoxelTraverseY % 16;
+									VoxelTraverseZ = VoxelTraverseZ % 24;
+
+//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+									if (tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
+									{
+										tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+										// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
+										vVoxelRay.VoxelTD.TraverseDone = true;
+										vVoxelRay.TileTD.TraverseDone = true;
+										vVoxelRay.traverseDone = true;
+									}
+
+									// traverse next voxel
+									vVoxelRay.traverseMode = TraverseMode::tmVoxel;
+									vVoxelRay.NextStep();
+								} while (!vVoxelRay.IsVoxelTraverseDone());
+							}
+						}
+
+						// traverse next tile
+						vVoxelRay.traverseMode = TraverseMode::tmTile;
+						vVoxelRay.NextStep();
+					}
+					while (!vVoxelRay.IsTileTraverseDone());
+				}
+			}
+		}
+	}
+
+	// *************************************
+	// *** END OF Y LINE TEST (VOXELRAY) ***
+	// *************************************
+
+	// ***************************************
+	// *** BEGIN OF X LINE TEST (VOXELRAY) ***
+	// ***************************************
+
+	if (true==false) // disabled
+	if (_save->IsLightCastingOn())
+//	if (IfThisCaravanIsRockingThenDontComeKnocking == 0)
+	{
+//		IfThisCaravanIsRockingThenDontComeKnocking = 1;
+		VoxelPosition vStart;
+		VoxelPosition vStop;
+		
+		int ScreenWidth = _screenVoxelFrame->mWidth;
+		int ScreenHeight = _screenVoxelFrame->mHeight;
+
+		int MapLastTileX = _save->getMapSizeX()-1;
+		int MapLastTileY = _save->getMapSizeY()-1;
+		int MapLastTileZ = _save->getMapSizeZ()-1;
+
+		int MapLastWorldVoxelX = (_save->getMapSizeX()*16)-1;
+		int MapLastWorldVoxelY = (_save->getMapSizeY()*16)-1;
+		int MapLastWorldVoxelZ = (_save->getMapSizeZ()*24)-1;
+
+		VoxelRay vVoxelRay; 
+
+		for (int WorldVoxelZ = 0; WorldVoxelZ <= MapLastWorldVoxelZ; WorldVoxelZ++)
+		{
+			for (int WorldVoxelY = 0; WorldVoxelY <= MapLastWorldVoxelY; WorldVoxelY++)
+			{
+				// setup phase
+/*
+				vStart.X = WorldVoxelX;
+				vStart.Y = 0;
+				vStart.Z = WorldVoxelZ;
+
+				vStop.X = WorldVoxelX;
+				vStop.Y = MapLastWorldVoxelY;
+				vStop.Z = WorldVoxelZ;
+*/
+
+				vStart.X = MapLastWorldVoxelX;
+				vStart.Y = WorldVoxelY;
+				vStart.Z = WorldVoxelZ;
+
+				vStop.X = 0;
+				vStop.Y = WorldVoxelY;
+				vStop.Z = WorldVoxelZ;
+
+				vVoxelRay.SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
+				vVoxelRay.SetupTileDimensions( 16, 16, 24 );
+				vVoxelRay.SetupTileGridData( 0, 0, 0, MapLastTileX, MapLastTileY, MapLastTileZ );
+				vVoxelRay.Setup( vStart, vStop, 16, 16, 24 );  // tile width, height, depth
+
+				// traverse phase
+				// sloppy fix, use HasTileBegin above later
+				if (!vVoxelRay.IsTileTraverseDone())
+				{
+					do
+					{
+						int TileTraverseX, TileTraverseY, TileTraverseZ;
+
+						// process tile
+						vVoxelRay.GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
+						mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
+						tile = _save->getTile(mapPosition);
+			//			if (!tile) continue;
+//						tile->setTraversed( true );
+
+						// if tile is not full of air then start voxel traversal 
+						if (!tile->isVoid())
+						{
+							vVoxelRay.SetupVoxelTraversal( vStart, vStop, TileTraverseX, TileTraverseY, TileTraverseZ );
+
+							if (vVoxelRay.HasVoxelBegin())
+							{
+								do
+								{
+									int VoxelTraverseX, VoxelTraverseY, VoxelTraverseZ;
+
+									// process voxel
+									vVoxelRay.GetTraverseVoxelPosition( &VoxelTraverseX, &VoxelTraverseY, &VoxelTraverseZ );
+
+									VoxelTraverseX = VoxelTraverseX % 16;
+									VoxelTraverseY = VoxelTraverseY % 16;
+									VoxelTraverseZ = VoxelTraverseZ % 24;
+
+//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+									if (tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
+									{
+										tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+										// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
+										vVoxelRay.VoxelTD.TraverseDone = true;
+										vVoxelRay.TileTD.TraverseDone = true;
+										vVoxelRay.traverseDone = true;
+									}
+
+									// traverse next voxel
+									vVoxelRay.traverseMode = TraverseMode::tmVoxel;
+									vVoxelRay.NextStep();
+								} while (!vVoxelRay.IsVoxelTraverseDone());
+							}
+						}
+
+						// traverse next tile
+						vVoxelRay.traverseMode = TraverseMode::tmTile;
+						vVoxelRay.NextStep();
+					}
+					while (!vVoxelRay.IsTileTraverseDone());
+				}
+			}
+		}
+	}
+
+	// *************************************
+	// *** END OF Y LINE TEST (VOXELRAY) ***
+	// *************************************
+
+	// ***************************************
+	// *** BEGIN OF Z LINE TEST (VOXELRAY) ***
+	// ***************************************
+
+	if (true==false) // disabled
+	if (_save->IsLightCastingOn())
+//	if (IfThisCaravanIsRockingThenDontComeKnocking == 0)
+	{
+//		IfThisCaravanIsRockingThenDontComeKnocking = 1;
+		VoxelPosition vStart;
+		VoxelPosition vStop;
+		
+		int ScreenWidth = _screenVoxelFrame->mWidth;
+		int ScreenHeight = _screenVoxelFrame->mHeight;
+
+		int MapLastTileX = _save->getMapSizeX()-1;
+		int MapLastTileY = _save->getMapSizeY()-1;
+		int MapLastTileZ = _save->getMapSizeZ()-1;
+
+		int MapLastWorldVoxelX = (_save->getMapSizeX()*16)-1;
+		int MapLastWorldVoxelY = (_save->getMapSizeY()*16)-1;
+		int MapLastWorldVoxelZ = (_save->getMapSizeZ()*24)-1;
+
+		VoxelRay vVoxelRay; 
+
+		for (int WorldVoxelX = 0; WorldVoxelX <= MapLastWorldVoxelX; WorldVoxelX++)
+		{
+			for (int WorldVoxelY = 0; WorldVoxelY <= MapLastWorldVoxelY; WorldVoxelY++)
+			{
+				// setup phase
+/*
+				vStart.X = WorldVoxelX;
+				vStart.Y = 0;
+				vStart.Z = WorldVoxelZ;
+
+				vStop.X = WorldVoxelX;
+				vStop.Y = MapLastWorldVoxelY;
+				vStop.Z = WorldVoxelZ;
+*/
+
+				vStart.X = WorldVoxelX;
+				vStart.Y = WorldVoxelY;
+				vStart.Z = MapLastWorldVoxelZ;
+
+				vStop.X = WorldVoxelX;
+				vStop.Y = WorldVoxelY;
+				vStop.Z = 0;
+
+				vVoxelRay.SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
+				vVoxelRay.SetupTileDimensions( 16, 16, 24 );
+				vVoxelRay.SetupTileGridData( 0, 0, 0, MapLastTileX, MapLastTileY, MapLastTileZ );
+				vVoxelRay.Setup( vStart, vStop, 16, 16, 24 );  // tile width, height, depth
+
+				// traverse phase
+				// sloppy fix, use HasTileBegin above later
+				if (!vVoxelRay.IsTileTraverseDone())
+				{
+					do
+					{
+						int TileTraverseX, TileTraverseY, TileTraverseZ;
+
+						// process tile
+						vVoxelRay.GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
+						mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
+						tile = _save->getTile(mapPosition);
+			//			if (!tile) continue;
+//						tile->setTraversed( true );
+
+						// if tile is not full of air then start voxel traversal 
+						if (!tile->isVoid())
+						{
+							vVoxelRay.SetupVoxelTraversal( vStart, vStop, TileTraverseX, TileTraverseY, TileTraverseZ );
+
+							if (vVoxelRay.HasVoxelBegin())
+							{
+								do
+								{
+									int VoxelTraverseX, VoxelTraverseY, VoxelTraverseZ;
+
+									// process voxel
+									vVoxelRay.GetTraverseVoxelPosition( &VoxelTraverseX, &VoxelTraverseY, &VoxelTraverseZ );
+
+									VoxelTraverseX = VoxelTraverseX % 16;
+									VoxelTraverseY = VoxelTraverseY % 16;
+									VoxelTraverseZ = VoxelTraverseZ % 24;
+
+//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+									if (tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
+									{
+										tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+										// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
+										vVoxelRay.VoxelTD.TraverseDone = true;
+										vVoxelRay.TileTD.TraverseDone = true;
+										vVoxelRay.traverseDone = true;
+									}
+
+									// traverse next voxel
+									vVoxelRay.traverseMode = TraverseMode::tmVoxel;
+									vVoxelRay.NextStep();
+								} while (!vVoxelRay.IsVoxelTraverseDone());
+							}
+						}
+
+						// traverse next tile
+						vVoxelRay.traverseMode = TraverseMode::tmTile;
+						vVoxelRay.NextStep();
+					}
+					while (!vVoxelRay.IsTileTraverseDone());
+				}
+			}
+		}
+	}
+
+	// *************************************
+	// *** END OF Z LINE TEST (VOXELRAY) ***
+	// *************************************
+
+	//	END OF HEAVY ARTILLERY TEST
+
+
+
+    // *****************************************************************************************************************
+	// LIGHT CASTING BEGIN OF IMPLEMENTATION 4
+	// *****************************************************************************************************************
+
+	// EVEN MORE SIMPLE, JUST PROCESS ONE RAY AT A TIME, DON'T USE MANY.
+
+	// AND JUST SET THE VOXEL THAT WAS HIT AND THAT'S IT FOR NOW, DON'T DO ANY SHADING.
+
+	// JUST DETERMINE IF THE SCREEN VOXEL IS LIT OR NOT, YELLOW IF LIT, PERHAPS WITH SOME VOXEL X,Y,Z DEPTH/DISTANCE OR WHATEVER
+	// EITHER FROM SUN OR FROM CAMERA, WHATEVER.
+
+	// WAIT A MINUTE... I CAN SET THE VOXEL THAT WAS HIT ! GOOOOODDD
+
+	if (true==false)
+	if (_save->IsLightCastingOn())
+	{
+
+		VoxelPosition vStart;
+		VoxelPosition vStop;
+
+		VoxelPosition vSunPosition;
+		vSunPosition.X = 10*16;
+		vSunPosition.Y = 10*16;
+		vSunPosition.Z = 6 * 24;
+
+	//	vSunPosition.X = 30*16;
+	//	vSunPosition.Y = 40*16;
+	//	vSunPosition.Z = 3000;
+
+	//	double vLightPower = 3000;
+		double vLightPower = 3000;
+	//	double vLightRange = 300;
+		double vLightRange = 300; // not used.
+
+		
+		int ScreenWidth = _screenVoxelFrame->mWidth;
+		int ScreenHeight = _screenVoxelFrame->mHeight;
+
+		int MapLastTileX = _save->getMapSizeX()-1;
+		int MapLastTileY = _save->getMapSizeY()-1;
+		int MapLastTileZ = _save->getMapSizeZ()-1;
+
+		int MapLastWorldVoxelX = (_save->getMapSizeX()*16)-1;
+		int MapLastWorldVoxelY = (_save->getMapSizeY()*16)-1;
+		int MapLastWorldVoxelZ = (_save->getMapSizeZ()*24)-1;
+
+		VoxelRay vVoxelRay;
+
+		for (int PixelY = 0; PixelY < ScreenHeight; PixelY++)
+		{
+			for (int PixelX = 0; PixelX < ScreenWidth; PixelX++)
+			{
+				int PixelOffset = PixelY * ScreenWidth + PixelX;
+
+				ScreenVoxelPosition vScreenVoxelPosition = _screenVoxelFrame->mVoxelPosition[PixelOffset];
+
+				// setup phase
+/*
+				vStart.X = WorldVoxelX;
+				vStart.Y = 0;
+				vStart.Z = WorldVoxelZ;
+
+				vStop.X = WorldVoxelX;
+				vStop.Y = MapLastWorldVoxelY;
+				vStop.Z = WorldVoxelZ;
+*/
+
+				vStart.X = vSunPosition.X;
+				vStart.Y = vSunPosition.Y;
+				vStart.Z = vSunPosition.Z;
+
+				vStop.X = vScreenVoxelPosition.X;
+				vStop.Y = vScreenVoxelPosition.Y;
+				vStop.Z = vScreenVoxelPosition.Z;
+
+				vVoxelRay.SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
+				vVoxelRay.SetupTileDimensions( 16, 16, 24 );
+				vVoxelRay.SetupTileGridData( 0, 0, 0, MapLastTileX, MapLastTileY, MapLastTileZ );
+				vVoxelRay.Setup( vStart, vStop, 16, 16, 24 );  // tile width, height, depth
+
+				// traverse phase
+				// sloppy fix, use HasTileBegin above later
+				if (!vVoxelRay.IsTileTraverseDone())
+				{
+					do
+					{
+						int TileTraverseX, TileTraverseY, TileTraverseZ;
+
+						// process tile
+						vVoxelRay.GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
+						mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
+						tile = _save->getTile(mapPosition);
+			//			if (!tile) continue;
+//						tile->setTraversed( true );
+
+						// if tile is not full of air then start voxel traversal 
+						if (!tile->isVoid())
+						{
+							vVoxelRay.SetupVoxelTraversal( vStart, vStop, TileTraverseX, TileTraverseY, TileTraverseZ );
+
+							if (vVoxelRay.HasVoxelBegin())
+							{
+								do
+								{
+									int VoxelTraverseX, VoxelTraverseY, VoxelTraverseZ;
+
+									// process voxel
+									vVoxelRay.GetTraverseVoxelPosition( &VoxelTraverseX, &VoxelTraverseY, &VoxelTraverseZ );
+
+									VoxelTraverseX = VoxelTraverseX % 16;
+									VoxelTraverseY = VoxelTraverseY % 16;
+									VoxelTraverseZ = VoxelTraverseZ % 24;
+
+//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+									if (tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
+									{
+										tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+										// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
+										vVoxelRay.VoxelTD.TraverseDone = true;
+										vVoxelRay.TileTD.TraverseDone = true;
+										vVoxelRay.traverseDone = true;
+									}
+
+									// traverse next voxel
+									vVoxelRay.traverseMode = TraverseMode::tmVoxel;
+									vVoxelRay.NextStep();
+								} while (!vVoxelRay.IsVoxelTraverseDone());
+							}
+						}
+
+						// traverse next tile
+						vVoxelRay.traverseMode = TraverseMode::tmTile;
+						vVoxelRay.NextStep();
+					}
+					while (!vVoxelRay.IsTileTraverseDone());
+				}
+			}
+		}
+	}
+
+
+	// *******************************************************************
+	// *** TOTAL OVERKILL TEST OH YEAH, SHOOT ONE RAY PER VOXEL, BEGIN ***
+	// *******************************************************************
+
+	// LET'S FORGET ABOUT THE SCREENVOXELFRAME STUFF, IMPLEMENT A 3D BOX AND SHINE LIGHT RAYS FROM THAT BOX AROUND IN THE LEVEL.
+	// JUST SHOOT RAYS AROUND THE LIGHT IN ALL DIRECTIONS... HOWEVER WE GONNA START WITH SOMETHING LIKE A SUN...
+	// SO IT JUST NEEDS TO GO DOWN... OR... HOW ABOUT THIS...
+	// WE JUST SHOOT A RAY PER VOXEL LOL.... HOLY FUCKING COMPUTATIONAL OVERKILL, BUT THIS IS THE BEST WAY TO DO IT FOR NOW.
+
+	// COMPUTING ALL VOXELS COSTS TO MUCH TIME, LET'S TRY MORE EFFICIENT VERSION BELOW, FOR ANY THE TILES
+	// THAT ARE ON THE SCREEN, BY COMPUTING SOME BOUNDING BOX FOR THESE TILES.
+
+	if (true == false) // disabled
+	if (_save->IsLightCastingOn())
+//	if (IfThisCaravanIsRockingThenDontComeKnocking == 0)
+	{
+//		IfThisCaravanIsRockingThenDontComeKnocking = 1;
+		VoxelPosition vStart;
+		VoxelPosition vStop;
+		
+		int ScreenWidth = _screenVoxelFrame->mWidth;
+		int ScreenHeight = _screenVoxelFrame->mHeight;
+
+		int MapLastTileX = _save->getMapSizeX()-1;
+		int MapLastTileY = _save->getMapSizeY()-1;
+		int MapLastTileZ = _save->getMapSizeZ()-1;
+
+		int MapLastWorldVoxelX = (_save->getMapSizeX()*16)-1;
+		int MapLastWorldVoxelY = (_save->getMapSizeY()*16)-1;
+		int MapLastWorldVoxelZ = (_save->getMapSizeZ()*24)-1;
+
+		VoxelRay vVoxelRay;
+
+		// setup phase
+/*
+		vStart.X = WorldVoxelX;
+		vStart.Y = 0;
+		vStart.Z = WorldVoxelZ;
+
+		vStop.X = WorldVoxelX;
+		vStop.Y = MapLastWorldVoxelY;
+		vStop.Z = WorldVoxelZ;
+*/
+
+/*
+		vStart.X = WorldVoxelX;
+		vStart.Y = MapLastWorldVoxelY;
+		vStart.Z = WorldVoxelZ;
+
+		vStop.X = WorldVoxelX;
+		vStop.Y = 0;
+		vStop.Z = WorldVoxelZ;
+*/
+
+/*
+		// voxel to sun
+		vStart.X = WorldVoxelX;
+		vStart.Y = WorldVoxelY;
+//		vStart.Z = WorldVoxelZ;
+		vStart.Z = WorldVoxelZ;
+
+		// unfinished coordinate setup, fix/try later if needed/necessary for now, go below from sun to voxel.
+		vStop.X = WorldVoxelX;
+		vStop.Y = 0;
+//		vStop.Z = WorldVoxelZ;
+		vStop.Z = 0;
+*/
+
+		// sun position
+		vVoxelRay.Start.X = (14 * 16);
+		vVoxelRay.Start.Y = (5 * 16);
+		vVoxelRay.Start.Z = (7 * 24);
+
+		vVoxelRay.SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
+		vVoxelRay.SetupTileDimensions( 16, 16, 24 );
+		vVoxelRay.SetupTileGridData( 0, 0, 0, MapLastTileX, MapLastTileY, MapLastTileZ );
+
+		vVoxelRay.ComputeTileBoundary();
+		vVoxelRay.ComputeTileBoundaryScaled();
+
+		vVoxelRay.ComputeTileStartScaled();
+
+		// this should be a light box... but for now... use the entire world as a light box hehe.
+		for (int WorldVoxelZ = 0; WorldVoxelZ <= MapLastWorldVoxelZ; WorldVoxelZ++)
+		{
+			vVoxelRay.Stop.Z = WorldVoxelZ;
+			for (int WorldVoxelY = 0; WorldVoxelY <= MapLastWorldVoxelY; WorldVoxelY++)
+			{
+				vVoxelRay.Stop.Y = WorldVoxelY;
+				for (int WorldVoxelX = 0; WorldVoxelX <= MapLastWorldVoxelX; WorldVoxelX++)
+				{
+					vVoxelRay.Stop.X = WorldVoxelX;
+
+					vVoxelRay.ComputeTileStopScaled();
+					vVoxelRay.QuickSetup(); 
+
+					// traverse phase
+					// sloppy fix, use HasTileBegin above later
+					if (!vVoxelRay.IsTileTraverseDone())
+					{
+						do
+						{
+							int TileTraverseX, TileTraverseY, TileTraverseZ;
+
+							// process tile
+							vVoxelRay.GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
+							mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
+							tile = _save->getTile(mapPosition);
+				//			if (!tile) continue;
+	//						tile->setTraversed( true );
+
+							// if tile is not full of air then start voxel traversal 
+							if (!tile->isVoid())
+							{
+								vVoxelRay.SetupVoxelTraversal( vVoxelRay.Start, vVoxelRay.Stop, TileTraverseX, TileTraverseY, TileTraverseZ );
+
+								if (vVoxelRay.HasVoxelBegin())
+								{
+									do
+									{
+										int VoxelTraverseX, VoxelTraverseY, VoxelTraverseZ;
+
+										// process voxel
+										vVoxelRay.GetTraverseVoxelPosition( &VoxelTraverseX, &VoxelTraverseY, &VoxelTraverseZ );
+
+//										VoxelTraverseX = VoxelTraverseX % 16;
+//										VoxelTraverseY = VoxelTraverseY % 16;
+//										VoxelTraverseZ = VoxelTraverseZ % 24;
+
+										VoxelTraverseX = VoxelTraverseX - (TileTraverseX * 16);
+										VoxelTraverseY = VoxelTraverseY - (TileTraverseY * 16);
+										VoxelTraverseZ = VoxelTraverseZ - (TileTraverseZ * 24);
+
+	//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+										if (tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
+										{
+											tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+											// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
+											vVoxelRay.VoxelTD.TraverseDone = true;
+											vVoxelRay.TileTD.TraverseDone = true;
+											vVoxelRay.traverseDone = true;
+										}
+
+										// traverse next voxel
+										vVoxelRay.traverseMode = TraverseMode::tmVoxel;
+										vVoxelRay.NextStep();
+									} while (!vVoxelRay.IsVoxelTraverseDone());
+								}
+							}
+
+							// traverse next tile
+							vVoxelRay.traverseMode = TraverseMode::tmTile;
+							vVoxelRay.NextStep();
+						}
+						while (!vVoxelRay.IsTileTraverseDone());
+					}
+				}
+			}
+		}
+	}
+
+	// *****************************************************************
+	// *** TOTAL OVERKILL TEST OH YEAH, SHOOT ONE RAY PER VOXEL, END ***
+	// *****************************************************************
+
+
+
+
+	// SKYBUCK: VERY COOL VERSION !!! FIRST VERSION WHERE SHADOWS AND LIGHTING CAN BE SEEN SOMEWHAT ! FINALLY ! =D
+	// SKYBUCK: ALSO VERY COOL IDEA, IT ONLY COMPUTE RAYS FOR THE TILES THAT ARE ON THE SCREEN
+	// SKYBUCK: BUT WE CAN STILL DO BETTER !!!! BY USING THE COMPUTED TRICK FROM SPRITE VOXEL FRAME
+	// SKYBUCK: SO LET'S DO THAT IN ANOTHER VERSION DOWN BELOW, SEE HOW IT LOOKS LIKE.
+	// SKYBUCK: COMPUTING THIS BOUNDING BOX IDEA OVER THE TILES AND THUS VOXELS WAS A VERY COOL IDEA !
+	// SKYBUCK: KINDA LIKE A SUPER SPRITE VOXEL FRAME, BUT MORE PRECIOUS...
+	// SKYBUCK: ALSO THE VERSION DOWN BELOW IS GOING TO BE A LITTLE BIT LIKE SCREENVOXELFRAME BUT COMPUTED IN A DIFFERENT WAY...
+	// SKYBUCK: INSTEAD OF COLLECTING SPRITE FRAMES WHICH SEEMS TO BE WHACKY/BUGGY FOR SOME REASON
+	// SKYBUCK: IT'S SIMPLY GOING TO COMPUTE RAYS FOR EVERY VISIBLE VOXEL, NOT A TO BAD SOLUTION ! =D
+	// SKYBUCK: HOWEVER IF THE VOXEL IS ALREADY COMPUTED, THEN DON'T COMPUTE IT AGAIN ! YES YES YES.
+	// ***************************************************************************************************************
+	// *** SCREEN TILES BOUNDING BOX VERSION, SHOOT RAYS FOR ALL VOXELS WITHIN THE SCREEN TILE BOUNDING BOX, BEGIN ***
+	// ***************************************************************************************************************
+
+	// LET'S FORGET ABOUT THE SCREENVOXELFRAME STUFF, IMPLEMENT A 3D BOX AND SHINE LIGHT RAYS FROM THAT BOX AROUND IN THE LEVEL.
+	// JUST SHOOT RAYS AROUND THE LIGHT IN ALL DIRECTIONS... HOWEVER WE GONNA START WITH SOMETHING LIKE A SUN...
+	// SO IT JUST NEEDS TO GO DOWN... OR... HOW ABOUT THIS...
+	// WE JUST SHOOT A RAY PER VOXEL LOL.... HOLY FUCKING COMPUTATIONAL OVERKILL, BUT THIS IS THE BEST WAY TO DO IT FOR NOW.
+
+	// **********************************************************
+	// **********************************************************
+	// **********************************************************
+	// **********************************************************
+	// **********************************************************
+	// **********************************************************
+	//
+	//
+    // !!!!!!!!!!! THIS VERSION WORKS BEST SO FAR !!!!!!!!!!!!!!!
+	//
+	//			    ENABLE IT TO SEE IT IN ACTION
+	//
+	//					   IN GAME:
+	//
+	//		HOLD CONTROL + L = LIGHTING CASTING ON (ONE TIME, IT AUTO TOGGLES OFF)
+	//	
+	//		HOLD CONTROL + D = DEBUG MODE
+	//
+	// **********************************************************
+	// **********************************************************
+	// **********************************************************
+	// **********************************************************
+	// **********************************************************
+	// **********************************************************
+
+//	if (true == false) // disabled
+	if (_save->IsLightCastingOn())
+//	if (IfThisCaravanIsRockingThenDontComeKnocking == 0)
+	{
+//		IfThisCaravanIsRockingThenDontComeKnocking = 1;
+
+		int beginX = 0, endX = _save->getMapSizeX() - 1;
+		int beginY = 0, endY = _save->getMapSizeY() - 1;
+//		int beginZ = 0, endZ = _camera->getShowAllLayers()?_save->getMapSizeZ() - 1:_camera->getViewLevel();
+		int beginZ = 0, endZ = _save->getMapSizeZ() - 1;
+		Position mapPosition, screenPosition, bulletPositionScreen;
+		int dummy;
+
+		// get corner map coordinates to give rough boundaries in which tiles to redraw are
+		_camera->convertScreenToMap(0, 0, &beginX, &dummy);
+		_camera->convertScreenToMap(surface->getWidth(), 0, &dummy, &beginY);
+		_camera->convertScreenToMap(surface->getWidth() + _spriteWidth, surface->getHeight() + _spriteHeight, &endX, &dummy);
+		_camera->convertScreenToMap(0, surface->getHeight() + _spriteHeight, &dummy, &endY);
+		beginY -= (_camera->getViewLevel() * 2);
+		beginX -= (_camera->getViewLevel() * 2);
+		if (beginX < 0)
+			beginX = 0;
+		if (beginY < 0)
+			beginY = 0;
+
+		int VoxelBoundingBoxX1 = beginX * 16;
+		int VoxelBoundingBoxY1 = beginY * 16;
+		int VoxelBoundingBoxZ1 = beginZ * 24;
+
+		int VoxelBoundingBoxX2 = endX * 16;
+		int VoxelBoundingBoxY2 = endY * 16;
+		int VoxelBoundingBoxZ2 = endZ * 24;
+
+
+
+		VoxelPosition vStart;
+		VoxelPosition vStop;
+		
+		int ScreenWidth = _screenVoxelFrame->mWidth;
+		int ScreenHeight = _screenVoxelFrame->mHeight;
+
+		int MapLastTileX = _save->getMapSizeX()-1;
+		int MapLastTileY = _save->getMapSizeY()-1;
+		int MapLastTileZ = _save->getMapSizeZ()-1;
+
+		int MapLastWorldVoxelX = (_save->getMapSizeX()*16)-1;
+		int MapLastWorldVoxelY = (_save->getMapSizeY()*16)-1;
+		int MapLastWorldVoxelZ = (_save->getMapSizeZ()*24)-1;
+
+		VoxelRay vVoxelRay;
+
+		// setup phase
+/*
+		vStart.X = WorldVoxelX;
+		vStart.Y = 0;
+		vStart.Z = WorldVoxelZ;
+
+		vStop.X = WorldVoxelX;
+		vStop.Y = MapLastWorldVoxelY;
+		vStop.Z = WorldVoxelZ;
+*/
+
+/*
+		vStart.X = WorldVoxelX;
+		vStart.Y = MapLastWorldVoxelY;
+		vStart.Z = WorldVoxelZ;
+
+		vStop.X = WorldVoxelX;
+		vStop.Y = 0;
+		vStop.Z = WorldVoxelZ;
+*/
+
+/*
+		// voxel to sun
+		vStart.X = WorldVoxelX;
+		vStart.Y = WorldVoxelY;
+//		vStart.Z = WorldVoxelZ;
+		vStart.Z = WorldVoxelZ;
+
+		// unfinished coordinate setup, fix/try later if needed/necessary for now, go below from sun to voxel.
+		vStop.X = WorldVoxelX;
+		vStop.Y = 0;
+//		vStop.Z = WorldVoxelZ;
+		vStop.Z = 0;
+*/
+
+		// sun position
+		vVoxelRay.Start.X = (55 * 16);
+		vVoxelRay.Start.Y = (53 * 16);
+		vVoxelRay.Start.Z = (6 * 24);
+
+		vVoxelRay.SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
+		vVoxelRay.SetupTileDimensions( 16, 16, 24 );
+		vVoxelRay.SetupTileGridData( 0, 0, 0, MapLastTileX, MapLastTileY, MapLastTileZ );
+
+		vVoxelRay.ComputeTileBoundary();
+		vVoxelRay.ComputeTileBoundaryScaled();
+
+		vVoxelRay.ComputeTileStartScaled();
+
+		// this should be a light box... but for now... use the entire world as a light box hehe.
+		for (int WorldVoxelZ = VoxelBoundingBoxZ1; WorldVoxelZ <= VoxelBoundingBoxZ2; WorldVoxelZ++)
+		{
+			vVoxelRay.Stop.Z = WorldVoxelZ;
+			for (int WorldVoxelY = VoxelBoundingBoxY1; WorldVoxelY <= VoxelBoundingBoxY2; WorldVoxelY++)
+			{
+				vVoxelRay.Stop.Y = WorldVoxelY;
+				for (int WorldVoxelX = VoxelBoundingBoxX1; WorldVoxelX <= VoxelBoundingBoxX2; WorldVoxelX++)
+				{
+					vVoxelRay.Stop.X = WorldVoxelX;
+
+					vVoxelRay.ComputeTileStopScaled();
+					vVoxelRay.QuickSetup(); 
+
+					// traverse phase
+					// sloppy fix, use HasTileBegin above later
+					if (!vVoxelRay.IsTileTraverseDone())
+					{
+						do
+						{
+							int TileTraverseX, TileTraverseY, TileTraverseZ;
+
+							// process tile
+							vVoxelRay.GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
+							mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
+							tile = _save->getTile(mapPosition);
+				//			if (!tile) continue;
+	//						tile->setTraversed( true );
+
+							// if tile is not full of air then start voxel traversal 
+							if (!tile->isVoid())
+							{
+								vVoxelRay.SetupVoxelTraversal( vVoxelRay.Start, vVoxelRay.Stop, TileTraverseX, TileTraverseY, TileTraverseZ );
+
+								if (vVoxelRay.HasVoxelBegin())
+								{
+									do
+									{
+										int VoxelTraverseX, VoxelTraverseY, VoxelTraverseZ;
+
+										// process voxel
+										vVoxelRay.GetTraverseVoxelPosition( &VoxelTraverseX, &VoxelTraverseY, &VoxelTraverseZ );
+
+//										VoxelTraverseX = VoxelTraverseX % 16;
+//										VoxelTraverseY = VoxelTraverseY % 16;
+//										VoxelTraverseZ = VoxelTraverseZ % 24;
+
+										VoxelTraverseX = VoxelTraverseX - (TileTraverseX * 16);
+										VoxelTraverseY = VoxelTraverseY - (TileTraverseY * 16);
+										VoxelTraverseZ = VoxelTraverseZ - (TileTraverseZ * 24);
+
+	//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+										if (tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
+										{
+											tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+											// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
+											vVoxelRay.VoxelTD.TraverseDone = true;
+											vVoxelRay.TileTD.TraverseDone = true;
+											vVoxelRay.traverseDone = true;
+										}
+
+										// traverse next voxel
+										vVoxelRay.traverseMode = TraverseMode::tmVoxel;
+										vVoxelRay.NextStep();
+									} while (!vVoxelRay.IsVoxelTraverseDone());
+								}
+							}
+
+							// traverse next tile
+							vVoxelRay.traverseMode = TraverseMode::tmTile;
+							vVoxelRay.NextStep();
+						}
+						while (!vVoxelRay.IsTileTraverseDone());
+					}
+				}
+			}
+		}
+
+		// try and turn it off again, so it only does one render/computation of voxels ! ;)
+		_save->ToggleLightCastingOn();
+	}
+
+	// ***************************************************************************************************************
+	// *** SCREEN TILES + VOXEL BOUNDING BOX + COMPUTED, SHOOT RAY FOR EACH VISIBLE UNCOMPUTED VOXEL BEGIN ***
+	// ***************************************************************************************************************
+
+	// ALGORITHM SO FAR:
+
+	// 1. COMPUTE WHICH TILES ARE VISIBLE USING CAMERA.
+
+	// 2. COMPUTE BOUNDING BOX AROUND ALL VISIBLE TILE VOXELS, TO CREATE ONE BIG BOUNDING BOX.
+
+	// 3. SHOOT RAYS FROM "SUN POSITION" TO EACH VOXEL INSIDE THE BOUNDING BOX.
+
+	// 4. AND NOW ALGORITHM IMPROVEMENT/SPEED UP STEP: ONLY COMPUTE/SHOOT RAYS FOR VOXELS WHICH ARE NOT YET COMPUTED.
+
+	//  
+	// DEBUG ME TOMORROW, I DON'T WORK YET
+	// DEBUG ME TOMORROW, I DON'T WORK YET
+	// DEBUG ME TOMORROW, I DON'T WORK YET
+	// DEBUG ME TOMORROW, I DON'T WORK YET
+	// DEBUG ME TOMORROW, I DON'T WORK YET
+	// MAYBE NEVER ? ;)
+	//
+
+
+	if (true == false) // disabled
+	if (_save->IsLightCastingOn())
+//	if (IfThisCaravanIsRockingThenDontComeKnocking == 0)
+	{
+//		IfThisCaravanIsRockingThenDontComeKnocking = 1;
+
+
+		int beginX = 0, endX = _save->getMapSizeX() - 1;
+		int beginY = 0, endY = _save->getMapSizeY() - 1;
+//		int beginZ = 0, endZ = _camera->getShowAllLayers()?_save->getMapSizeZ() - 1:_camera->getViewLevel();
+		int beginZ = 0, endZ = _save->getMapSizeZ() - 1;
+		Position mapPosition, screenPosition, bulletPositionScreen;
+		int dummy;
+
+		// get corner map coordinates to give rough boundaries in which tiles to redraw are
+		_camera->convertScreenToMap(0, 0, &beginX, &dummy);
+		_camera->convertScreenToMap(surface->getWidth(), 0, &dummy, &beginY);
+		_camera->convertScreenToMap(surface->getWidth() + _spriteWidth, surface->getHeight() + _spriteHeight, &endX, &dummy);
+		_camera->convertScreenToMap(0, surface->getHeight() + _spriteHeight, &dummy, &endY);
+		beginY -= (_camera->getViewLevel() * 2);
+		beginX -= (_camera->getViewLevel() * 2);
+		if (beginX < 0)
+			beginX = 0;
+		if (beginY < 0)
+			beginY = 0;
+
+		int VoxelBoundingBoxX1 = beginX * 16;
+		int VoxelBoundingBoxY1 = beginY * 16;
+		int VoxelBoundingBoxZ1 = beginZ * 24;
+
+		int VoxelBoundingBoxX2 = endX * 16;
+		int VoxelBoundingBoxY2 = endY * 16;
+		int VoxelBoundingBoxZ2 = endZ * 24;
+
+
+
+		VoxelPosition vStart;
+		VoxelPosition vStop;
+		
+		int ScreenWidth = _screenVoxelFrame->mWidth;
+		int ScreenHeight = _screenVoxelFrame->mHeight;
+
+		// ALLOCATE COMPUTED ARRAY
+		// to lazy to allocate that somewhere else more efficiently/just once.
+
+		int vScreenPixelCount = ScreenHeight * ScreenWidth;
+		bool *Computed = new bool[vScreenPixelCount];
+//		bool Computed[64000];
+
+		// this might be somewhat costly, but let's give it a go
+		// reset computed
+		for (int vIndex=0; vIndex < vScreenPixelCount; vIndex++)
+		{
+			Computed[vIndex] = false;
+		}
+
+		int MapLastTileX = _save->getMapSizeX()-1;
+		int MapLastTileY = _save->getMapSizeY()-1;
+		int MapLastTileZ = _save->getMapSizeZ()-1;
+
+		int MapLastWorldVoxelX = (_save->getMapSizeX()*16)-1;
+		int MapLastWorldVoxelY = (_save->getMapSizeY()*16)-1;
+		int MapLastWorldVoxelZ = (_save->getMapSizeZ()*24)-1;
+
+		VoxelRay vVoxelRay;
+
+		// setup phase
+/*
+		vStart.X = WorldVoxelX;
+		vStart.Y = 0;
+		vStart.Z = WorldVoxelZ;
+
+		vStop.X = WorldVoxelX;
+		vStop.Y = MapLastWorldVoxelY;
+		vStop.Z = WorldVoxelZ;
+*/
+
+/*
+		vStart.X = WorldVoxelX;
+		vStart.Y = MapLastWorldVoxelY;
+		vStart.Z = WorldVoxelZ;
+
+		vStop.X = WorldVoxelX;
+		vStop.Y = 0;
+		vStop.Z = WorldVoxelZ;
+*/
+
+/*
+		// voxel to sun
+		vStart.X = WorldVoxelX;
+		vStart.Y = WorldVoxelY;
+//		vStart.Z = WorldVoxelZ;
+		vStart.Z = WorldVoxelZ;
+
+		// unfinished coordinate setup, fix/try later if needed/necessary for now, go below from sun to voxel.
+		vStop.X = WorldVoxelX;
+		vStop.Y = 0;
+//		vStop.Z = WorldVoxelZ;
+		vStop.Z = 0;
+*/
+
+		// sun position
+		vVoxelRay.Start.X = (55 * 16);
+		vVoxelRay.Start.Y = (53 * 16);
+		vVoxelRay.Start.Z = (6 * 24);
+
+		vVoxelRay.SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
+		vVoxelRay.SetupTileDimensions( 16, 16, 24 );
+		vVoxelRay.SetupTileGridData( 0, 0, 0, MapLastTileX, MapLastTileY, MapLastTileZ );
+
+		vVoxelRay.ComputeTileBoundary();
+		vVoxelRay.ComputeTileBoundaryScaled();
+
+		vVoxelRay.ComputeTileStartScaled();
+
+/*
+		// this should be a light box... but for now... use the entire world as a light box hehe.
+		for (int WorldVoxelZ = VoxelBoundingBoxZ1; WorldVoxelZ <= VoxelBoundingBoxZ2; WorldVoxelZ++)
+		{
+			vVoxelRay.Stop.Z = WorldVoxelZ;
+			for (int WorldVoxelY = VoxelBoundingBoxY1; WorldVoxelY <= VoxelBoundingBoxY2; WorldVoxelY++)
+			{
+				vVoxelRay.Stop.Y = WorldVoxelY;
+				for (int WorldVoxelX = VoxelBoundingBoxX1; WorldVoxelX <= VoxelBoundingBoxX2; WorldVoxelX++)
+				{
+*/
+
+// let's invert this though it might render strangely or not
+		for (int WorldVoxelZ = VoxelBoundingBoxZ2; WorldVoxelZ >= VoxelBoundingBoxZ1; WorldVoxelZ--)
+		{
+			vVoxelRay.Stop.Z = WorldVoxelZ;
+			for (int WorldVoxelY = VoxelBoundingBoxY2; WorldVoxelY >= VoxelBoundingBoxY1; WorldVoxelY--)
+			{
+				vVoxelRay.Stop.Y = WorldVoxelY;
+				for (int WorldVoxelX = VoxelBoundingBoxX2; WorldVoxelX >= VoxelBoundingBoxX1; WorldVoxelX--)
+				{
+
+					vVoxelRay.Stop.X = WorldVoxelX;
+
+					// try to compute the screen pixel x, y based on the voxel x,y,z
+
+					// use formulas below, if this fails maybe game engine has a method to do it ! ;)
+					// but trust my own code for now =D
+					// just need to adjust the starting position and need to figure that out...
+					// probably halfway bounding box or so, and somewhere on the z axis.
+
+					int Component;
+
+					// problem probably in here somewhere... 
+
+					// setup screen start x, sprite start y
+//					int ScreenStartX = (ScreenWidth >> 1) - 1; // was half tile width, screen width / 2 - 1
+					int ScreenStartX = (ScreenWidth /  2) - 1; // was half tile width, screen width / 2 - 1
+//					int ScreenStartY = _save->getMapSizeZ() * 24; // was tile depth  // absolute screen depth, probably mapz * 24
+					int ScreenStartY = 24; // was tile depth  // absolute screen depth, probably mapz * 24
+
+					// calculate sprite x position based on voxel position (x,y,z)
+					int ScreenX = (ScreenStartX + WorldVoxelX) - WorldVoxelX;
+
+					Component = WorldVoxelX + WorldVoxelX;
+					Component = Component >> 1; // should this be a float ? is this causing imprecise graphics ? probably not maybe check it later
+
+					int ScreenY = (ScreenStartY + Component) - WorldVoxelZ;
+
+					if ((ScreenX >= 0) && (ScreenX < ScreenWidth) && (ScreenY >= 0) && (ScreenY < ScreenHeight))
+					if (!Computed[ScreenY*_screenVoxelFrame->mWidth + ScreenX])
+					{
+
+						vVoxelRay.ComputeTileStopScaled();
+						vVoxelRay.QuickSetup(); 
+
+						// traverse phase
+						// sloppy fix, use HasTileBegin above later
+						if (!vVoxelRay.IsTileTraverseDone())
+						{
+							do
+							{
+								int TileTraverseX, TileTraverseY, TileTraverseZ;
+
+								// process tile
+								vVoxelRay.GetTraverseTilePosition( &TileTraverseX, &TileTraverseY, &TileTraverseZ );
+								mapPosition = Position(TileTraverseX, TileTraverseY, TileTraverseZ);
+								tile = _save->getTile(mapPosition);
+					//			if (!tile) continue;
+		//						tile->setTraversed( true );
+
+								// if tile is not full of air then start voxel traversal 
+								if (!tile->isVoid())
+								{
+									vVoxelRay.SetupVoxelTraversal( vVoxelRay.Start, vVoxelRay.Stop, TileTraverseX, TileTraverseY, TileTraverseZ );
+
+									if (vVoxelRay.HasVoxelBegin())
+									{
+										do
+										{
+											int VoxelTraverseX, VoxelTraverseY, VoxelTraverseZ;
+
+											// process voxel
+											vVoxelRay.GetTraverseVoxelPosition( &VoxelTraverseX, &VoxelTraverseY, &VoxelTraverseZ );
+
+	//										VoxelTraverseX = VoxelTraverseX % 16;
+	//										VoxelTraverseY = VoxelTraverseY % 16;
+	//										VoxelTraverseZ = VoxelTraverseZ % 24;
+
+											VoxelTraverseX = VoxelTraverseX - (TileTraverseX * 16);
+											VoxelTraverseY = VoxelTraverseY - (TileTraverseY * 16);
+											VoxelTraverseZ = VoxelTraverseZ - (TileTraverseZ * 24);
+
+		//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+											if (tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
+											{
+												tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
+
+												// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
+												vVoxelRay.VoxelTD.TraverseDone = true;
+												vVoxelRay.TileTD.TraverseDone = true;
+												vVoxelRay.traverseDone = true;
+												Computed[ScreenY*_screenVoxelFrame->mWidth + ScreenX] = true;
+											}
+
+											// traverse next voxel
+											vVoxelRay.traverseMode = TraverseMode::tmVoxel;
+											vVoxelRay.NextStep();
+										} while (!vVoxelRay.IsVoxelTraverseDone());
+									}
+								}
+
+								// traverse next tile
+								vVoxelRay.traverseMode = TraverseMode::tmTile;
+								vVoxelRay.NextStep();
+							}
+							while (!vVoxelRay.IsTileTraverseDone());
+						}
+					}
+				}
+			}
+		}
+
+		delete[] Computed;
+
+		// try and turn it off again, so it only does one render/computation of voxels ! ;)
+		_save->ToggleLightCastingOn();
+	}
+
+	// ***************************************************************************************************************
+	// *** SCREEN TILES + VOXEL BOUNDING BOX + COMPUTED, SHOOT RAY FOR EACH VISIBLE UNCOMPUTED VOXEL END ***
+	// ***************************************************************************************************************
+
+
+
+
+//	if (_save->IsLightTraversingOn())
+	{
+		for (int itZ = beginZ; itZ <= endZ; itZ++)
+		{
+			bool topLayer = itZ == endZ;
+			for (int itX = beginX; itX <= endX; itX++)
+			{
+				for (int itY = beginY; itY <= endY; itY++)
+				{
+					mapPosition = Position(itX, itY, itZ);
+					_camera->convertMapToScreen(mapPosition, &screenPosition);
+					screenPosition += _camera->getMapOffset();
+
+					// only render cells that are inside the surface
+					if (screenPosition.x > -_spriteWidth && screenPosition.x < surface->getWidth() + _spriteWidth &&
+						screenPosition.y > -_spriteHeight && screenPosition.y < surface->getHeight() + _spriteHeight )
+					{
+						tile = _save->getTile(mapPosition);
+
+						if (!tile) continue;
+
+
+						// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+						// !!! SKYBUCK: MAKE SURE IT'S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
+						// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
+						DrawTileVoxelTraversedMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
+
+
+					}
+				}
+			}
+		}
+	}
+
+
 
 
 	if (pathfinderTurnedOn)
