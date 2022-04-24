@@ -1715,7 +1715,20 @@ void VoxelRay::SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaS
 	Stop = ParaStop;
 
 	ComputeVoxelBoundary( TileX, TileY, TileZ );
-	ComputeVoxelGridData( TileX, TileY, TileZ );
+	ComputeVoxelGridData( TileX, TileY, TileZ ); // most likely computed wrongly, it should just start from zero index to create big index, offsetting to create new tile based zero offset is not implemented
+	// maybe it is good after all, why would it otherwise be working lol, but maybe it's using T to exit... or something
+	// or it collides, and thus no exit condition necessary.
+
+/*
+	// experimental code
+	VoxelGD.MinX = TileGD.MinX * TileCD.Width;
+	VoxelGD.MinY = TileGD.MinY * TileCD.Height;
+	VoxelGD.MinZ = TileGD.MinZ * TileCD.Depth;
+
+	VoxelGD.MaxX = (VoxelGD.MinX + TileCD.Width)-1; 
+	VoxelGD.MaxY = (VoxelGD.MinY + TileCD.Height)-1;
+	VoxelGD.MaxZ = (VoxelGD.MinZ + TileCD.Depth)-1;
+*/
 
 	// ONE POINT CASE
 	if

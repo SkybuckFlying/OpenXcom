@@ -271,7 +271,15 @@ void ScreenVoxelFrame::CollectSpriteVoxelFrame( int DstX, int DstY, Tile *ParaTi
 						if (vScreenVoxelPosition.Z >= 0)
 						{
 							vScreenPixelOffset = vScreenPixelY * mWidth + vScreenPixelX;
-							mVoxelPosition[vScreenPixelOffset] = vScreenVoxelPosition; 
+							mVoxelPosition[vScreenPixelOffset] = vScreenVoxelPosition;
+
+							// to fill in empty space between sprites
+							// maybe a sloppy dirty hack, but might work and might make it look a bit better.
+							if ((vScreenPixelX+1) < mWidth)
+							{
+								mVoxelPosition[vScreenPixelOffset+1] = vScreenVoxelPosition;
+							}
+
 						}
 					}
 				}

@@ -1095,6 +1095,7 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 
 	int SpriteStartX, SpriteStartY;
 	int Component;
+//	float Component;
 	int SpriteX, SpriteY;
 
 	int VoxelX, VoxelY, VoxelZ;
@@ -1157,6 +1158,7 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 
 				Component = VoxelX + VoxelY;
 				Component = Component >> 1; // should this be a float ? is this causing imprecise graphics ? probably not maybe check it later
+//				Component = Component / 2.0;
 
 				SpriteY = (SpriteStartY + Component) - VoxelZ;
 
@@ -1173,7 +1175,7 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 						_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;
 
 						// check if spritex+1 <= 31 so spritex < 31, saves 1 instruction maybe.
-						if (SpriteX < 31)
+						if ((SpriteX+1) < 32)
 						{
 							_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX+1] = vVoxelPosition;
 						}
@@ -1262,7 +1264,7 @@ void Tile::UpdateSpriteVoxelFrame( TileEngine *ParaTileEngine )
 						_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;
 
 						// check if spritex+1 <= 31 so spritex < 31, saves 1 instruction maybe.
-						if (SpriteX < 31)
+						if ((SpriteX+1) < 32)
 						{
 							_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX+1] = vVoxelPosition;
 						}
