@@ -1174,10 +1174,17 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 
 						_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;
 
-						// check if spritex+1 <= 31 so spritex < 31, saves 1 instruction maybe.
-						if ((SpriteX+1) < 32)
+						// if the sprite x equals 16 then copy voxel information from sprite x==15, so subtract -1 from SpriteX
+						if (SpriteX==15)
 						{
-							_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX+1] = vVoxelPosition;
+							// no further out of range checking should be necessary for -1, since it will just be 15.
+							if (SpriteX+1)
+							{
+								_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX+1] = vVoxelPosition;
+
+								// this could also be one of the causes of it.
+								Computed._Computed[SpriteY][SpriteX+1] = true;
+							}
 						}
 
 						Computed._Computed[SpriteY][SpriteX] = true;

@@ -1721,10 +1721,19 @@ void DrawTileVoxelMap3D( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile 
 					{
 						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
 
-						if (SpriteX < 31)
+						// if the sprite x equals 16 then copy voxel information from sprite x==15, so subtract -1 from SpriteX
+						if (SpriteX==15)
 						{
-							ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX+1, SpriteY, FinalColor );
+							// no further out of range checking should be necessary for -1, since it will just be 15.
+							if (SpriteX+1)
+							{
+								ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX+1, SpriteY, FinalColor );
+
+								// set it as computed, this could also be the case of a bug.
+								Computed[vIndex+1] = true;
+							}
 						}
+
 						Computed[vIndex] = true;
 					}
 				}
@@ -1853,16 +1862,23 @@ void DrawTileVoxelTraversedMap3D( TileEngine *Te, Surface *Dst, int DstX, int Ds
 */
 					}
 
-
-
 					if (FinalColor > 0)
 					{
 						ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX, SpriteY, FinalColor );
 
-						if (SpriteX < 31)
+						// if the sprite x equals 16 then copy voxel information from sprite x==15, so subtract -1 from SpriteX
+						if (SpriteX==15)
 						{
-							ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX+1, SpriteY, FinalColor );
+							// no further out of range checking should be necessary for -1, since it will just be 15.
+							if (SpriteX+1)
+							{
+								ProcessSpriteVoxel( Dst, DstX, DstY, VoxelX, VoxelY, VoxelZ, SpriteX+1, SpriteY, FinalColor );
+
+								// set it as computed, this could also be the case of a bug.
+								Computed[vIndex+1] = true;
+							}
 						}
+
 						Computed[vIndex] = true;
 					}
 				}
