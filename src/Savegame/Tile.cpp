@@ -1078,7 +1078,10 @@ void Tile::PrecomputeVoxelMap3D( TileEngine *ParaTileEngine, TileVoxelMap3D *Par
 						// new code should make a nice boolean value
 						VoxelPresent = (LoftBits >> XBitIndex) & 1; 
 
-						ParaVoxelMap->_Present[VoxelZ][VoxelY][VoxelX] = ParaVoxelMap->_Present[VoxelZ][VoxelY][VoxelX] || VoxelPresent;
+						if (VoxelZ != 1) // the double floor is causing problems for the ray traversal/graphics, it heightens the floors, ending the light rays prematurely.
+						{
+							ParaVoxelMap->_Present[VoxelZ][VoxelY][VoxelX] = ParaVoxelMap->_Present[VoxelZ][VoxelY][VoxelX] || VoxelPresent;
+						}
 					}
 				}
 			}
@@ -1168,11 +1171,40 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 
 					if (VoxelPresent == true)
 					{
+						// try and centralize the final voxel positions
+						// so that light rays hit it more central, trying to avoid the heightened floor hit problem
+						// floors can now be +1 heigher because of the voxel height of 1
+						// maybe this will make it look a little bit better and avoid rays from hitting corners to much blablabla whatever
+						// otherwise... euhm... maybe zome z fix can be applied... some z cheat but that problably not wise then again maybe
+						// maybe special processing can be done for the floor voxels... so that the appear a bit lower... hmmm
+						// interesting idea... but not going to try it for now
+						// first try this center voxel position idea. then again 0.5 is raising it further...
+						// could try and do -0.5 later though that shift everything down... maybe not a bad idea... depends on where the voxel
+						// is maybe... then again maybe not... it should be zero already. so I am not going to do the +0.5 for the z dimension
+						// because it's already heightened a bit and that would just make it worse. I think... unless the light comes from
+						// a more problematic direction, maybe from below, then it might be a new problem, but for now this problem is not there.
+						// euh... yeah.
+						// +0.5 didn't solve it, new idea: shoot 4 rays, 1 per corner.
 						vVoxelPosition.X = VoxelX;
 						vVoxelPosition.Y = VoxelY;
 						vVoxelPosition.Z = VoxelZ;
 
 						_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX] = vVoxelPosition;
+
+						// original solution:
+						// check if spritex+1 <= 31 so spritex < 31, saves 1 instruction maybe.
+						if ((SpriteX+1) < 32)
+						{
+							_SpriteVoxelFrame._VoxelPosition[SpriteY][SpriteX+1] = vVoxelPosition;
+
+							// what about Computed._Computed[SpriteY][SpriteX] ??? gets overwritten eventually... hmmm.
+
+							// let's see what happens if this gets set.
+//							Computed._Computed[SpriteY][SpriteX+1] = true;
+						}
+
+						// unverified solution:
+						/*
 
 						// if the sprite x equals 16 then copy voxel information from sprite x==15, so subtract -1 from SpriteX
 						if (SpriteX==15)
@@ -1186,6 +1218,8 @@ void Tile::ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine )
 								Computed._Computed[SpriteY][SpriteX+1] = true;
 							}
 						}
+
+						*/
 
 						Computed._Computed[SpriteY][SpriteX] = true;
 					}

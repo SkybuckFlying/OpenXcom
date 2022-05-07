@@ -95,6 +95,12 @@ struct VoxelRay
 	VoxelPosition Start;		
 	VoxelPosition Stop;
 
+	// Skybuck: accuracy/epsilon experiment for ray stop and voxel corner traversal
+	VoxelPositionFloat StopVersion2;
+
+
+
+
 	// Skybuck: not absolutely necessary to store this maybe but doing it anyway for now.
 	VoxelPositionFloat TileStartScaled;
 	VoxelPositionFloat TileStopScaled;
@@ -210,6 +216,7 @@ struct VoxelRay
 	void ComputeTileStartScaled();
 
 	void ComputeTileStopScaled();
+	void ComputeTileStopScaledVersion2();
 
 	void ComputeVoxelBoundary( int ParaTileX, int ParaTileY, int ParaTileZ );
 
@@ -233,13 +240,17 @@ struct VoxelRay
 	// because of fmod... I know complex mambo jambo talk but it might help me later in the future to diagnose problems.
 	// or to improve code.
 
+	// version 2 uses a floating point for the stop parameter for hopefull more accuracy inside the (ending) voxel itself.
+
 	// Tile Width, HEight Depth not used for now... use the SetupTileDimension routine to set it up.
 	void Setup( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileWidth, int TileHeight, int TileDepth );
+	void SetupVersion2( VoxelPosition ParaStart, VoxelPositionFloat ParaStop, int TileWidth, int TileHeight, int TileDepth );
 
 	void QuickSetup();
 
 	void ComputeVoxelGridData( int ParaTileX, int ParaTileY, int ParaTileZ );
 	void SetupVoxelTraversal( VoxelPosition ParaStart, VoxelPosition ParaStop, int TileX, int TileY, int TileZ );
+	void SetupVoxelTraversalVersion2( VoxelPosition ParaStart, VoxelPositionFloat ParaStop, int TileX, int TileY, int TileZ );
 
 	bool IsTileTraverseDone();
 	bool IsVoxelTraverseDone();
