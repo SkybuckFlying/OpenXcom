@@ -48,7 +48,7 @@ namespace OpenXcom
  * Initializes a brand new battlescape saved game.
  */
 SavedBattleGame::SavedBattleGame() : _battleState(0), _mapsize_x(0), _mapsize_y(0), _mapsize_z(0), _selectedUnit(0), _lastSelectedUnit(0), _pathfinding(0), _tileEngine(0), _globalShade(0),
-	_side(FACTION_PLAYER), _turn(1), _debugMode(false), _LightCastingOn(false), _LightTraversingOn(false), _aborted(false), _itemId(0), _objectiveType(-1), _objectivesDestroyed(0), _objectivesNeeded(0), _unitsFalling(false), _cheating(false),
+	_side(FACTION_PLAYER), _turn(1), _debugMode(false), _aborted(false), _itemId(0), _objectiveType(-1), _objectivesDestroyed(0), _objectivesNeeded(0), _unitsFalling(false), _cheating(false),
 	_tuReserved(BA_NONE), _kneelReserved(false), _depth(0), _ambience(-1), _ambientVolume(0.5), _turnLimit(0), _cheatTurn(20), _chronoTrigger(FORCE_LOSE), _beforeGame(true)
 {
 	_tileSearch.resize(11*11);
@@ -57,9 +57,6 @@ SavedBattleGame::SavedBattleGame() : _battleState(0), _mapsize_x(0), _mapsize_y(
 		_tileSearch[i].x = ((i%11) - 5);
 		_tileSearch[i].y = ((i/11) - 5);
 	}
-
-	_LightCastingOn = false;
-	_LightTraversingOn = false;
 
 	_PBRTExportOn = false;
 }
@@ -938,16 +935,6 @@ void SavedBattleGame::setDebugMode()
 	_debugMode = true;
 }
 
-void SavedBattleGame::ToggleLightCastingOn()
-{
-	_LightCastingOn = not _LightCastingOn;
-}
-
-void SavedBattleGame::ToggleLightTraversingOn()
-{
-	_LightTraversingOn = not _LightTraversingOn;
-}
-
 void SavedBattleGame::TogglePBRTExportOn()
 {
 	_PBRTExportOn = not _PBRTExportOn;
@@ -960,16 +947,6 @@ void SavedBattleGame::TogglePBRTExportOn()
 bool SavedBattleGame::getDebugMode() const
 {
 	return _debugMode;
-}
-
-bool SavedBattleGame::IsLightCastingOn() const
-{
-	return _LightCastingOn;
-}
-
-bool SavedBattleGame::IsLightTraversingOn() const
-{
-	return _LightTraversingOn;
 }
 
 bool SavedBattleGame::IsPBRTExportOn() const

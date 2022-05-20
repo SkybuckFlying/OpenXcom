@@ -305,12 +305,6 @@ public:
 	/// Reset all the unit hit state flags.
 	void resetUnitHitStates();
 
-	void ToggleLightCastingOn();
-	bool IsLightCastingOn() const;
-
-	void ToggleLightTraversingOn();
-	bool IsLightTraversingOn() const;
-
 	void TogglePBRTExportOn();
 	bool IsPBRTExportOn() const;
 };

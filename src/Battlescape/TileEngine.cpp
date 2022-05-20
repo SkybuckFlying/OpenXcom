@@ -2702,52 +2702,6 @@ bool LineSegmentIntersectsBoxSingle
 	return result;
 }
 
-void TileEngine::setVoxel( int x, int y, int z, bool Present )
-{
-	Tile *tile;
-	int TileX, TileY, TileZ;
-	int VoxelX, VoxelY, VoxelZ;
-	Position TilePosition; 
-
-	TileX = x / 16;
-	TileY = y / 16;
-	TileZ = z / 24;
-
-	VoxelX = x % 16;
-	VoxelY = y % 16;
-	VoxelZ = z % 24;
-
-	TilePosition.x = TileX;
-	TilePosition.y = TileY;
-	TilePosition.z = TileZ;
-
-	tile = _save->getTile(TilePosition);
-	tile->VoxelMap._Present[VoxelZ][VoxelY][VoxelX] = Present;
-}
-
-void TileEngine::setVoxelTraversed( int x, int y, int z, bool Traversed )
-{
-	Tile *tile;
-	int TileX, TileY, TileZ;
-	int VoxelX, VoxelY, VoxelZ;
-	Position TilePosition; 
-
-	TileX = x / 16;
-	TileY = y / 16;
-	TileZ = z / 24;
-
-	VoxelX = x % 16;
-	VoxelY = y % 16;
-	VoxelZ = z % 24;
-
-	TilePosition.x = TileX;
-	TilePosition.y = TileY;
-	TilePosition.z = TileZ;
-
-	tile = _save->getTile(TilePosition);
-	tile->VoxelTraversedMap._Present[VoxelZ][VoxelY][VoxelX] = Traversed;
-}
-
 // new one/skybuck's one
 int TileEngine::calculateLine
 (

@@ -20,8 +20,6 @@
 #include "../Engine/InteractiveSurface.h"
 #include "../Engine/Options.h"
 #include "Position.h"
-#include "ScreenVoxelFrame.h"
-#include "ScreenRayBlocks.h"
 #include <vector>
 
 namespace OpenXcom
@@ -70,13 +68,8 @@ private:
 	PathPreview _previewSetting;
 	Text *_txtAccuracy;
 	SurfaceSet *_projectileSet;
-	ScreenVoxelFrame *_screenVoxelFrame;
-	ScreenRayBlocks *_screenRayBlocks;
-
-	VoxelRay *_screenVoxelRay;
 
 	void drawUnit(Surface *surface, Tile *unitTile, Tile *currTile, Position tileScreenPosition, int shade, int obstacleShade, bool topLayer);
-	void drawTerrainHeavyModifiedBySkybuck(Surface *surface);
 	void drawTerrain(Surface *surface);
 	int getTerrainLevel(const Position& pos, int size) const;
 	int _iconHeight, _iconWidth, _messageColor;
@@ -165,11 +158,6 @@ public:
 	void enableObstacles();
 	/// Disables obstacle markers.
 	void disableObstacles();
-
-	// Skybuck: for voxel traversal debugging purposes
-	void ClearVoxelTraversedMap();
-
-	Uint8 ComputeShade( Uint8 ParaColorIn, double ParaExposure );
 };
 
 }

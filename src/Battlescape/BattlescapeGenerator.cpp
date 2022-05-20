@@ -2336,50 +2336,10 @@ void BattlescapeGenerator::generateMap(const std::vector<MapScript*> *script)
 
 	attachNodeLinks();
 
-	// Skybuck: This is most likely the ideal location in the source code to compute SpriteToVoxel
-	// Skybuck: because here the tiles are set up, most likely the sprites are also loaded, the loftids loaded, the loftemps loaded.
-	// Skybuck: and most of all the tiles or one level lower they MapData more or less describes the association
-	// between sprites and voxel data... but I have seen multiple pointers to MapData so it can be and is confusing
-	// while with Tile there should not be any confusion.
 
-	// I can just implement the SpriteToVoxel method inside Tile most likely and then just call it from there... orrr
-	// I could go one level lower and generate it from getMapData( O_FLOOR ).CreateTile... but I have to process all
-	// "floors" or in other words all objects that is ok... I think.
-	// NONONONONONONOnonononononononononon
-	//
-	// Skybuck: I AM NOW VERY SURE, THAT THE CORRECT LOCATION TO IMPLEMENT "TILE/SPRITE TO TILE/VOXELSPRITEMAP" IS ON TILE
-	// SKYBUCK: BECAUSE A TILE CAN HAVE MULTIPLE MapData... like NorthWall and WestWell and floor and object and these
-	// are rendered on top of each other on a SINGLE tile... and thus... there seperated "loftids" can be integrated
-	// into one voxel 3d map which ultimately gets converted into a voxel 2d sprite map sort of...
-	// where each sprite pixel is mapped to a voxel position and that is what I am after for efficiency purposes.
-	// YESSSSSSSSSSSSSSSSSsssssssssssssssssssssssssssss
+	// Skybuck: good place to compute tiles and stuff but I am going to do it in "real time/every time" in the map DrawTerrain method.
+	// Skybuck: the hope is that it might catch "damage as well" though I doubt it, wink wink, but maybe, maybe, maybe
 
-	TileEngine *vTileEngine;
-
-	vTileEngine = _game->getSavedGame()->getSavedBattle()->getTileEngine();
-
-	for (int z = 0; z < _mapsize_z; ++z)
-	{
-		for (int x = 0; x < _mapsize_x; ++x)
-		{
-			for (int y = 0; y < _mapsize_y; ++y)
-			{
-				_save->getTile(Position(x, y, z))->ComputeSpriteVoxelFrame( vTileEngine );
-			}
-		}
-	}
-
-	// clear voxel traversed map on each tile
-	for (int z = 0; z < _mapsize_z; ++z)
-	{
-		for (int x = 0; x < _mapsize_x; ++x)
-		{
-			for (int y = 0; y < _mapsize_y; ++y)
-			{
-				_save->getTile(Position(x, y, z))->ClearVoxelTraversedMap();
-			}
-		}
-	}
 }
 
 /**

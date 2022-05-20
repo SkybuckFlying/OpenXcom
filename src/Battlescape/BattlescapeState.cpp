@@ -1589,29 +1589,6 @@ inline void BattlescapeState::handle(Action *action)
 						_save->setDebugMode();
 						debug("Debug Mode");
 					}
-					// "ctrl-l" - enable debug mode
-					else if (action->getDetails()->key.keysym.sym == SDLK_l && (SDL_GetModState() & KMOD_CTRL) != 0)
-					{
-						_save->ToggleLightCastingOn();
-						if (_save->IsLightCastingOn())
-						{
-							debug("Light Casting On");
-						} else
-						{
-							debug("Light Casting Off");
-						}
-					}
-					else if (action->getDetails()->key.keysym.sym == SDLK_t && (SDL_GetModState() & KMOD_CTRL) != 0)
-					{
-						_save->ToggleLightTraversingOn();
-						if (_save->IsLightTraversingOn())
-						{
-							debug("Light Traversing On");
-						} else
-						{
-							debug("Light Traversing Off");
-						}
-					}
 					else if (action->getDetails()->key.keysym.sym == SDLK_p && (SDL_GetModState() & KMOD_CTRL) != 0)
 					{
 						_save->TogglePBRTExportOn();

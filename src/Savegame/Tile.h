@@ -22,7 +22,6 @@
 #include "../Battlescape/Position.h"
 #include "../Mod/MapData.h"
 #include "BattleUnit.h"
-#include "../Battlescape/SpriteVoxelFrame.h"
 #include "../Battlescape/TileEngine.h"
 
 #include <SDL_types.h> // for Uint8
@@ -83,14 +82,13 @@ protected:
 	bool _danger;
 	std::list<Particle*> _particles;
 	int _obstacle;
-	SpriteVoxelFrame _SpriteVoxelFrame;
-	bool _traversed;
+
 
 
 public:
-	TileVoxelMap3D VoxelMap; // Skybuck: for debugging voxel traversal only !!!
+	// Skybuck: put voxels in here later.
+//	TileVoxelMap3D VoxelMap; // Skybuck: for debugging voxel traversal only !!!
 
-	TileVoxelMap3D VoxelTraversedMap; // Skybuck: for debugging voxel traversal and checking the original voxel map positions. 
 
 	/// Creates a tile.
 	Tile(Position pos);
@@ -268,19 +266,8 @@ public:
 	/// reset obstacle flags
 	void resetObstacle(void);
 
-	void ComputeSpriteVoxelFrame( TileEngine *ParaTileEngine );
+	// Skybuck: could place to compute voxel map
 
-	void PrecomputeVoxelMap3D( TileEngine *ParaTileEngine, TileVoxelMap3D *ParaVoxelMap ); // should or could be private.
-	void UpdateSpriteVoxelFrame( TileEngine *ParaTileEngine );
-
-	SpriteVoxelFrame *getSpriteVoxelFrame();
-
-	// for debugging purposes
-	bool getTraversed( void );
-
-	void setTraversed( bool ParaTraversed );
-
-	void ClearVoxelTraversedMap();
 };
 
 }
