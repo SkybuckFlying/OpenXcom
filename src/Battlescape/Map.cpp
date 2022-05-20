@@ -52,6 +52,15 @@
 #include <math.h> // for pi
 #include "VoxelRay.h"
 
+#include <fstream>
+#include <string>
+#include <iostream>
+
+#include "TVoxelMaterial.h"
+#include "TVoxelMaterialName.h"
+#include "TVoxel.h"
+#include "TTileVoxelGrid.h"
+
 
 /*
   1) Map origin is top corner.
@@ -265,8 +274,8 @@ void Map::draw()
 		return;
 	}
 
-	// normally we'd call for a Surface::draw();
-	// but we don't want to clear the background with colour 0, which is transparent (aka black)
+	// normally we"d call for a Surface::draw();
+	// but we don"t want to clear the background with colour 0, which is transparent (aka black)
 	// we use colour 15 because that actually corresponds to the colour we DO want in all variations of the xcom and tftd palettes.
 	_redraw = false;
 	clear(Palette::blockOffset(0)+15);
@@ -308,7 +317,7 @@ void Map::draw()
 }
 
 /**
- * Replaces a certain amount of colors in the surface's palette.
+ * Replaces a certain amount of colors in the surface"s palette.
  * @param colors Pointer to the set of colors.
  * @param firstcolor Offset of the first color to replace.
  * @param ncolors Amount of colors to replace.
@@ -584,7 +593,7 @@ void DrawSprite( Surface *Dst, int DstX, int DstY, Surface *Src)
 	{
 		for (x=0; x<SpriteWidth-1; x++)
 		{
-			SourceColor = Src->getPixel(x,y);  
+			SourceColor = Src->getPixel(x,y);
 			if
 			(
 				(SourceColor > 0)
@@ -603,7 +612,7 @@ void DrawLoft( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src)
 	Position Here;
 	Uint8 VoxelColor;
 
-	for (y=0; y<16; y++) 
+	for (y=0; y<16; y++)
 	{
 		for (x=0; x<16; x++)
 		{
@@ -637,8 +646,8 @@ void DrawLoft( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src)
 				default:
 					VoxelColor = 0;
 			}
-			Dst->setPixel( DstX + x, DstY + y, VoxelColor );					
-	
+			Dst->setPixel( DstX + x, DstY + y, VoxelColor );
+
 		}
 	}
 }
@@ -675,8 +684,8 @@ void DrawLoft( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *Src)
 				default:
 					VoxelColor = 0;
 			}
-			Dst->setPixel( DstX + x, DstY + y, VoxelColor );					
-	
+			Dst->setPixel( DstX + x, DstY + y, VoxelColor );
+
 		}
 		*/
 
@@ -704,7 +713,7 @@ void DrawSpriteVoxelFrame( Surface *Dst, int DstX, int DstY, Tile *ParaTile, Sur
 	{
 		for (SpriteX=0; SpriteX < 32; SpriteX++)
 		{
-			SpriteColor = ParaSprite->getPixel( SpriteX, SpriteY ); 
+			SpriteColor = ParaSprite->getPixel( SpriteX, SpriteY );
 
 			if (SpriteColor != 0)
 			{
@@ -754,7 +763,7 @@ void DrawSpriteVoxelFrame( Surface *Dst, int DstX, int DstY, Tile *ParaTile, Sur
 				)
 				{
 					Uint8 NoVoxelColor = (Uint8)(200);
-					Dst->setPixel( DstX + SpriteX, DstY + SpriteY, NoVoxelColor );					
+					Dst->setPixel( DstX + SpriteX, DstY + SpriteY, NoVoxelColor );
 				}
 				*/
 			}
@@ -801,53 +810,53 @@ void DrawVoxelDataInsteadOfSprite( TileEngine *Te, Surface *Dst, int DstX, int D
 				if
 				(
 					(
-						(VoxelX == 0) && (VoxelY == 0) 
+						(VoxelX == 0) && (VoxelY == 0)
 					)
 					||
 					(
-						(VoxelX == 0) && (VoxelY == 15) 
+						(VoxelX == 0) && (VoxelY == 15)
 					)
 					||
 					(
-						(VoxelX == 15) && (VoxelY == 0) 
+						(VoxelX == 15) && (VoxelY == 0)
 					)
 					||
 					(
-						(VoxelX == 15) && (VoxelY == 15) 
-					)
-					||
-
-					(
-						(VoxelZ == 0) && (VoxelY == 0) 
-					)
-					||
-					(
-						(VoxelZ == 0) && (VoxelY == 15) 
-					)
-					||
-					(
-						(VoxelZ == 23) && (VoxelY == 0) 
-					)
-					||
-					(
-						(VoxelZ == 23) && (VoxelY == 15) 
+						(VoxelX == 15) && (VoxelY == 15)
 					)
 					||
 
 					(
-						(VoxelZ == 0) && (VoxelX == 0) 
+						(VoxelZ == 0) && (VoxelY == 0)
 					)
 					||
 					(
-						(VoxelZ == 0) && (VoxelX == 15) 
+						(VoxelZ == 0) && (VoxelY == 15)
 					)
 					||
 					(
-						(VoxelZ == 23) && (VoxelX == 0) 
+						(VoxelZ == 23) && (VoxelY == 0)
 					)
 					||
 					(
-						(VoxelZ == 23) && (VoxelX == 15) 
+						(VoxelZ == 23) && (VoxelY == 15)
+					)
+					||
+
+					(
+						(VoxelZ == 0) && (VoxelX == 0)
+					)
+					||
+					(
+						(VoxelZ == 0) && (VoxelX == 15)
+					)
+					||
+					(
+						(VoxelZ == 23) && (VoxelX == 0)
+					)
+					||
+					(
+						(VoxelZ == 23) && (VoxelX == 15)
 					)
 				)
 				{
@@ -1508,7 +1517,7 @@ void DrawLoftAndSurfaceCombinedFatVoxels( TileEngine *Te, Surface *Dst, int DstX
 			for (VoxelX=15; VoxelX >= 0; VoxelX--)
 //			VoxelX = 0;
 			{
-				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) ); 
+				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) );
 
 
 				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
@@ -1645,7 +1654,7 @@ void DrawTileVoxelMap3D( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile 
 			for (VoxelX=15; VoxelX >= 0; VoxelX--)
 //			VoxelX = 0;
 			{
-//				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) ); 
+//				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) );
 
 
 				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
@@ -1678,7 +1687,7 @@ void DrawTileVoxelMap3D( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile 
 
 					VoxelPresent = Src->VoxelMap._Present[VoxelPosition.z][VoxelPosition.y][VoxelPosition.x];
 					VoxelTraversed = Src->VoxelTraversedMap._Present[VoxelPosition.z][VoxelPosition.y][VoxelPosition.x];
-					
+
 					FinalColor = 0;
 
 
@@ -1733,7 +1742,7 @@ void DrawTileVoxelMap3D( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile 
 //							Computed[vIndex+1] = true;
 						}
 
-						// untested/unverified solution for extra center vertical line sprite/voxel 
+						// untested/unverified solution for extra center vertical line sprite/voxel
 						// if the sprite x equals 16 then copy voxel information from sprite x==15, so subtract -1 from SpriteX
 /*
 						if (SpriteX==15)
@@ -1802,7 +1811,7 @@ void DrawTileVoxelTraversedMap3D( TileEngine *Te, Surface *Dst, int DstX, int Ds
 			for (VoxelX=15; VoxelX >= 0; VoxelX--)
 //			VoxelX = 0;
 			{
-//				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) ); 
+//				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) );
 
 
 				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
@@ -1835,7 +1844,7 @@ void DrawTileVoxelTraversedMap3D( TileEngine *Te, Surface *Dst, int DstX, int Ds
 
 //					VoxelPresent = Src->VoxelMap._Present[VoxelPosition.z][VoxelPosition.y][VoxelPosition.x];
 					VoxelTraversed = Src->VoxelTraversedMap._Present[VoxelPosition.z][VoxelPosition.y][VoxelPosition.x];
-					
+
 					FinalColor = 0;
 
 
@@ -1964,7 +1973,7 @@ void CrazyShitVoxelToSun( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile
 			for (VoxelX=15; VoxelX >= 0; VoxelX--)
 //			VoxelX = 0;
 			{
-//				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) ); 
+//				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) );
 
 
 				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
@@ -1997,15 +2006,15 @@ void CrazyShitVoxelToSun( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile
 
 //					VoxelPresent = Src->VoxelMap._Present[VoxelPosition.z][VoxelPosition.y][VoxelPosition.x];
 					VoxelTraversed = Src->VoxelTraversedMap._Present[VoxelPosition.z][VoxelPosition.y][VoxelPosition.x];
-					
+
 					FinalColor = 0;
 
 
-					// should be false in this crazy method, but then it computes way too many shades maybe even for stuff that isn't there..
+					// should be false in this crazy method, but then it computes way too many shades maybe even for stuff that isn"t there..
 					// so this will have to be done different with a "lit" map or so... per screen pixel.
 
 					// gonna invert it to get some sense of sun shading, everything that should now be in shadow is instead in the light lol.
-					// weird 
+					// weird
 
 					if
 					(
@@ -2029,9 +2038,9 @@ void CrazyShitVoxelToSun( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile
 						)
 */
 						{
-							VoxelWorldPosition.X = VoxelPosition.x + Src->getPosition().x; 
-							VoxelWorldPosition.Y = VoxelPosition.y + Src->getPosition().y; 
-							VoxelWorldPosition.Z = VoxelPosition.z + Src->getPosition().z; 
+							VoxelWorldPosition.X = VoxelPosition.x + Src->getPosition().x;
+							VoxelWorldPosition.Y = VoxelPosition.y + Src->getPosition().y;
+							VoxelWorldPosition.Z = VoxelPosition.z + Src->getPosition().z;
 
 							double DeltaToSunX;
 							double DeltaToSunY;
@@ -2042,9 +2051,9 @@ void CrazyShitVoxelToSun( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile
 
 							int SunShade;
 
-							DeltaToSunX = ParaSun.X - VoxelWorldPosition.X; 
-							DeltaToSunY = ParaSun.Y - VoxelWorldPosition.Y; 
-							DeltaToSunZ = ParaSun.Z - VoxelWorldPosition.Z; 
+							DeltaToSunX = ParaSun.X - VoxelWorldPosition.X;
+							DeltaToSunY = ParaSun.Y - VoxelWorldPosition.Y;
+							DeltaToSunZ = ParaSun.Z - VoxelWorldPosition.Z;
 
 							DistanceToSun = (DeltaToSunX * DeltaToSunX);
 							DistanceToSun += (DeltaToSunY * DeltaToSunY);
@@ -2096,7 +2105,7 @@ void CrazyShitVoxelToSun( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile
 //						ColorStart = ColorStart * 16;
 
 						ColorStart = ColorStart & 240;
-							
+
 						FinalColor = ColorStart + 2; // plus little bit of light, could use darkness setting or whatever.
 					}
 */
@@ -2199,7 +2208,7 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 
 	VoxelRay vVoxelRay;
 
-	// let's first "try" straight from sun to screen voxel, if it looks bad because of missing pixels
+	// let"s first "try" straight from sun to screen voxel, if it looks bad because of missing pixels
 	// then invert it later.
 	vVoxelRay.SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
 	vVoxelRay.SetupTileDimensions( 16, 16, 24 );
@@ -2213,7 +2222,7 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 			for (VoxelX=15; VoxelX >= 0; VoxelX--)
 //			VoxelX = 0;
 			{
-//				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) ); 
+//				CrazyDistance = sqrt( ((VoxelX-7) * (VoxelX-7)) + ((VoxelY-7) * (VoxelY-7)) + ((VoxelZ-12) * (VoxelZ-12)) );
 
 
 				SpriteX = (SpriteStartX + VoxelX) - VoxelY;
@@ -2242,7 +2251,7 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 				{
 					VoxelPresent = Src->VoxelMap._Present[VoxelZ][VoxelY][VoxelX];
 //					VoxelTraversed = Src->VoxelTraversedMap._Present[VoxelPosition.z][VoxelPosition.y][VoxelPosition.x];
-					
+
 					FinalColor = 0;
 
 					if
@@ -2258,7 +2267,7 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 						vMapVoxelPosition.Z = (TileZ * 24) + VoxelZ;
 
 						vVoxelRay.Setup( vSunPosition, vMapVoxelPosition, 16, 16, 24 );  // tile width, height, depth
-									
+
 						// sloppy fix, use HasTileBegin above later
 						if (!vVoxelRay.IsTileTraverseDone())
 						{
@@ -2273,7 +2282,7 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 					//			if (!tile) continue;
 		//						tile->setTraversed( true );
 
-								// if tile is not full of air then start voxel traversal 
+								// if tile is not full of air then start voxel traversal
 								if (!TileCollision->isVoid())
 								{
 									vVoxelRay.SetupVoxelTraversal( vSunPosition, vMapVoxelPosition, TileCollisionX, TileCollisionY, TileCollisionZ );
@@ -2297,7 +2306,7 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 	//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
 
 											// disable for now, to see the light traversal in action
-										
+
 
 						//					VoxelTraverseX = VoxelTraverseX - (TileTraverseX * 16);
 						//					VoxelTraverseY = VoxelTraverseY - (TileTraverseY * 16);
@@ -2339,7 +2348,7 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 												);
 
 
-												// don't need it's already in the voxel.
+												// don"t need it"s already in the voxel.
 												// vPixelZ := mDepthMap[vPixelX,vPixelY];
 
 												// angle between surface normal/roof tops and light source.
@@ -2364,13 +2373,13 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 												double vExposure =
 												(
 													(
-														(M_PI  - vAngle) / M_PI 
+														(M_PI  - vAngle) / M_PI
 													) * vLightPower
 												) / vDistanceToLightSquared;
 
 												// calculate pixel/surface color using exposure value
 
-												// clamp exposure value for safety, maybe not necessary but maybe it is don't know yet
+												// clamp exposure value for safety, maybe not necessary but maybe it is don"t know yet
 												// do it anyway for safety, cause original code does it as well
 												// and later if we add more lights it can definetly overflow, so CLAMP IT ! >=D
 
@@ -2385,7 +2394,7 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 
 		//												vColor =
 
-												// OH OH, we don't have a red, green and blue channel !
+												// OH OH, we don"t have a red, green and blue channel !
 												// but what we do have is a SHADE level capability...
 												// so use that ! problem nicely solved...
 												// use some "and" code and such to set surface color to minimum
@@ -2404,15 +2413,15 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 
 
 												// to lazy to write shade code now...
-												// but it's something like color % 15 and such... 
+												// but it"s something like color % 15 and such...
 												// FinalColor = ComputeShade( vSurfaceColor, vExposure );
 												FinalColor = 16 + (TileZ * 16) + (vExposure * 16);
 
-								 
+
 												// cap color if absolutely necessary but probably not necessary
 												// as long as it stayed in range of 0..15 when adding to color
 												// however color could be anything so maybe good to cap it
-												// to it's shade/color palette entry/range and such.... hmmm
+												// to it"s shade/color palette entry/range and such.... hmmm
 												// must know first in what palette range it lies...
 
 				//								if vRed > 255 then vRed := 255;
@@ -2433,7 +2442,7 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 				//								mPixelMap[vPixelX,vPixelY] := vPixel;
 
 
-					
+
 
 //												tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
 */
@@ -2442,7 +2451,7 @@ void DrawTileVoxelMap3DLightCasting( SavedBattleGame *ParaSave, TileEngine *Te, 
 												{
 													TileCollision->VoxelTraversedMap._Present[VoxelCollisionZ][VoxelCollisionY][VoxelCollisionX] = true;
 
-												}			
+												}
 												// !!! BREAK OUT OF VOXEL LOOP, SET SOMETHING TO DONE/TRUE ! ;)
 												vVoxelRay.VoxelTD.TraverseDone = true;
 												vVoxelRay.TileTD.TraverseDone = true;
@@ -2575,11 +2584,11 @@ bool NoShitLineSegmentIntersectsBoxSingle
 	float BoxX1, float BoxY1, float BoxZ1,
 	float BoxX2, float BoxY2, float BoxZ2,
 
-	// nearest to line origin, doesn't necessarily mean closes to box...
+	// nearest to line origin, doesn"t necessarily mean closes to box...
 	bool *MinIntersectionPoint,
 	float *MinIntersectionPointX, float *MinIntersectionPointY, float *MinIntersectionPointZ,
 
-	// farthest to line origin, doesn't necessarily mean farthest from box...
+	// farthest to line origin, doesn"t necessarily mean farthest from box...
 	bool *MaxIntersectionPoint,
 	float *MaxIntersectionPointX, float *MaxIntersectionPointY, float *MaxIntersectionPointZ
 )
@@ -2632,7 +2641,7 @@ bool NoShitLineSegmentIntersectsBoxSingle
 		LineDistanceToBoxX2 = (BoxX2 - LineX1);
 	}
 
-	// now we take the minimum's and maximum's
+	// now we take the minimum"s and maximum"s
 	if (LineDistanceToBoxX1 < LineDistanceToBoxX2)
 	{
 		LineMinDistanceToBoxX = LineDistanceToBoxX1;
@@ -2689,7 +2698,7 @@ bool NoShitLineSegmentIntersectsBoxSingle
 	// so we clipping the line to the box.
 	// this means we are interested in the most minimum minimum
 	// and the most maximum, maximum.
-	// these min's and max's represent the outer intersections.
+	// these min"s and max"s represent the outer intersections.
 	// if for whatever reason the minimum is larger than the maximum
 	// then the line misses the box ! ;)
 	// nooooooooooooooooooooooooooooooooo
@@ -2769,7 +2778,7 @@ int TraverseSecondHit
 (
 	SavedBattleGame *ParaSave,
 	TileEngine *Te,
-	Tile *Src, 
+	Tile *Src,
 	float StartX, float StartY, float StartZ,
 	float StopX, float StopY, float StopZ
 )
@@ -2938,13 +2947,13 @@ int TraverseSecondHit
 			{
 				// just fall through below
 				// traverse
-				x1 = TraverseX1; 
+				x1 = TraverseX1;
 				y1 = TraverseY1;
-				z1 = TraverseZ1; 
+				z1 = TraverseZ1;
 
-				x2 = TraverseX2; 
+				x2 = TraverseX2;
 				y2 = TraverseY2;
-				z2 = TraverseZ2; 
+				z2 = TraverseZ2;
 			}
 		}
 	}
@@ -3202,13 +3211,13 @@ bool VoxelTraverseHit
 			{
 				// just fall through below
 				// traverse
-				x1 = TraverseX1; 
+				x1 = TraverseX1;
 				y1 = TraverseY1;
-				z1 = TraverseZ1; 
+				z1 = TraverseZ1;
 
-				x2 = TraverseX2; 
+				x2 = TraverseX2;
 				y2 = TraverseY2;
-				z2 = TraverseZ2; 
+				z2 = TraverseZ2;
 			}
 		}
 	}
@@ -3448,13 +3457,13 @@ bool TileTraverseCollision
 			{
 				// just fall through below
 				// traverse
-				x1 = TraverseX1; 
+				x1 = TraverseX1;
 				y1 = TraverseY1;
-				z1 = TraverseZ1; 
+				z1 = TraverseZ1;
 
-				x2 = TraverseX2; 
+				x2 = TraverseX2;
 				y2 = TraverseY2;
-				z2 = TraverseZ2; 
+				z2 = TraverseZ2;
 			}
 		}
 	}
@@ -3692,7 +3701,7 @@ void LightCasting( SavedBattleGame *ParaSave, TileEngine *Te, Surface *Dst, int 
 						MapVoxelX, MapVoxelY, MapVoxelZ,
 						CollisionTileX, CollisionTileY, CollisionTileZ,
 						&CollisionVoxelX,&CollisionVoxelY,&CollisionVoxelZ
-					);	
+					);
 
 					if (VoxelHit)
 					{
@@ -3749,7 +3758,7 @@ void FullRetardModeOn( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *S
 		{
 			// shoot ray into voxel cube ???? yes...
 
-			VoxelY = VoxelY 
+			VoxelY = VoxelY
 
 
 		}
@@ -3765,7 +3774,7 @@ void FullRetardModeOn( TileEngine *Te, Surface *Dst, int DstX, int DstY, Tile *S
 
 /**
  * Draw the terrain.
- * Keep this function as optimised as possible. It's big to minimise overhead of function calls.
+ * Keep this function as optimised as possible. It"s big to minimise overhead of function calls.
  * @param surface The surface to draw on.
  */
 void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
@@ -3808,7 +3817,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 
 	surface->lock();
 
-	EatShitAndDie++; // HAHAHAHAHA this still in there... hahaha cool, it's for ufo disco ! LOL. or shading experiment/whatever/animation frame number, cause you shits wrap it back to zero and I dont know how to deal with that or I dont want to deal with that, wrap it back at int64 and then maybe let users do custom wrapping back at animation frame 8 or something... just an idea so it can be used for others things too ok... where animation has to be more consistent/fluent time was... order wise... no wrapping back ! unless absolutely necessarya nd when you do wrap back make sure it was on a 8 frame boundary or so hehe.. cool idea bye.. this is probably the longest comment I ever wrote... now I am becoming curious if visual studio or the compiler will crash because of a line overflow... PIEEEEEE BYE maybe some synthax high lighter haha in another tool. KABOOOEEM ENJOY ! =D
+	EatShitAndDie++; // HAHAHAHAHA this still in there... hahaha cool, it"s for ufo disco ! LOL. or shading experiment/whatever/animation frame number, cause you shits wrap it back to zero and I dont know how to deal with that or I dont want to deal with that, wrap it back at int64 and then maybe let users do custom wrapping back at animation frame 8 or something... just an idea so it can be used for others things too ok... where animation has to be more consistent/fluent time was... order wise... no wrapping back ! unless absolutely necessarya nd when you do wrap back make sure it was on a 8 frame boundary or so hehe.. cool idea bye.. this is probably the longest comment I ever wrote... now I am becoming curious if visual studio or the compiler will crash because of a line overflow... PIEEEEEE BYE maybe some synthax high lighter haha in another tool. KABOOOEEM ENJOY ! =D
 
 
 
@@ -3852,7 +3861,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 					tile = _save->getTile(mapPosition);
 					if (!tile) continue;
 					tile->setTraversed( false );
-				
+
 					for (int vZ=0; vZ < 23; vZ++)
 					{
 						for (int vY=0; vY < 16; vY++)
@@ -3890,14 +3899,14 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 
 	// set voxel position stop to minimum x,y,z of the map which is probably 0,0,0
 	// position center of tile 0,0,0
-	vVoxelPositionStop.X = 0; 
+	vVoxelPositionStop.X = 0;
 	vVoxelPositionStop.Y = 0;
 	vVoxelPositionStop.Z = 0;
 
 /*
 	// Skybuck:
-	// safe code in case traverse code can't handle when start/stop is right on first or last voxel
-	// but traverse code in voxelray.h can handle it right now ! So don't worry/no worries ! ;) =D
+	// safe code in case traverse code can"t handle when start/stop is right on first or last voxel
+	// but traverse code in voxelray.h can handle it right now ! So don"t worry/no worries ! ;) =D
 	// set voxel position start to maximum x,y,z of the map
 	// position center of last tile
 	vVoxelPositionStart.X = (_save->getMapSizeX() * 16) - (16/2);
@@ -3906,7 +3915,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 
 	// set voxel position stop to minimum x,y,z of the map which is probably 0,0,0
 	// position center of tile 0,0,0
-	vVoxelPositionStop.X = 16/2; 
+	vVoxelPositionStop.X = 16/2;
 	vVoxelPositionStop.Y = 16/2;
 	vVoxelPositionStop.Z = 24/2;
 */
@@ -3923,7 +3932,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 	(
 		Position(vVoxelPositionStart.X,vVoxelPositionStart.Y,vVoxelPositionStart.Z),
 		Position(vVoxelPositionStop.X,vVoxelPositionStop.Y,vVoxelPositionStop.Z),
-		false, 0, 0, false, false, 0 
+		false, 0, 0, false, false, 0
 	);
 */
 
@@ -3958,7 +3967,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 			do
 			{
 
-			
+
 				vVoxelRay.GoToNextVoxel();
 
 	//			} while (!vVoxelRay.IsVoxelForwardStop())
@@ -3996,7 +4005,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 				)
 			)
 	}
-	
+
 
 
 
@@ -4133,7 +4142,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 	// *******************************************************************************************
 	// END OF VOXELRAY TRAVERSAL CODE EXAMPLE, HOWEVER BELOW IS ALSO SOME RENDERING ASSISTANCE...
 	// IT USES a boolean per tile and getTraversed to known if a tile was traversed or not ! ;)
-	// make sure to enable "z levels with game user interface to see the rest 
+	// make sure to enable "z levels with game user interface to see the rest
 	// *******************************************************************************************
 
 	for (int itZ = beginZ; itZ <= endZ; itZ = itZ + 1)
@@ -4283,9 +4292,9 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 								// update sprite voxel frame after voxelmap is updated with debugged voxel positions and what not
 								tile->UpdateSpriteVoxelFrame( _save->getTileEngine() );
 
-								// tile part doesn't really matter much except for animation frame,
+								// tile part doesn"t really matter much except for animation frame,
 								// all tile parts are merged together in a single voxel frame
-								// they are seperated per animation though, each animation frame has it's own sprite voxel frame
+								// they are seperated per animation though, each animation frame has it"s own sprite voxel frame
 								DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
 
 		//						DrawVoxelMap( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
@@ -4306,9 +4315,10 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 					}
 
 					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-					// !!! SKYBUCK: MAKE SURE IT'S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
+					// !!! SKYBUCK: MAKE SURE IT"S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
 					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
+
 
 					unit = tile->getUnit();
 					// Draw soldier from this tile or below
@@ -4345,7 +4355,7 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 					// *** END OF DEBUG CODE FOR VOXEL RAY TRAVERSAL PART 2 OF 2***
 					// ************************************************************
 
-					// debug code, draw a tile's voxelmap to the screen's surface.
+					// debug code, draw a tile"s voxelmap to the screen"s surface.
 //					tile->VoxelMap._Present[12][8][8] = true;
 //					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
 				}
@@ -4517,24 +4527,24 @@ void Map::drawTerrainHeavyModifiedBySkybuck(Surface *surface)
 					}
 */
 
-//					DrawVoxelDataInsteadOfSprite( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );  
-//					DrawLoftInsteadOfSprite( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );  
+//					DrawVoxelDataInsteadOfSprite( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );
+//					DrawLoftInsteadOfSprite( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );
 
 
-//					DrawCombinedSurfaceAndLoft( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );  
+//					DrawCombinedSurfaceAndLoft( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );
 
-//					DrawLoftInsteadOfSpriteFatVoxels( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile ); 
+//					DrawLoftInsteadOfSpriteFatVoxels( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );
 //					DrawLoftAndSurfaceCombinedFatVoxels( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );
 //					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile );
 
 					// draws a pre-computed sprite voxel frame
 
-					// tile part doesn't really matter much except for animation frame,
+					// tile part doesn"t really matter much except for animation frame,
 					// all tile parts are merged together in a single voxel frame
-					// they are seperated per animation though, each animation frame has it's own sprite voxel frame
+					// they are seperated per animation though, each animation frame has it"s own sprite voxel frame
 //					DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, O_FLOOR );
 
-//					LightCasting( _save, _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, mapPosition );  
+//					LightCasting( _save, _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, mapPosition );
 
 //				}
 			}
@@ -4569,7 +4579,7 @@ void Map::ClearVoxelTraversedMap()
 				Tile *tile = _save->getTile(mapPosition);
 				if (!tile) continue;
 				// tile->setTraversed( false );
-				
+
 				tile->ClearVoxelTraversedMap();
 			}
 		}
@@ -4604,7 +4614,7 @@ Uint8 Map::ComputeShade( Uint8 ParaColorIn, double ParaExposure )
 
 	Uint8 vFinalColor = vBaseColor + vShade;
 
-	// implementation 1 aborted for now, implementation 2 is more clear and easier to do/implement for now. 
+	// implementation 1 aborted for now, implementation 2 is more clear and easier to do/implement for now.
 /*
 
 	// for implementation 1 maybe something like this could be used:
@@ -4640,7 +4650,7 @@ Uint8 Map::ComputeShade( Uint8 ParaColorIn, double ParaExposure )
 
 	// IMPLEMENTATION 2, BUILD ON TOP OF EXISTING SHADE/COLOR
 
-	// compute the base color by keeping the upper 4 bits, thus "and 240", this creates an offset into a palette start, each palette at palette number * 16 
+	// compute the base color by keeping the upper 4 bits, thus "and 240", this creates an offset into a palette start, each palette at palette number * 16
 	Uint8 vBaseColor = ParaColorIn & 240;
 
 	// now compute the existing color, take the lower 4 bits, thus "and 15"
@@ -4661,7 +4671,7 @@ Uint8 Map::ComputeShade( Uint8 ParaColorIn, double ParaExposure )
 	// now compute the final shade color
 	double vShadeColor = vAmbientColor + vExposureColor;
 
-	// and maybe cap it to 15, but for now let it be, but I write the code anyway, in case it's needed later to combat over exposure
+	// and maybe cap it to 15, but for now let it be, but I write the code anyway, in case it"s needed later to combat over exposure
 	// but this should be done elsewhere, make sure exposure is not beyond 1.0. I think that is already done elsewhere
 	// though maybe these floating point calculation might overflow...
 	// 0.25 = 1/4  and 0.75 = 3/4   maybe some kind of shifting could also be done, but the exposure is in fractionals... so not really
@@ -4676,10 +4686,363 @@ Uint8 Map::ComputeShade( Uint8 ParaColorIn, double ParaExposure )
 
 int IfThisCaravanIsRockingThenDontComeKnocking = 0;
 
+
+std::ofstream OutputStreamPBRT;
+
+void AddString( std::string ParaString )
+{
+        OutputStreamPBRT << ParaString << std::endl;
+}
+
+void AddHeader()
+{
+		AddString( "# eye                                                            " );
+		AddString( "# look at point                                                  " );
+		AddString( "LookAt    ");
+		AddString( "    0 25 0                                                   " );
+		AddString( "    0 0 0                                                    " );
+		AddString( "    0 0 1                                                        " );
+		AddString( "# up vector                                                      " );
+		AddString( "Camera \"perspective\"                                             " );
+		AddString( "    \"float fov\" [ 45 ]                                           " );
+		AddString( "Sampler \"halton\"                                                 " );
+		AddString( "    \"integer pixelsamples\" [ 1 ]                                 " );
+		AddString( "Integrator \"path\"                                                " );
+		AddString( "    \"integer maxdepth\" [ 1 ]                                     " );
+		AddString( "Film \"rgb\"                                                       " );
+		AddString( "    \"integer xresolution\" [ 320 ]                                " );
+		AddString( "    \"integer yresolution\" [ 200 ]                                " );
+		AddString( "    \"string filename\" [ \"output.png\" ]                           " );
+		AddString( "                                                                 " );
+		AddString( "                                                                 " );
+		AddString( "WorldBegin                                                       " );
+//		AddString( "                                                                 " );
+//		AddString( "Include \"OpenXcomMaterials.pbrt\"                                 " );
+		AddString( "                                                                 " );
+		AddString( "# uniform blue-ish illumination from all directions              " );
+		AddString( "# approximate the sun                                            " );
+		AddString( "LightSource \"infinite\"                                           " );
+		AddString( "    \"rgb L\" [ .4 0.45 0.5 ]                                      " );
+		AddString( "LightSource \"distant\"                                            " );
+		AddString( "    \"float scale\" [1.5]                                          " );
+		AddString( "    \"blackbody L\" [ 3000 ]                                       " );
+		AddString( "    \"point3 from\" [ -30 40 100 ]                                 " );
+		AddString( "                                                                 " );
+		AddString( "Rotate 35.264 1.0 0.0 0.0 "); 
+		AddString( "Rotate -45.0  0.0 1.0 0.0 ");
+}
+
+/*
+
+
+void AddVoxel
+(
+	int ParaTileX, int ParaTileY, int ParaTileZ,
+	int ParaVoxelX, int ParaVoxelY, int ParaVoxelZ,
+	std::string ParaMaterial
+)
+{
+	int VoxelCoordinateX, VoxelCoordinateY, VoxelCoordinateZ;
+
+	// compute voxel coordinate
+	VoxelCoordinateX = (ParaTileX * 16) + ParaVoxelX;
+	VoxelCoordinateY = (ParaTileY * 16) + ParaVoxelY;
+	VoxelCoordinateZ = (ParaTileZ * 24) + ParaVoxelZ;
+
+	// use a sphere for a voxel for now
+	AddString("Attribute{");
+	AddString("    NamedMaterial """ + ParaMaterial + """" );
+//	AddString("Transform{");
+	AddString("    Translate " + std::to_string(VoxelCoordinateX) + " " + std::to_string(VoxelCoordinateY) + " " + std::to_string(VoxelCoordinateZ) );
+	AddString("    Shape ""sphere""");
+	AddString("        ""float radius"" [ 1 ]");
+//	AddString("TransformEnd");
+	AddString("AttributeEnd");
+}
+
+int m_unknown = 0;
+int m_empty = 1;
+int m_grass = 2;
+int m_metal = 3;
+int m_wood = 4;
+int m_concrete = 5;
+
+    std::string VoxelMaterialName[6] =
+	{
+		"unknown",
+		"empty",
+		"grass",
+		"metal",
+		"wood",
+		"concrete"
+	};
+
+
+
+void AddTile( int ParaTileX, int ParaTileY, int ParaTileZ, Tile *ParaTile, std::string ParaMaterial )
+{
+	int VoxelX, VoxelY, VoxelZ;
+
+	for (VoxelZ = 0; VoxelZ < 24; VoxelZ++)
+	{
+		for (VoxelY = 0; VoxelY < 16; VoxelY++)
+		{
+			for (VoxelX = 0; VoxelX < 16; VoxelX++)
+			{
+				if (ParaTile->VoxelMap[VoxelZ,VoxelY,VoxelX]._Present == true)
+				{
+					AddString(" Voxel( Z: " + std::to_string(VoxelZ) + " Y: " + std::to_string(VoxelY) + " X: " + std::to_string(VoxelX) + ")"  );
+
+					AddVoxel
+					(
+						ParaTileX, ParaTileY, ParaTileZ,
+						VoxelX, VoxelY, VoxelZ,
+						ParaMaterial
+					);
+				}
+			}
+		}
+	}
+}
+
+/*
+void AddMap( const ParaMap : TMap );
+var
+	TileX, TileY, TileZ : integer;
+{
+	AddString("# Map Size ( Z: " + IntToStr(ParaMap.mSizeZ) + " Y: " + IntToStr(ParaMap.mSizeY) + " X: " + IntToStr(ParaMap.mSizeX) + ")"  );
+	for TileZ := 0 to RandomMap.mSizeZ-1 do
+	{
+		for TileY := 0 to RandomMap.mSizeY-1 do
+		{
+			for TileX := 0 to RandomMap.mSizeX-1 do
+			{
+				AddString("# Tile( Z: " + std::to_string(TileZ) + " Y: " + std::to_string(TileY) + " X: " + std::to_string(TileX) + ")"  );
+				AddTile( TileX, TileY, TileZ, ParaMap.mTile[TileZ,TileY,TileX] );
+			}
+		}
+	}
+}
+*/
+
+struct TPaletteRGB
+{
+	Uint8 mRed;
+	Uint8 mGreen;
+	Uint8 mBlue;
+};
+
+TPaletteRGB PBRT_Palette[256];
+
+
+void PBRT_LoadPaletteRGB()
+{
+	Uint8 vRed;
+	Uint8 vGreen;
+	Uint8 vBlue;
+	int vIndex;
+
+	std::fstream PaletteStream;
+	PaletteStream.open("E:\\SourceCode\\OpenXCom\\ExportToPBRT\\PBRTv4Scenes\\BattlescapePalette.pal", std::ios::in);
+
+	for (vIndex = 0; vIndex < 255; vIndex++)
+	{
+		PaletteStream >> vRed;
+		PaletteStream >> vGreen;
+		PaletteStream >> vBlue;
+
+		PBRT_Palette[vIndex].mRed = vRed;
+		PBRT_Palette[vIndex].mGreen = vGreen;
+		PBRT_Palette[vIndex].mBlue = vBlue;
+	}
+
+	PaletteStream.close();
+}
+
+/*
+void PBRT_LoadPalette( SDL_Color *ParaSDLPalette )
+{
+	Uint8 vRed;
+	Uint8 vGreen;
+	Uint8 vBlue;
+	int vIndex;
+
+	for (vIndex = 0; vIndex < 255; vIndex++)
+	{
+		PBRT_Palette[vIndex].mRed = ParaSDLPalette[vIndex].r;
+		PBRT_Palette[vIndex].mGreen = ParaSDLPalette[vIndex].g;
+		PBRT_Palette[vIndex].mBlue = ParaSDLPalette[vIndex].b;
+	}
+}
+*/
+
+TPaletteRGB PBRTExport_LookUpPaletteIndex( int ParaPaletteIndex )
+{
+	// could do some interpolation later maybe even extrapolation much later.
+	return PBRT_Palette[ ParaPaletteIndex ];
+}
+
+void PBRTExport_Voxel( int ParaWorldVoxelX, int ParaWorldVoxelY, int ParaWorldVoxelZ, int ParaPaletteIndex )
+{
+	TPaletteRGB VoxelColor;
+
+	VoxelColor = PBRTExport_LookUpPaletteIndex( ParaPaletteIndex );
+
+
+	AddString( "AttributeBegin 								 ");
+	AddString( "Translate " + std::to_string(ParaWorldVoxelX) + " " + std::to_string(ParaWorldVoxelY) + " "  + std::to_string(ParaWorldVoxelZ) );
+	AddString( "	Material \"coateddiffuse\"				 ");
+//	AddString( "		\"rgb reflectance\" [ 1.0 1.0 1.0 ]	 ");
+	AddString( "		\"rgb reflectance\" [ " + std::to_string(VoxelColor.mRed/255.0) + " " +  std::to_string(VoxelColor.mGreen/255.0) + " " + std::to_string(VoxelColor.mBlue/255.0) + "]	 ");
+	AddString( "		\"float roughness\" [ 0.5]			 ");
+	AddString( "		Shape \"sphere\"					 ");
+	AddString( "			\"float radius\" [ 1 ]			 ");
+	AddString( "AttributeEnd							     ");
+}
+
+
+void ComputeSpriteCoordinate( int ParaVoxelX, int ParaVoxelY, int ParaVoxelZ, int *ParaSpriteX, int *ParaSpriteY )
+{
+	int SpriteStartX, SpriteStartY;
+	int Component;
+//	float Component;
+	int SpriteX, SpriteY;
+
+	// setup sprite start x, sprite start y
+	SpriteStartX = 15; // tile width
+	SpriteStartY = 24; // tile depth
+
+	// calculate sprite x position based on voxel position (x,y,z)
+	*ParaSpriteX = (SpriteStartX + ParaVoxelX) - ParaVoxelY;
+
+	Component = ParaVoxelX + ParaVoxelY;
+	Component = Component >> 1; // should this be a float ? is this causing imprecise graphics ? probably not maybe check it later
+//				Component = Component / 2.0;
+
+	*ParaSpriteY = (SpriteStartY + Component) - ParaVoxelZ;
+}
+
+void PBRTExport_Tile( Tile *ParaTile, Surface *ParaSprite )
+{
+
+	// algorithm for exporting the voxel map of a tile
+
+	// all present voxels must be exported so that light can bounce of of it, even though the color of the voxel might not be known
+	// at least it will block it, perhaps use some kind of default material, or maybe even some kind of material that obsorbs all light
+	// to avoid wrong color bleeding or maybe just a white material to maybe re-reflect light from material that does have a color and
+	// that is reflecting some king of light color.
+
+
+	SpriteVoxelFrameComputed Computed;
+//	TileVoxelMap3D VoxelMap;
+
+	int SpriteX, SpriteY;
+
+	int TileX, TileY, TileZ;
+	int VoxelX, VoxelY, VoxelZ;
+
+	int WorldVoxelX, WorldVoxelY, WorldVoxelZ;
+
+	bool VoxelPresent;
+
+	Uint8 SpritePixelColor;
+
+	// reset sprite voxel frame computed
+	for ( SpriteY = 0; SpriteY < 40; SpriteY++ )
+	{
+		for (SpriteX = 0; SpriteX < 32; SpriteX++)
+		{
+			Computed._Computed[SpriteY][SpriteX] = false;
+		}
+	}
+
+	TileX = ParaTile->getPosition().x;
+	TileY = ParaTile->getPosition().y;
+	TileZ = ParaTile->getPosition().z;
+
+	// walk over all voxels of the tile object
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+			{
+				VoxelPresent = ParaTile->VoxelMap._Present[VoxelZ][VoxelY][VoxelX];
+
+				if (VoxelPresent == true)
+				{
+					ComputeSpriteCoordinate( VoxelX, VoxelY, VoxelZ, &SpriteX, &SpriteY );
+					
+					// compute world voxel coordinate
+					WorldVoxelX = (TileX * 16) + VoxelX;
+					WorldVoxelY = (TileY * 16) + VoxelY;
+					WorldVoxelZ = (TileZ * 24) + VoxelZ;
+
+					// acquire sprite color
+					SpritePixelColor = ParaSprite->getPixel( SpriteX, SpriteY );
+
+					// if the sprite color is not transparent then we can either colorize the voxel or set some kind of voxel material, maybe
+					// matching what kind of tile or what kind of sprite this is, maybe a barn or a ufo part or some light casting part.
+					if (SpritePixelColor != 0)
+					{
+						// we could only do it once, to be "on top" of the voxel grid, or we can let it bleed through to other voxels
+						// so there is some more color/material there... for now I will try this later/second and see how it looks
+						// but it could also be funny to just leave it on top, I will do this first, the on top.
+											// if the matching sprite pixel coordinate was not yet computed
+						if (!Computed._Computed[SpriteY][SpriteX])
+						{
+							// lookup voxel material/color for the sprite color/palette index
+//							WorldVoxelColor = VoxelMaterialLookUp( SpritePixelColor );
+
+							// lay the sprite texture on top of the voxel
+							PBRTExport_Voxel( WorldVoxelX, WorldVoxelY, WorldVoxelZ, SpritePixelColor );
+
+							Computed._Computed[SpriteY][SpriteX] = true;
+
+						} else
+						{
+							// use standard material
+//							WorldVoxelColor = StandardVoxelMaterial;
+//							PBRTExport_AddVoxel( WorldVoxelX, WorldVoxelY, WorldVoxelZ, WorldVoxelColor );
+							PBRTExport_Voxel( WorldVoxelX, WorldVoxelY, WorldVoxelZ, 15 );
+						}
+					} else
+					{
+						// there is a voxel present give it standard material
+						// use standard material
+//						WorldVoxelColor = StandardVoxelMaterial;
+//						PBRTExport_AddVoxel( WorldVoxelX, WorldVoxelY, WorldVoxelZ, WorldVoxelColor );
+						PBRTExport_Voxel( WorldVoxelX, WorldVoxelY, WorldVoxelZ, 15 );
+					}
+				}
+			}
+		}
+	}
+}
+
+
+void PBRTExport_OpenFile()
+{
+	std::string vFilename = "E:\\SourceCode\\OpenXCom\\ExportToPBRT\\PBRTv4Scenes\\OpenXcomFrame" + std::to_string(EatShitAndDie) + ".pbrt";
+
+	OutputStreamPBRT = std::ofstream( vFilename.c_str() );
+}
+
+void PBRTExport_Header()
+{
+	AddHeader();
+}
+
+void PBRTExport_CloseFile()
+{
+  	OutputStreamPBRT.close();
+}
+
+
 // slighty modified draw terrain to include "draw sprite voxel frame"
 /**
  * Draw the terrain.
- * Keep this function as optimised as possible. It's big to minimise overhead of function calls.
+ * Keep this function as optimised as possible. It"s big to minimise overhead of function calls.
  * @param surface The surface to draw on.
  */
 void Map::drawTerrain(Surface *surface)
@@ -4826,6 +5189,20 @@ void Map::drawTerrain(Surface *surface)
 
 	EatShitAndDie++; // for animation purposes.
 
+//	PBRT_LoadPaletteRGB( surface->getPalette );
+//	PBRT_LoadPalette( surface->getPalette() );
+
+
+	if (_save->IsPBRTExportOn())
+	{
+
+		PBRT_LoadPaletteRGB();
+
+		PBRTExport_OpenFile();
+
+		PBRTExport_Header();
+	}
+
 	_screenVoxelFrame->Clear();
 
 	for (int itZ = beginZ; itZ <= endZ; itZ++)
@@ -4883,6 +5260,10 @@ void Map::drawTerrain(Surface *surface)
 						_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(),  tile, tmpSurface );
 //						_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile, tmpSurface );
 
+						if (_save->IsPBRTExportOn())
+						{
+							PBRTExport_Tile( tile, tmpSurface );
+						}
 					}
 					unit = tile->getUnit();
 
@@ -4951,6 +5332,10 @@ void Map::drawTerrain(Surface *surface)
 							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(),  tile, tmpSurface );
 //							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile, tmpSurface );
 
+							if (_save->IsPBRTExportOn())
+							{
+								PBRTExport_Tile( tile, tmpSurface );
+							}
 
 						}
 						// Draw north wall
@@ -4971,6 +5356,11 @@ void Map::drawTerrain(Surface *surface)
 							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(),  tile, tmpSurface );
 //							_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile, tmpSurface );
 
+							if (_save->IsPBRTExportOn())
+							{
+								PBRTExport_Tile( tile, tmpSurface );
+							}
+					
 						}
 
 						// Draw object
@@ -4988,15 +5378,21 @@ void Map::drawTerrain(Surface *surface)
 								_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(),  tile, tmpSurface );
 //								_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile, tmpSurface );
 
+								if (_save->IsPBRTExportOn())
+								{
+									PBRTExport_Tile( tile, tmpSurface );
+								}
 							}
+
+
 						}
 
 
 						// draws a pre-computed sprite voxel frame
 
-						// tile part doesn't really matter much except for animation frame,
+						// tile part doesn"t really matter much except for animation frame,
 						// all tile parts are merged together in a single voxel frame
-						// they are seperated per animation though, each animation frame has it's own sprite voxel frame
+						// they are seperated per animation though, each animation frame has it"s own sprite voxel frame
 //						DrawSpriteVoxelFrame( surface, screenPosition.x, screenPosition.y, tile, tmpSurface );
 //						_screenVoxelFrame->CollectSpriteVoxelFrame( screenPosition.x, screenPosition.y,  tile );
 
@@ -5011,9 +5407,11 @@ void Map::drawTerrain(Surface *surface)
 					}
 
 					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-					// !!! SKYBUCK: MAKE SURE IT'S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
+					// !!! SKYBUCK: MAKE SURE IT"S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
 					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
+
+
 
 					if
 					(
@@ -5263,7 +5661,7 @@ void Map::drawTerrain(Surface *surface)
 								default:
 									break;
 								}
-								// at this point, let's assume the shot is adjusted and set the text amber.
+								// at this point, let"s assume the shot is adjusted and set the text amber.
 								_txtAccuracy->setColor(Palette::blockOffset(Pathfinding::yellow - 1)-1);
 
 								if (distance > upperLimit)
@@ -5368,10 +5766,10 @@ void Map::drawTerrain(Surface *surface)
 	{
 		for (int ScreenPixelX = 0; ScreenPixelX < _screenVoxelFrame->mWidth; ScreenPixelX++)
 		{
-			
+
 			int vVoxelPositionZ = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Z;
-			int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y; 
-			int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X; 
+			int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y;
+			int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X;
 
 
 			if
@@ -5413,9 +5811,11 @@ void Map::drawTerrain(Surface *surface)
 	// DEBUG IDEA, STUFF THE SCREEN VOXEL FRAME VOXEL POSITIONS INTO THE 3D VOXEL MAP OF TILES AND RENDER THEM WITH
 	// THAT CODE FAR DOWN BELOW, WHICH SEEMS TO BE OK, THIS SHOULD SHED/SHINE SOME LIGHT HEHE ON WHAT THESE VOXEL
 	// POSITIONS ACTUALLY ARE.
-	if (true==true) // disabled
+
+	// LEFT OF HERE, DISABLED FOR NOW, FOR PBRTEXPORT
+	if (true==false) // disabled
 	{
-	
+
 		if (true==false) // disabled
 		{
 			// clear traversal already implemented
@@ -5425,7 +5825,7 @@ void Map::drawTerrain(Surface *surface)
 			int vTileXCount, vTileYCount, vTileZCount;
 			int vVoxelXCount, vVoxelYCount, vVoxelZCount;
 
-			// clear traversed so it's nice and clean for the debug code below.
+			// clear traversed so it"s nice and clean for the debug code below.
 			vTileZCount = _save->getMapSizeZ();
 			vTileYCount = _save->getMapSizeY();
 			vTileXCount = _save->getMapSizeX();
@@ -5468,12 +5868,12 @@ void Map::drawTerrain(Surface *surface)
 			{
 				for (int ScreenPixelX = 0; ScreenPixelX < _screenVoxelFrame->mWidth; ScreenPixelX++)
 				{
-			
-					int vVoxelPositionZ = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Z;
-					int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y; 
-					int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X; 
 
-					// let's try and figure out what is really going on with these voxel coordinates inside the screen voxel frame
+					int vVoxelPositionZ = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Z;
+					int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y;
+					int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X;
+
+					// let"s try and figure out what is really going on with these voxel coordinates inside the screen voxel frame
 					// do they really match up ?!?!?
 					// convert back to tile position and voxel position within the tile
 					// and then set the traversed bool to true and render it later on
@@ -5503,7 +5903,7 @@ void Map::drawTerrain(Surface *surface)
     // *****************************************************************************************************************
 	// LIGHT CASTING BEGIN OF IMPLEMENTATION 2
 	// *****************************************************************************************************************
-	// LIGHT CASTING ATTEMPT 2: THIS IMPLEMENTATION IS TOO COMPLEX FOR NOW, I DON'T TRUST THE SCREEN BLOCK COMPUTATIONS
+	// LIGHT CASTING ATTEMPT 2: THIS IMPLEMENTATION IS TOO COMPLEX FOR NOW, I DON"T TRUST THE SCREEN BLOCK COMPUTATIONS
 	// I AM GOING TO MAKE A SIMPLER IMPLEMENTATION, THAT SIMPLY PROCESSES OVER ALL THE SCREEN PIXELS
 	// IN A MORE NORMAL/RELIABLE WAY, AND SEE HOW THAT LOOKS, AND THEN MAYBE LATER I WILL RETURN TO IMPLEMENTATION 2
 	// *****************************************************************************************************************
@@ -5517,7 +5917,7 @@ void Map::drawTerrain(Surface *surface)
 	// SEPERATED INTO A "LIGHT/SHADING ENGINE" TO KEEP IT SOMEWHAT MORE SEPERATED
 	// FROM ALL THIS CODE HERE.... FOR MORE NICE CODING ?!?
 	// THEN AGAIN COULD ALSO KEEP THAT LIGHT ARRAY CODE IN HERE FOR SLIGHTLY MORE SPEED
-	// BUT IT WON'T MATTER MUCH I THINK, THOSE FEW FUNCTION CALLS.
+	// BUT IT WON"T MATTER MUCH I THINK, THOSE FEW FUNCTION CALLS.
 	// **********************************************************************************
 
 	// further/later ideas that could be tried, sort the ray block array. maybe be replacing ray blocks
@@ -5527,7 +5927,7 @@ void Map::drawTerrain(Surface *surface)
 	// another interesting idea just popped into my head... maybe delay certain lights/light/ray computations
 	// until the rays are positionally literally near each other or at the start of other light sources
 	// and moving in the same direction, to keep data access the same, in same tiles...
-	// would be advance, not sure how to do it and if it's worth it... branch-wise/extra branch computations possibly
+	// would be advance, not sure how to do it and if it"s worth it... branch-wise/extra branch computations possibly
 	// to detect this.
 
 	// **********************************************
@@ -5539,7 +5939,7 @@ void Map::drawTerrain(Surface *surface)
 	// also sun could be restricted but then again, the sun is everywhere so let it be...
 	// for moon the light power could be lower.
 
-	// but for now test with sun only, and later add moon code/branch perhaps use 'celestial body' position
+	// but for now test with sun only, and later add moon code/branch perhaps use "celestial body" position
 	// funny thing is sometimes sun and moon are both visible, does this cast extra light onto earth ?! haha funny question.
 	// do plants and creatures use the slightly extra light in these scenerios... wow...
 
@@ -5584,7 +5984,7 @@ void Map::drawTerrain(Surface *surface)
 						// where shall we store ray information ? hmmmm...... how aobut just per pixel...
 						// I think wil lbe ok ?hmmm maybe not... because of bad memory access positions
 						// maybe make special screen block data structure
-						// let's do that.
+						// let"s do that.
 
 						// compute for now, optimize later
 						int ScreenPixelOffset = FinalPixelY * _screenVoxelFrame->mWidth + FinalPixelX;
@@ -5597,7 +5997,7 @@ void Map::drawTerrain(Surface *surface)
 
 						VoxelRay *vVoxelRay = _screenRayBlocks->getVoxelRay( ScreenBlockX, ScreenBlockY, ScreenBlockPixelX, ScreenBlockPixelY );
 
-						// let's first "try" straight from sun to screen voxel, if it looks bad because of missing pixels
+						// let"s first "try" straight from sun to screen voxel, if it looks bad because of missing pixels
 						// then invert it later.
 						vVoxelRay->SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
 						vVoxelRay->SetupTileDimensions( 16, 16, 24 );
@@ -5647,7 +6047,7 @@ void Map::drawTerrain(Surface *surface)
 						// where shall we store ray information ? hmmmm...... how aobut just per pixel...
 						// I think wil lbe ok ?hmmm maybe not... because of bad memory access positions
 						// maybe make special screen block data structure
-						// let's do that.
+						// let"s do that.
 						VoxelRay *vVoxelRay = _screenRayBlocks->getVoxelRay( ScreenBlockX, ScreenBlockY, ScreenBlockPixelX, ScreenBlockPixelY );
 
 						// sloppy fix, use HasTileBegin above later
@@ -5666,7 +6066,7 @@ void Map::drawTerrain(Surface *surface)
 					//			if (!tile) continue;
 								tile->setTraversed( true );
 
-								// if tile is not full of air then start voxel traversal 
+								// if tile is not full of air then start voxel traversal
 								if (!tile->isVoid())
 								{
 									vVoxelRay->SetupVoxelTraversal( vSunPosition, vMapVoxelPosition, TileTraverseX, TileTraverseY, TileTraverseZ );
@@ -5727,7 +6127,7 @@ void Map::drawTerrain(Surface *surface)
 												);
 
 
-												// don't need it's already in the voxel.
+												// don"t need it"s already in the voxel.
 												// vPixelZ := mDepthMap[vPixelX,vPixelY];
 
 												// angle between surface normal/roof tops and light source.
@@ -5752,13 +6152,13 @@ void Map::drawTerrain(Surface *surface)
 												double vExposure =
 												(
 													(
-														(M_PI  - vAngle) / M_PI 
+														(M_PI  - vAngle) / M_PI
 													) * vLightPower
 												) / vDistanceToLightSquared;
 
 												// calculate pixel/surface color using exposure value
 
-												// clamp exposure value for safety, maybe not necessary but maybe it is don't know yet
+												// clamp exposure value for safety, maybe not necessary but maybe it is don"t know yet
 												// do it anyway for safety, cause original code does it as well
 												// and later if we add more lights it can definetly overflow, so CLAMP IT ! >=D
 
@@ -5771,7 +6171,7 @@ void Map::drawTerrain(Surface *surface)
 
 //												vColor =
 
-												// OH OH, we don't have a red, green and blue channel !
+												// OH OH, we don"t have a red, green and blue channel !
 												// but what we do have is a SHADE level capability...
 												// so use that ! problem nicely solved...
 												// use some "and" code and such to set surface color to minimum
@@ -5790,14 +6190,14 @@ void Map::drawTerrain(Surface *surface)
 
 
 												// to lazy to write shade code now...
-												// but it's something like color % 15 and such... 
+												// but it"s something like color % 15 and such...
 												Uint8 vVoxelColor = ComputeShade( vSurfaceColor, vExposure );
 
-								 
+
 												// cap color if absolutely necessary but probably not necessary
 												// as long as it stayed in range of 0..15 when adding to color
 												// however color could be anything so maybe good to cap it
-												// to it's shade/color palette entry/range and such.... hmmm
+												// to it"s shade/color palette entry/range and such.... hmmm
 												// must know first in what palette range it lies...
 
 				//								if vRed > 255 then vRed := 255;
@@ -5864,7 +6264,7 @@ void Map::drawTerrain(Surface *surface)
 	// SEPERATED INTO A "LIGHT/SHADING ENGINE" TO KEEP IT SOMEWHAT MORE SEPERATED
 	// FROM ALL THIS CODE HERE.... FOR MORE NICE CODING ?!?
 	// THEN AGAIN COULD ALSO KEEP THAT LIGHT ARRAY CODE IN HERE FOR SLIGHTLY MORE SPEED
-	// BUT IT WON'T MATTER MUCH I THINK, THOSE FEW FUNCTION CALLS.
+	// BUT IT WON"T MATTER MUCH I THINK, THOSE FEW FUNCTION CALLS.
 	// **********************************************************************************
 
 	// further/later ideas that could be tried, sort the ray block array. maybe be replacing ray blocks
@@ -5874,7 +6274,7 @@ void Map::drawTerrain(Surface *surface)
 	// another interesting idea just popped into my head... maybe delay certain lights/light/ray computations
 	// until the rays are positionally literally near each other or at the start of other light sources
 	// and moving in the same direction, to keep data access the same, in same tiles...
-	// would be advance, not sure how to do it and if it's worth it... branch-wise/extra branch computations possibly
+	// would be advance, not sure how to do it and if it"s worth it... branch-wise/extra branch computations possibly
 	// to detect this.
 
 	// **********************************************
@@ -5886,7 +6286,7 @@ void Map::drawTerrain(Surface *surface)
 	// also sun could be restricted but then again, the sun is everywhere so let it be...
 	// for moon the light power could be lower.
 
-	// but for now test with sun only, and later add moon code/branch perhaps use 'celestial body' position
+	// but for now test with sun only, and later add moon code/branch perhaps use "celestial body" position
 	// funny thing is sometimes sun and moon are both visible, does this cast extra light onto earth ?! haha funny question.
 	// do plants and creatures use the slightly extra light in these scenerios... wow...
 
@@ -5896,7 +6296,7 @@ void Map::drawTerrain(Surface *surface)
 	// we may also need to collect the ammount of light from each light source... yikes.
 	// thus it makes sense to use "exposure" maps and such to accumilate this/these.
 
-	
+
 	if (_save->IsLightCastingOn())
 	{
 		VoxelPosition vSunPosition;
@@ -5948,7 +6348,7 @@ void Map::drawTerrain(Surface *surface)
 
 						VoxelRay *vVoxelRay = &_screenVoxelRay[ PixelOffset ];
 
-						// let's first "try" straight from sun to screen voxel, if it looks bad because of missing pixels
+						// let"s first "try" straight from sun to screen voxel, if it looks bad because of missing pixels
 						// then invert it later.
 						vVoxelRay->SetupVoxelDimensions( 1, 1, 1 ); // probably not necessary but do it anyway just in case.
 						vVoxelRay->SetupTileDimensions( 16, 16, 24 );
@@ -6004,7 +6404,7 @@ void Map::drawTerrain(Surface *surface)
 					//			if (!tile) continue;
 		//						tile->setTraversed( true );
 
-								// if tile is not full of air then start voxel traversal 
+								// if tile is not full of air then start voxel traversal
 								if (!tile->isVoid())
 								{
 									vVoxelRay->SetupVoxelTraversal( vSunPosition, vMapVoxelPosition, TileTraverseX, TileTraverseY, TileTraverseZ );
@@ -6027,7 +6427,7 @@ void Map::drawTerrain(Surface *surface)
 	//										tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
 
 											// disable for now, to see the light traversal in action
-										
+
 
 						//					VoxelTraverseX = VoxelTraverseX - (TileTraverseX * 16);
 						//					VoxelTraverseY = VoxelTraverseY - (TileTraverseY * 16);
@@ -6037,7 +6437,7 @@ void Map::drawTerrain(Surface *surface)
 											// possibly set VoxelCollisionX,Y,Z for later usage most likely, like shading
 											if (tile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
 											{
-							
+
 
 												// good question, put screen pixel in darkness or wait till it exits and hits nothing
 												// and then shade it based on sun distance, most likely this... wowe ;)
@@ -6070,7 +6470,7 @@ void Map::drawTerrain(Surface *surface)
 												);
 
 
-												// don't need it's already in the voxel.
+												// don"t need it"s already in the voxel.
 												// vPixelZ := mDepthMap[vPixelX,vPixelY];
 
 												// angle between surface normal/roof tops and light source.
@@ -6095,13 +6495,13 @@ void Map::drawTerrain(Surface *surface)
 												double vExposure =
 												(
 													(
-														(M_PI  - vAngle) / M_PI 
+														(M_PI  - vAngle) / M_PI
 													) * vLightPower
 												) / vDistanceToLightSquared;
 
 												// calculate pixel/surface color using exposure value
 
-												// clamp exposure value for safety, maybe not necessary but maybe it is don't know yet
+												// clamp exposure value for safety, maybe not necessary but maybe it is don"t know yet
 												// do it anyway for safety, cause original code does it as well
 												// and later if we add more lights it can definetly overflow, so CLAMP IT ! >=D
 
@@ -6114,7 +6514,7 @@ void Map::drawTerrain(Surface *surface)
 
 		//												vColor =
 
-												// OH OH, we don't have a red, green and blue channel !
+												// OH OH, we don"t have a red, green and blue channel !
 												// but what we do have is a SHADE level capability...
 												// so use that ! problem nicely solved...
 												// use some "and" code and such to set surface color to minimum
@@ -6133,14 +6533,14 @@ void Map::drawTerrain(Surface *surface)
 
 
 												// to lazy to write shade code now...
-												// but it's something like color % 15 and such... 
+												// but it"s something like color % 15 and such...
 												Uint8 vVoxelColor = ComputeShade( vSurfaceColor, vExposure );
 
-								 
+
 												// cap color if absolutely necessary but probably not necessary
 												// as long as it stayed in range of 0..15 when adding to color
 												// however color could be anything so maybe good to cap it
-												// to it's shade/color palette entry/range and such.... hmmm
+												// to it"s shade/color palette entry/range and such.... hmmm
 												// must know first in what palette range it lies...
 
 				//								if vRed > 255 then vRed := 255;
@@ -6162,7 +6562,7 @@ void Map::drawTerrain(Surface *surface)
 
 												// set final screen pixel color
 												surface->setPixel( PixelX, PixelY, vVoxelColor );
-											
+
 												if (_save->IsLightTraversingOn())
 												{
 													tile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
@@ -6224,7 +6624,7 @@ void Map::drawTerrain(Surface *surface)
 
 
 						// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-						// !!! SKYBUCK: MAKE SURE IT'S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
+						// !!! SKYBUCK: MAKE SURE IT"S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
 						// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
 						DrawTileVoxelTraversedMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
@@ -6243,7 +6643,7 @@ void Map::drawTerrain(Surface *surface)
 	// COLLISIONS OR EVERYTHING, BUT THIS IS ACTUALLY GOING TO BE VERY INTERESTING TO TRY AND VISUALIZE COLLISIONS ONLY...
 	// AND THIS THIS NOT FROM SOME SHITTY SUN POINT, BUT BASICALLY VERY NICELY LAYED OUT ACROSS THE MAP
 
-	// SO LET'S START WITH RAYS ACROSS THE Y DIRECTION
+	// SO LET"S START WITH RAYS ACROSS THE Y DIRECTION
 
 
 	// ***************************************
@@ -6257,7 +6657,7 @@ void Map::drawTerrain(Surface *surface)
 //		IfThisCaravanIsRockingThenDontComeKnocking = 1;
 		VoxelPosition vStart;
 		VoxelPosition vStop;
-		
+
 		int ScreenWidth = _screenVoxelFrame->mWidth;
 		int ScreenHeight = _screenVoxelFrame->mHeight;
 
@@ -6269,7 +6669,7 @@ void Map::drawTerrain(Surface *surface)
 		int MapLastWorldVoxelY = (_save->getMapSizeY()*16)-1;
 		int MapLastWorldVoxelZ = (_save->getMapSizeZ()*24)-1;
 
-		VoxelRay vVoxelRay; 
+		VoxelRay vVoxelRay;
 
 		for (int WorldVoxelZ = 0; WorldVoxelZ <= MapLastWorldVoxelZ; WorldVoxelZ++)
 		{
@@ -6329,7 +6729,7 @@ void Map::drawTerrain(Surface *surface)
 			//			if (!tile) continue;
 //						tile->setTraversed( true );
 
-						// if tile is not full of air then start voxel traversal 
+						// if tile is not full of air then start voxel traversal
 						if (!tile->isVoid())
 						{
 							vVoxelRay.SetupVoxelTraversal( vStart, vStop, TileTraverseX, TileTraverseY, TileTraverseZ );
@@ -6391,7 +6791,7 @@ void Map::drawTerrain(Surface *surface)
 //		IfThisCaravanIsRockingThenDontComeKnocking = 1;
 		VoxelPosition vStart;
 		VoxelPosition vStop;
-		
+
 		int ScreenWidth = _screenVoxelFrame->mWidth;
 		int ScreenHeight = _screenVoxelFrame->mHeight;
 
@@ -6403,7 +6803,7 @@ void Map::drawTerrain(Surface *surface)
 		int MapLastWorldVoxelY = (_save->getMapSizeY()*16)-1;
 		int MapLastWorldVoxelZ = (_save->getMapSizeZ()*24)-1;
 
-		VoxelRay vVoxelRay; 
+		VoxelRay vVoxelRay;
 
 		for (int WorldVoxelZ = 0; WorldVoxelZ <= MapLastWorldVoxelZ; WorldVoxelZ++)
 		{
@@ -6448,7 +6848,7 @@ void Map::drawTerrain(Surface *surface)
 			//			if (!tile) continue;
 //						tile->setTraversed( true );
 
-						// if tile is not full of air then start voxel traversal 
+						// if tile is not full of air then start voxel traversal
 						if (!tile->isVoid())
 						{
 							vVoxelRay.SetupVoxelTraversal( vStart, vStop, TileTraverseX, TileTraverseY, TileTraverseZ );
@@ -6510,7 +6910,7 @@ void Map::drawTerrain(Surface *surface)
 //		IfThisCaravanIsRockingThenDontComeKnocking = 1;
 		VoxelPosition vStart;
 		VoxelPosition vStop;
-		
+
 		int ScreenWidth = _screenVoxelFrame->mWidth;
 		int ScreenHeight = _screenVoxelFrame->mHeight;
 
@@ -6522,7 +6922,7 @@ void Map::drawTerrain(Surface *surface)
 		int MapLastWorldVoxelY = (_save->getMapSizeY()*16)-1;
 		int MapLastWorldVoxelZ = (_save->getMapSizeZ()*24)-1;
 
-		VoxelRay vVoxelRay; 
+		VoxelRay vVoxelRay;
 
 		for (int WorldVoxelX = 0; WorldVoxelX <= MapLastWorldVoxelX; WorldVoxelX++)
 		{
@@ -6567,7 +6967,7 @@ void Map::drawTerrain(Surface *surface)
 			//			if (!tile) continue;
 //						tile->setTraversed( true );
 
-						// if tile is not full of air then start voxel traversal 
+						// if tile is not full of air then start voxel traversal
 						if (!tile->isVoid())
 						{
 							vVoxelRay.SetupVoxelTraversal( vStart, vStop, TileTraverseX, TileTraverseY, TileTraverseZ );
@@ -6626,9 +7026,9 @@ void Map::drawTerrain(Surface *surface)
 	// LIGHT CASTING BEGIN OF IMPLEMENTATION 4
 	// *****************************************************************************************************************
 
-	// EVEN MORE SIMPLE, JUST PROCESS ONE RAY AT A TIME, DON'T USE MANY.
+	// EVEN MORE SIMPLE, JUST PROCESS ONE RAY AT A TIME, DON"T USE MANY.
 
-	// AND JUST SET THE VOXEL THAT WAS HIT AND THAT'S IT FOR NOW, DON'T DO ANY SHADING.
+	// AND JUST SET THE VOXEL THAT WAS HIT AND THAT"S IT FOR NOW, DON"T DO ANY SHADING.
 
 	// JUST DETERMINE IF THE SCREEN VOXEL IS LIT OR NOT, YELLOW IF LIT, PERHAPS WITH SOME VOXEL X,Y,Z DEPTH/DISTANCE OR WHATEVER
 	// EITHER FROM SUN OR FROM CAMERA, WHATEVER.
@@ -6656,7 +7056,7 @@ void Map::drawTerrain(Surface *surface)
 	//	double vLightRange = 300;
 		double vLightRange = 300; // not used.
 
-		
+
 		int ScreenWidth = _screenVoxelFrame->mWidth;
 		int ScreenHeight = _screenVoxelFrame->mHeight;
 
@@ -6717,7 +7117,7 @@ void Map::drawTerrain(Surface *surface)
 			//			if (!tile) continue;
 //						tile->setTraversed( true );
 
-						// if tile is not full of air then start voxel traversal 
+						// if tile is not full of air then start voxel traversal
 						if (!tile->isVoid())
 						{
 							vVoxelRay.SetupVoxelTraversal( vStart, vStop, TileTraverseX, TileTraverseY, TileTraverseZ );
@@ -6769,12 +7169,12 @@ void Map::drawTerrain(Surface *surface)
 	// *** TOTAL OVERKILL TEST OH YEAH, SHOOT ONE RAY PER VOXEL, BEGIN ***
 	// *******************************************************************
 
-	// LET'S FORGET ABOUT THE SCREENVOXELFRAME STUFF, IMPLEMENT A 3D BOX AND SHINE LIGHT RAYS FROM THAT BOX AROUND IN THE LEVEL.
+	// LET"S FORGET ABOUT THE SCREENVOXELFRAME STUFF, IMPLEMENT A 3D BOX AND SHINE LIGHT RAYS FROM THAT BOX AROUND IN THE LEVEL.
 	// JUST SHOOT RAYS AROUND THE LIGHT IN ALL DIRECTIONS... HOWEVER WE GONNA START WITH SOMETHING LIKE A SUN...
 	// SO IT JUST NEEDS TO GO DOWN... OR... HOW ABOUT THIS...
 	// WE JUST SHOOT A RAY PER VOXEL LOL.... HOLY FUCKING COMPUTATIONAL OVERKILL, BUT THIS IS THE BEST WAY TO DO IT FOR NOW.
 
-	// COMPUTING ALL VOXELS COSTS TO MUCH TIME, LET'S TRY MORE EFFICIENT VERSION BELOW, FOR ANY THE TILES
+	// COMPUTING ALL VOXELS COSTS TO MUCH TIME, LET"S TRY MORE EFFICIENT VERSION BELOW, FOR ANY THE TILES
 	// THAT ARE ON THE SCREEN, BY COMPUTING SOME BOUNDING BOX FOR THESE TILES.
 
 	if (true == false) // disabled
@@ -6784,7 +7184,7 @@ void Map::drawTerrain(Surface *surface)
 //		IfThisCaravanIsRockingThenDontComeKnocking = 1;
 		VoxelPosition vStart;
 		VoxelPosition vStop;
-		
+
 		int ScreenWidth = _screenVoxelFrame->mWidth;
 		int ScreenHeight = _screenVoxelFrame->mHeight;
 
@@ -6859,7 +7259,7 @@ void Map::drawTerrain(Surface *surface)
 					vVoxelRay.Stop.X = WorldVoxelX;
 
 					vVoxelRay.ComputeTileStopScaled();
-					vVoxelRay.QuickSetup(); 
+					vVoxelRay.QuickSetup();
 
 					// traverse phase
 					// sloppy fix, use HasTileBegin above later
@@ -6876,7 +7276,7 @@ void Map::drawTerrain(Surface *surface)
 				//			if (!tile) continue;
 	//						tile->setTraversed( true );
 
-							// if tile is not full of air then start voxel traversal 
+							// if tile is not full of air then start voxel traversal
 							if (!tile->isVoid())
 							{
 								vVoxelRay.SetupVoxelTraversal( vVoxelRay.Start, vVoxelRay.Stop, TileTraverseX, TileTraverseY, TileTraverseZ );
@@ -6939,18 +7339,18 @@ void Map::drawTerrain(Surface *surface)
 	// SKYBUCK: VERY COOL VERSION !!! FIRST VERSION WHERE SHADOWS AND LIGHTING CAN BE SEEN SOMEWHAT ! FINALLY ! =D
 	// SKYBUCK: ALSO VERY COOL IDEA, IT ONLY COMPUTE RAYS FOR THE TILES THAT ARE ON THE SCREEN
 	// SKYBUCK: BUT WE CAN STILL DO BETTER !!!! BY USING THE COMPUTED TRICK FROM SPRITE VOXEL FRAME
-	// SKYBUCK: SO LET'S DO THAT IN ANOTHER VERSION DOWN BELOW, SEE HOW IT LOOKS LIKE.
+	// SKYBUCK: SO LET"S DO THAT IN ANOTHER VERSION DOWN BELOW, SEE HOW IT LOOKS LIKE.
 	// SKYBUCK: COMPUTING THIS BOUNDING BOX IDEA OVER THE TILES AND THUS VOXELS WAS A VERY COOL IDEA !
 	// SKYBUCK: KINDA LIKE A SUPER SPRITE VOXEL FRAME, BUT MORE PRECIOUS...
 	// SKYBUCK: ALSO THE VERSION DOWN BELOW IS GOING TO BE A LITTLE BIT LIKE SCREENVOXELFRAME BUT COMPUTED IN A DIFFERENT WAY...
 	// SKYBUCK: INSTEAD OF COLLECTING SPRITE FRAMES WHICH SEEMS TO BE WHACKY/BUGGY FOR SOME REASON
-	// SKYBUCK: IT'S SIMPLY GOING TO COMPUTE RAYS FOR EVERY VISIBLE VOXEL, NOT A TO BAD SOLUTION ! =D
-	// SKYBUCK: HOWEVER IF THE VOXEL IS ALREADY COMPUTED, THEN DON'T COMPUTE IT AGAIN ! YES YES YES.
+	// SKYBUCK: IT"S SIMPLY GOING TO COMPUTE RAYS FOR EVERY VISIBLE VOXEL, NOT A TO BAD SOLUTION ! =D
+	// SKYBUCK: HOWEVER IF THE VOXEL IS ALREADY COMPUTED, THEN DON"T COMPUTE IT AGAIN ! YES YES YES.
 	// ***************************************************************************************************************
 	// *** SCREEN TILES BOUNDING BOX VERSION, SHOOT RAYS FOR ALL VOXELS WITHIN THE SCREEN TILE BOUNDING BOX, BEGIN ***
 	// ***************************************************************************************************************
 
-	// LET'S FORGET ABOUT THE SCREENVOXELFRAME STUFF, IMPLEMENT A 3D BOX AND SHINE LIGHT RAYS FROM THAT BOX AROUND IN THE LEVEL.
+	// LET"S FORGET ABOUT THE SCREENVOXELFRAME STUFF, IMPLEMENT A 3D BOX AND SHINE LIGHT RAYS FROM THAT BOX AROUND IN THE LEVEL.
 	// JUST SHOOT RAYS AROUND THE LIGHT IN ALL DIRECTIONS... HOWEVER WE GONNA START WITH SOMETHING LIKE A SUN...
 	// SO IT JUST NEEDS TO GO DOWN... OR... HOW ABOUT THIS...
 	// WE JUST SHOOT A RAY PER VOXEL LOL.... HOLY FUCKING COMPUTATIONAL OVERKILL, BUT THIS IS THE BEST WAY TO DO IT FOR NOW.
@@ -6970,7 +7370,7 @@ void Map::drawTerrain(Surface *surface)
 	//					   IN GAME:
 	//
 	//		HOLD CONTROL + L = LIGHTING CASTING ON (ONE TIME, IT AUTO TOGGLES OFF)
-	//	
+	//
 	//		HOLD CONTROL + D = DEBUG MODE
 	//
 	// **********************************************************
@@ -7017,7 +7417,7 @@ void Map::drawTerrain(Surface *surface)
 
 		VoxelPosition vStart;
 		VoxelPosition vStop;
-		
+
 		int ScreenWidth = _screenVoxelFrame->mWidth;
 		int ScreenHeight = _screenVoxelFrame->mHeight;
 
@@ -7092,7 +7492,7 @@ void Map::drawTerrain(Surface *surface)
 					vVoxelRay.Stop.X = WorldVoxelX;
 
 					vVoxelRay.ComputeTileStopScaled();
-					vVoxelRay.QuickSetup(); 
+					vVoxelRay.QuickSetup();
 
 					// traverse phase
 					// sloppy fix, use HasTileBegin above later
@@ -7109,7 +7509,7 @@ void Map::drawTerrain(Surface *surface)
 				//			if (!tile) continue;
 	//						tile->setTraversed( true );
 
-							// if tile is not full of air then start voxel traversal 
+							// if tile is not full of air then start voxel traversal
 							if (!tile->isVoid())
 							{
 								vVoxelRay.SetupVoxelTraversal( vVoxelRay.Start, vVoxelRay.Stop, TileTraverseX, TileTraverseY, TileTraverseZ );
@@ -7180,12 +7580,12 @@ void Map::drawTerrain(Surface *surface)
 
 	// 4. AND NOW ALGORITHM IMPROVEMENT/SPEED UP STEP: ONLY COMPUTE/SHOOT RAYS FOR VOXELS WHICH ARE NOT YET COMPUTED.
 
-	//  
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
+	//
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
 	// MAYBE NEVER ? ;)
 	//
 
@@ -7226,7 +7626,7 @@ void Map::drawTerrain(Surface *surface)
 
 		VoxelPosition vStart;
 		VoxelPosition vStop;
-		
+
 		int ScreenWidth = _screenVoxelFrame->mWidth;
 		int ScreenHeight = _screenVoxelFrame->mHeight;
 
@@ -7237,7 +7637,7 @@ void Map::drawTerrain(Surface *surface)
 		bool *Computed = new bool[vScreenPixelCount];
 //		bool Computed[64000];
 
-		// this might be somewhat costly, but let's give it a go
+		// this might be somewhat costly, but let"s give it a go
 		// reset computed
 		for (int vIndex=0; vIndex < vScreenPixelCount; vIndex++)
 		{
@@ -7294,7 +7694,7 @@ void Map::drawTerrain(Surface *surface)
 //		vVoxelRay.Start.Y = (53 * 16);
 //		vVoxelRay.Start.Z = (6 * 24);
 
-		// let's put sun inside map/cells to avoid any intersection problem, which may be the case for voxel line clipping with the tile.
+		// let"s put sun inside map/cells to avoid any intersection problem, which may be the case for voxel line clipping with the tile.
 
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -7308,19 +7708,19 @@ void Map::drawTerrain(Surface *surface)
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// !!
 		// !!! ALSO SOME STRANGE LINES BETWEEN THE SRPITES... IS IT BECAUSE OF FLOATING POINT INACCURACIES ?!?!
-		// !!! OR IS SOMETHING ELSE CAUSING THIS, MOST LIKELY THE LATTER, BECAUSE IT'S SOMEWHAT UNLIKELY FOR EVERYTHING
+		// !!! OR IS SOMETHING ELSE CAUSING THIS, MOST LIKELY THE LATTER, BECAUSE IT"S SOMEWHAT UNLIKELY FOR EVERYTHING
 		// !!! TO BE/HAVE SUCH A PERFECT SPACING LINES BETWEEN IT... KINDA ODD
 		// !!!
 		// !!! THIS PROBLEM MAY BE CAUSD BY SPRITES HAVING A DOUBLE LINE IN THE CENTER, VOXEL MAPS DO NOT
 		// !!! MAYBE DUPLICATE THIS BEHAVIOUR IN VOXEL MAPS INSTEAD, TO SOLVE THIS PROBLEM MORE RELIABLY ?!
 		// !!!
-		// !!! DON'T KNOW YET THE EXACT CAUSE BUT THIS IS MOST LIKELY ONE OF THE, IF NOT THE CAUSE OF IT.
+		// !!! DON"T KNOW YET THE EXACT CAUSE BUT THIS IS MOST LIKELY ONE OF THE, IF NOT THE CAUSE OF IT.
 		// !!!
 		// !!! I AND OTHERS THOUGHT THAT IT MIGHT BE SOLVED WITH THE +1 TRICK... BUT MAYBE THAT IS NOT SUFFICIENT...
 		// !!! THEN AGAIN MAYBE SOMETHING ELSE MIGHT BE THE PROBLEM AS WELL...
 		// !!!
 		// !!! ALL THESE WEIRD QUICKERS AND THE BAD/INACCURATE VOXEL DATA... CASTS SOME DOUBTS/SHADOW HEHE
-		// !!! IF IT'S WORTH CONTINUEING THIS... BUT IS THERE A CHOICE ?! HEHEHEHE... OFCOURSE THERE IS ALWAYS A CHOICE
+		// !!! IF IT"S WORTH CONTINUEING THIS... BUT IS THERE A CHOICE ?! HEHEHEHE... OFCOURSE THERE IS ALWAYS A CHOICE
 		// !!! BUT OK...
 		// !!! ANYWAY FOR NOW THE MAXIMUM IS NOT TAKEN/ACHIEVED OUT OF IT... SO MAYBE GO ONE... AND TRY AND IMPROVE
 		// !!! THE GRID/VOXEL TRAVERSAL ALGORITHM, TRY AND DO A REALLY PROPER VERSION... BETTER
@@ -7338,7 +7738,7 @@ void Map::drawTerrain(Surface *surface)
 		// !!!
 		// !!! AT LEAST THE SCREEN VOXEL FRAME CONCEPT IS SOMEWHAT PROVEN TO WORK, THE IDEA IS SOMEWHAT OK
 		// !!! THERE WERE A FEW LITTLE VOXEL/PIXELS MAYBE MISSING IN COMPUTE SPRITE VOXEL OR SOMETHING
-		// !!! BUT THE IDEA ITSELF ISN'T BAD... AND ALLOWS VERY FAST/EFFICIENT 1 SCREEN PIXEL = 1 SUN RAY COMPUTATIONS.
+		// !!! BUT THE IDEA ITSELF ISN"T BAD... AND ALLOWS VERY FAST/EFFICIENT 1 SCREEN PIXEL = 1 SUN RAY COMPUTATIONS.
 		// !!!
 		// !!! WITH A RAY TRACER TO REPLACE THE SCREEN VOXEL FRAME, THAT WOULD MOSTLY REMAIN THE SAME... AGAIN
 		// !!!
@@ -7370,10 +7770,10 @@ void Map::drawTerrain(Surface *surface)
 		{
 			for (int ScreenPixelX = 0; ScreenPixelX < _screenVoxelFrame->mWidth; ScreenPixelX++)
 			{
-				// ground/earth/building voxel position basically		
+				// ground/earth/building voxel position basically
 				int vVoxelPositionZ = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Z;
-				int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y; 
-				int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X; 
+				int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y;
+				int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X;
 
 /*
 				int vLastTileHitX = -1;
@@ -7386,7 +7786,7 @@ void Map::drawTerrain(Surface *surface)
 */
 
 /*
-				// let's try and figure out what is really going on with these voxel coordinates inside the screen voxel frame
+				// let"s try and figure out what is really going on with these voxel coordinates inside the screen voxel frame
 				// do they really match up ?!?!?
 				// convert back to tile position and voxel position within the tile
 				// and then set the traversed bool to true and render it later on
@@ -7418,7 +7818,7 @@ void Map::drawTerrain(Surface *surface)
 	//				if (!Computed[ScreenPixelY*_screenVoxelFrame->mWidth + ScreenPixelX])
 					{
 						vVoxelRay.ComputeTileStopScaled();
-						vVoxelRay.QuickSetup(); 
+						vVoxelRay.QuickSetup();
 
 						// traverse phase
 						// sloppy fix, use HasTileBegin above later
@@ -7435,7 +7835,7 @@ void Map::drawTerrain(Surface *surface)
 					//			if (!tile) continue;
 		//						tile->setTraversed( true );
 
-								// if tile is not full of air then start voxel traversal 
+								// if tile is not full of air then start voxel traversal
 								if (!vTraverseTile->isVoid())
 								{
 									vVoxelRay.SetupVoxelTraversal( vVoxelRay.Start, vVoxelRay.Stop, TileTraverseX, TileTraverseY, TileTraverseZ );
@@ -7467,7 +7867,7 @@ void Map::drawTerrain(Surface *surface)
 											)
 											{
 	//											vTraverseTile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
-									
+
 												if (vTraverseTile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
 												{
 /*
@@ -7496,7 +7896,7 @@ void Map::drawTerrain(Surface *surface)
 										} while (!vVoxelRay.IsVoxelTraverseDone());
 									}
 
-/*									
+/*
 									// fill up the entire tile to see which tiles are being traversed.
 									for (int vVoxelZ=0; vVoxelZ<24; vVoxelZ++)
 									{
@@ -7602,12 +8002,12 @@ void Map::drawTerrain(Surface *surface)
 
 	// 4. AND NOW ALGORITHM IMPROVEMENT/SPEED UP STEP: ONLY COMPUTE/SHOOT RAYS FOR VOXELS WHICH ARE NOT YET COMPUTED.
 
-	//  
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
+	//
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
 	// MAYBE NEVER ? ;)
 	//
 
@@ -7648,7 +8048,7 @@ void Map::drawTerrain(Surface *surface)
 
 		VoxelPosition vStart;
 		VoxelPosition vStop;
-		
+
 		int ScreenWidth = _screenVoxelFrame->mWidth;
 		int ScreenHeight = _screenVoxelFrame->mHeight;
 
@@ -7659,7 +8059,7 @@ void Map::drawTerrain(Surface *surface)
 		bool *Computed = new bool[vScreenPixelCount];
 //		bool Computed[64000];
 
-		// this might be somewhat costly, but let's give it a go
+		// this might be somewhat costly, but let"s give it a go
 		// reset computed
 		for (int vIndex=0; vIndex < vScreenPixelCount; vIndex++)
 		{
@@ -7701,7 +8101,7 @@ void Map::drawTerrain(Surface *surface)
 		VoxelCornerRayOffset[1][1].Y = -0.01;
 		VoxelCornerRayOffset[1][1].Z = 0;
 
-		
+
 
 
 
@@ -7745,7 +8145,7 @@ void Map::drawTerrain(Surface *surface)
 //		vVoxelRay.Start.Y = (53 * 16);
 //		vVoxelRay.Start.Z = (6 * 24);
 
-		// let's put sun inside map/cells to avoid any intersection problem, which may be the case for voxel line clipping with the tile.
+		// let"s put sun inside map/cells to avoid any intersection problem, which may be the case for voxel line clipping with the tile.
 
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -7759,19 +8159,19 @@ void Map::drawTerrain(Surface *surface)
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// !!
 		// !!! ALSO SOME STRANGE LINES BETWEEN THE SRPITES... IS IT BECAUSE OF FLOATING POINT INACCURACIES ?!?!
-		// !!! OR IS SOMETHING ELSE CAUSING THIS, MOST LIKELY THE LATTER, BECAUSE IT'S SOMEWHAT UNLIKELY FOR EVERYTHING
+		// !!! OR IS SOMETHING ELSE CAUSING THIS, MOST LIKELY THE LATTER, BECAUSE IT"S SOMEWHAT UNLIKELY FOR EVERYTHING
 		// !!! TO BE/HAVE SUCH A PERFECT SPACING LINES BETWEEN IT... KINDA ODD
 		// !!!
 		// !!! THIS PROBLEM MAY BE CAUSD BY SPRITES HAVING A DOUBLE LINE IN THE CENTER, VOXEL MAPS DO NOT
 		// !!! MAYBE DUPLICATE THIS BEHAVIOUR IN VOXEL MAPS INSTEAD, TO SOLVE THIS PROBLEM MORE RELIABLY ?!
 		// !!!
-		// !!! DON'T KNOW YET THE EXACT CAUSE BUT THIS IS MOST LIKELY ONE OF THE, IF NOT THE CAUSE OF IT.
+		// !!! DON"T KNOW YET THE EXACT CAUSE BUT THIS IS MOST LIKELY ONE OF THE, IF NOT THE CAUSE OF IT.
 		// !!!
 		// !!! I AND OTHERS THOUGHT THAT IT MIGHT BE SOLVED WITH THE +1 TRICK... BUT MAYBE THAT IS NOT SUFFICIENT...
 		// !!! THEN AGAIN MAYBE SOMETHING ELSE MIGHT BE THE PROBLEM AS WELL...
 		// !!!
 		// !!! ALL THESE WEIRD QUICKERS AND THE BAD/INACCURATE VOXEL DATA... CASTS SOME DOUBTS/SHADOW HEHE
-		// !!! IF IT'S WORTH CONTINUEING THIS... BUT IS THERE A CHOICE ?! HEHEHEHE... OFCOURSE THERE IS ALWAYS A CHOICE
+		// !!! IF IT"S WORTH CONTINUEING THIS... BUT IS THERE A CHOICE ?! HEHEHEHE... OFCOURSE THERE IS ALWAYS A CHOICE
 		// !!! BUT OK...
 		// !!! ANYWAY FOR NOW THE MAXIMUM IS NOT TAKEN/ACHIEVED OUT OF IT... SO MAYBE GO ONE... AND TRY AND IMPROVE
 		// !!! THE GRID/VOXEL TRAVERSAL ALGORITHM, TRY AND DO A REALLY PROPER VERSION... BETTER
@@ -7789,7 +8189,7 @@ void Map::drawTerrain(Surface *surface)
 		// !!!
 		// !!! AT LEAST THE SCREEN VOXEL FRAME CONCEPT IS SOMEWHAT PROVEN TO WORK, THE IDEA IS SOMEWHAT OK
 		// !!! THERE WERE A FEW LITTLE VOXEL/PIXELS MAYBE MISSING IN COMPUTE SPRITE VOXEL OR SOMETHING
-		// !!! BUT THE IDEA ITSELF ISN'T BAD... AND ALLOWS VERY FAST/EFFICIENT 1 SCREEN PIXEL = 1 SUN RAY COMPUTATIONS.
+		// !!! BUT THE IDEA ITSELF ISN"T BAD... AND ALLOWS VERY FAST/EFFICIENT 1 SCREEN PIXEL = 1 SUN RAY COMPUTATIONS.
 		// !!!
 		// !!! WITH A RAY TRACER TO REPLACE THE SCREEN VOXEL FRAME, THAT WOULD MOSTLY REMAIN THE SAME... AGAIN
 		// !!!
@@ -7821,10 +8221,10 @@ void Map::drawTerrain(Surface *surface)
 		{
 			for (int ScreenPixelX = 0; ScreenPixelX < _screenVoxelFrame->mWidth; ScreenPixelX++)
 			{
-				// ground/earth/building voxel position basically		
+				// ground/earth/building voxel position basically
 				int vVoxelPositionZ = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Z;
-				int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y; 
-				int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X; 
+				int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y;
+				int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X;
 
 /*
 				int vLastTileHitX = -1;
@@ -7837,7 +8237,7 @@ void Map::drawTerrain(Surface *surface)
 */
 
 /*
-				// let's try and figure out what is really going on with these voxel coordinates inside the screen voxel frame
+				// let"s try and figure out what is really going on with these voxel coordinates inside the screen voxel frame
 				// do they really match up ?!?!?
 				// convert back to tile position and voxel position within the tile
 				// and then set the traversed bool to true and render it later on
@@ -7862,7 +8262,7 @@ void Map::drawTerrain(Surface *surface)
 				{
 					// funny enough these are all integers, I kinda wanted to do a little epsilon... hmmmm...
 					// so it kinda does go to next voxel... but ok, so far it looks pretty good.
-					// though let's be honest it's also kinda it's own voxel.. the corner...
+					// though let"s be honest it"s also kinda it"s own voxel.. the corner...
 					// maybe it depends on how the rounding happens and the floating point inaccuracies happen.
 					// sometimes it will be left, sometimes right, that could very maybe also be an issue, maybe this solve it too haha.
 					for (int vRayCornerY=0; vRayCornerY <= 1; vRayCornerY++)
@@ -7884,7 +8284,7 @@ void Map::drawTerrain(Surface *surface)
 			//				if (!Computed[ScreenPixelY*_screenVoxelFrame->mWidth + ScreenPixelX])
 							{
 								vVoxelRay.ComputeTileStopScaledVersion2();
-								vVoxelRay.QuickSetup(); 
+								vVoxelRay.QuickSetup();
 
 								// traverse phase
 								// sloppy fix, use HasTileBegin above later
@@ -7901,7 +8301,7 @@ void Map::drawTerrain(Surface *surface)
 							//			if (!tile) continue;
 				//						tile->setTraversed( true );
 
-										// if tile is not full of air then start voxel traversal 
+										// if tile is not full of air then start voxel traversal
 										if (!vTraverseTile->isVoid())
 										{
 											// original integer version working well:
@@ -7937,7 +8337,7 @@ void Map::drawTerrain(Surface *surface)
 													)
 													{
 			//											vTraverseTile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
-									
+
 														if (vTraverseTile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
 														{
 		/*
@@ -7966,7 +8366,7 @@ void Map::drawTerrain(Surface *surface)
 												} while (!vVoxelRay.IsVoxelTraverseDone());
 											}
 
-		/*									
+		/*
 											// fill up the entire tile to see which tiles are being traversed.
 											for (int vVoxelZ=0; vVoxelZ<24; vVoxelZ++)
 											{
@@ -8047,12 +8447,12 @@ void Map::drawTerrain(Surface *surface)
 
 	// 4. AND NOW ALGORITHM IMPROVEMENT/SPEED UP STEP: ONLY COMPUTE/SHOOT RAYS FOR VOXELS WHICH ARE NOT YET COMPUTED.
 
-	//  
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
+	//
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
 	// MAYBE NEVER ? ;)
 	//
 
@@ -8093,7 +8493,7 @@ void Map::drawTerrain(Surface *surface)
 
 		VoxelPosition vStart;
 		VoxelPosition vStop;
-		
+
 		int ScreenWidth = _screenVoxelFrame->mWidth;
 		int ScreenHeight = _screenVoxelFrame->mHeight;
 
@@ -8104,7 +8504,7 @@ void Map::drawTerrain(Surface *surface)
 		bool *Computed = new bool[vScreenPixelCount];
 //		bool Computed[64000];
 
-		// this might be somewhat costly, but let's give it a go
+		// this might be somewhat costly, but let"s give it a go
 		// reset computed
 		for (int vIndex=0; vIndex < vScreenPixelCount; vIndex++)
 		{
@@ -8161,7 +8561,7 @@ void Map::drawTerrain(Surface *surface)
 //		vVoxelRay.Start.Y = (53 * 16);
 //		vVoxelRay.Start.Z = (6 * 24);
 
-		// let's put sun inside map/cells to avoid any intersection problem, which may be the case for voxel line clipping with the tile.
+		// let"s put sun inside map/cells to avoid any intersection problem, which may be the case for voxel line clipping with the tile.
 
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -8175,19 +8575,19 @@ void Map::drawTerrain(Surface *surface)
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// !!
 		// !!! ALSO SOME STRANGE LINES BETWEEN THE SRPITES... IS IT BECAUSE OF FLOATING POINT INACCURACIES ?!?!
-		// !!! OR IS SOMETHING ELSE CAUSING THIS, MOST LIKELY THE LATTER, BECAUSE IT'S SOMEWHAT UNLIKELY FOR EVERYTHING
+		// !!! OR IS SOMETHING ELSE CAUSING THIS, MOST LIKELY THE LATTER, BECAUSE IT"S SOMEWHAT UNLIKELY FOR EVERYTHING
 		// !!! TO BE/HAVE SUCH A PERFECT SPACING LINES BETWEEN IT... KINDA ODD
 		// !!!
 		// !!! THIS PROBLEM MAY BE CAUSD BY SPRITES HAVING A DOUBLE LINE IN THE CENTER, VOXEL MAPS DO NOT
 		// !!! MAYBE DUPLICATE THIS BEHAVIOUR IN VOXEL MAPS INSTEAD, TO SOLVE THIS PROBLEM MORE RELIABLY ?!
 		// !!!
-		// !!! DON'T KNOW YET THE EXACT CAUSE BUT THIS IS MOST LIKELY ONE OF THE, IF NOT THE CAUSE OF IT.
+		// !!! DON"T KNOW YET THE EXACT CAUSE BUT THIS IS MOST LIKELY ONE OF THE, IF NOT THE CAUSE OF IT.
 		// !!!
 		// !!! I AND OTHERS THOUGHT THAT IT MIGHT BE SOLVED WITH THE +1 TRICK... BUT MAYBE THAT IS NOT SUFFICIENT...
 		// !!! THEN AGAIN MAYBE SOMETHING ELSE MIGHT BE THE PROBLEM AS WELL...
 		// !!!
 		// !!! ALL THESE WEIRD QUICKERS AND THE BAD/INACCURATE VOXEL DATA... CASTS SOME DOUBTS/SHADOW HEHE
-		// !!! IF IT'S WORTH CONTINUEING THIS... BUT IS THERE A CHOICE ?! HEHEHEHE... OFCOURSE THERE IS ALWAYS A CHOICE
+		// !!! IF IT"S WORTH CONTINUEING THIS... BUT IS THERE A CHOICE ?! HEHEHEHE... OFCOURSE THERE IS ALWAYS A CHOICE
 		// !!! BUT OK...
 		// !!! ANYWAY FOR NOW THE MAXIMUM IS NOT TAKEN/ACHIEVED OUT OF IT... SO MAYBE GO ONE... AND TRY AND IMPROVE
 		// !!! THE GRID/VOXEL TRAVERSAL ALGORITHM, TRY AND DO A REALLY PROPER VERSION... BETTER
@@ -8205,7 +8605,7 @@ void Map::drawTerrain(Surface *surface)
 		// !!!
 		// !!! AT LEAST THE SCREEN VOXEL FRAME CONCEPT IS SOMEWHAT PROVEN TO WORK, THE IDEA IS SOMEWHAT OK
 		// !!! THERE WERE A FEW LITTLE VOXEL/PIXELS MAYBE MISSING IN COMPUTE SPRITE VOXEL OR SOMETHING
-		// !!! BUT THE IDEA ITSELF ISN'T BAD... AND ALLOWS VERY FAST/EFFICIENT 1 SCREEN PIXEL = 1 SUN RAY COMPUTATIONS.
+		// !!! BUT THE IDEA ITSELF ISN"T BAD... AND ALLOWS VERY FAST/EFFICIENT 1 SCREEN PIXEL = 1 SUN RAY COMPUTATIONS.
 		// !!!
 		// !!! WITH A RAY TRACER TO REPLACE THE SCREEN VOXEL FRAME, THAT WOULD MOSTLY REMAIN THE SAME... AGAIN
 		// !!!
@@ -8237,10 +8637,10 @@ void Map::drawTerrain(Surface *surface)
 		{
 			for (int ScreenPixelX = 0; ScreenPixelX < _screenVoxelFrame->mWidth; ScreenPixelX++)
 			{
-				// ground/earth/building voxel position basically		
+				// ground/earth/building voxel position basically
 				int vVoxelPositionZ = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Z;
-				int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y; 
-				int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X; 
+				int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y;
+				int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X;
 
 /*
 				int vLastTileHitX = -1;
@@ -8253,7 +8653,7 @@ void Map::drawTerrain(Surface *surface)
 */
 
 /*
-				// let's try and figure out what is really going on with these voxel coordinates inside the screen voxel frame
+				// let"s try and figure out what is really going on with these voxel coordinates inside the screen voxel frame
 				// do they really match up ?!?!?
 				// convert back to tile position and voxel position within the tile
 				// and then set the traversed bool to true and render it later on
@@ -8286,7 +8686,7 @@ void Map::drawTerrain(Surface *surface)
 			//				if (!Computed[ScreenPixelY*_screenVoxelFrame->mWidth + ScreenPixelX])
 							{
 								vVoxelRay.ComputeTileStopScaled();
-								vVoxelRay.QuickSetup(); 
+								vVoxelRay.QuickSetup();
 
 								// traverse phase
 								// sloppy fix, use HasTileBegin above later
@@ -8303,7 +8703,7 @@ void Map::drawTerrain(Surface *surface)
 							//			if (!tile) continue;
 				//						tile->setTraversed( true );
 
-										// if tile is not full of air then start voxel traversal 
+										// if tile is not full of air then start voxel traversal
 										if (!vTraverseTile->isVoid())
 										{
 											// original integer version working well:
@@ -8339,7 +8739,7 @@ void Map::drawTerrain(Surface *surface)
 													)
 													{
 			//											vTraverseTile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
-									
+
 														if (vTraverseTile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
 														{
 		/*
@@ -8357,7 +8757,7 @@ void Map::drawTerrain(Surface *surface)
 															// seems like a "FAT" hit solution haha.
 															// kinda nasty... still produces some gaps, cause end of tile voxel not copied, BLAH...
 															// could check if it can copy to next tile... euhmm... this is getting a bit akward though
-															// I kinda don't like it.... also it might give false hits... going back to original integer solution.
+															// I kinda don"t like it.... also it might give false hits... going back to original integer solution.
 															if (VoxelTraverseX < 15)
 															{
 																vTraverseTile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX+1] = true;
@@ -8388,7 +8788,7 @@ void Map::drawTerrain(Surface *surface)
 												} while (!vVoxelRay.IsVoxelTraverseDone());
 											}
 
-		/*									
+		/*
 											// fill up the entire tile to see which tiles are being traversed.
 											for (int vVoxelZ=0; vVoxelZ<24; vVoxelZ++)
 											{
@@ -8465,17 +8865,17 @@ void Map::drawTerrain(Surface *surface)
 
 	// 4. AND NOW ALGORITHM IMPROVEMENT/SPEED UP STEP: ONLY COMPUTE/SHOOT RAYS FOR VOXELS WHICH ARE NOT YET COMPUTED.
 
-	//  
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
-	// DEBUG ME TOMORROW, I DON'T WORK YET
+	//
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
+	// DEBUG ME TOMORROW, I DON"T WORK YET
 	// MAYBE NEVER ? ;)
 	//
 
-
-	if (true == true) // disabled
+	// disable just in case for PBRTExport, left of here...
+	if (true == false) // disabled
 //	if (_save->IsLightCastingOn())
 //	if (IfThisCaravanIsRockingThenDontComeKnocking == 0)
 	{
@@ -8511,7 +8911,7 @@ void Map::drawTerrain(Surface *surface)
 
 		VoxelPosition vStart;
 		VoxelPosition vStop;
-		
+
 		int ScreenWidth = _screenVoxelFrame->mWidth;
 		int ScreenHeight = _screenVoxelFrame->mHeight;
 
@@ -8522,7 +8922,7 @@ void Map::drawTerrain(Surface *surface)
 //		bool *Computed = new bool[vScreenPixelCount];
 //		bool Computed[64000];
 
-		// this might be somewhat costly, but let's give it a go
+		// this might be somewhat costly, but let"s give it a go
 		// reset computed
 //		for (int vIndex=0; vIndex < vScreenPixelCount; vIndex++)
 //		{
@@ -8579,7 +8979,7 @@ void Map::drawTerrain(Surface *surface)
 //		vVoxelRay.Start.Y = (53 * 16);
 //		vVoxelRay.Start.Z = (6 * 24);
 
-		// let's put sun inside map/cells to avoid any intersection problem, which may be the case for voxel line clipping with the tile.
+		// let"s put sun inside map/cells to avoid any intersection problem, which may be the case for voxel line clipping with the tile.
 
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -8593,19 +8993,19 @@ void Map::drawTerrain(Surface *surface)
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		// !!
 		// !!! ALSO SOME STRANGE LINES BETWEEN THE SRPITES... IS IT BECAUSE OF FLOATING POINT INACCURACIES ?!?!
-		// !!! OR IS SOMETHING ELSE CAUSING THIS, MOST LIKELY THE LATTER, BECAUSE IT'S SOMEWHAT UNLIKELY FOR EVERYTHING
+		// !!! OR IS SOMETHING ELSE CAUSING THIS, MOST LIKELY THE LATTER, BECAUSE IT"S SOMEWHAT UNLIKELY FOR EVERYTHING
 		// !!! TO BE/HAVE SUCH A PERFECT SPACING LINES BETWEEN IT... KINDA ODD
 		// !!!
 		// !!! THIS PROBLEM MAY BE CAUSD BY SPRITES HAVING A DOUBLE LINE IN THE CENTER, VOXEL MAPS DO NOT
 		// !!! MAYBE DUPLICATE THIS BEHAVIOUR IN VOXEL MAPS INSTEAD, TO SOLVE THIS PROBLEM MORE RELIABLY ?!
 		// !!!
-		// !!! DON'T KNOW YET THE EXACT CAUSE BUT THIS IS MOST LIKELY ONE OF THE, IF NOT THE CAUSE OF IT.
+		// !!! DON"T KNOW YET THE EXACT CAUSE BUT THIS IS MOST LIKELY ONE OF THE, IF NOT THE CAUSE OF IT.
 		// !!!
 		// !!! I AND OTHERS THOUGHT THAT IT MIGHT BE SOLVED WITH THE +1 TRICK... BUT MAYBE THAT IS NOT SUFFICIENT...
 		// !!! THEN AGAIN MAYBE SOMETHING ELSE MIGHT BE THE PROBLEM AS WELL...
 		// !!!
 		// !!! ALL THESE WEIRD QUICKERS AND THE BAD/INACCURATE VOXEL DATA... CASTS SOME DOUBTS/SHADOW HEHE
-		// !!! IF IT'S WORTH CONTINUEING THIS... BUT IS THERE A CHOICE ?! HEHEHEHE... OFCOURSE THERE IS ALWAYS A CHOICE
+		// !!! IF IT"S WORTH CONTINUEING THIS... BUT IS THERE A CHOICE ?! HEHEHEHE... OFCOURSE THERE IS ALWAYS A CHOICE
 		// !!! BUT OK...
 		// !!! ANYWAY FOR NOW THE MAXIMUM IS NOT TAKEN/ACHIEVED OUT OF IT... SO MAYBE GO ONE... AND TRY AND IMPROVE
 		// !!! THE GRID/VOXEL TRAVERSAL ALGORITHM, TRY AND DO A REALLY PROPER VERSION... BETTER
@@ -8623,7 +9023,7 @@ void Map::drawTerrain(Surface *surface)
 		// !!!
 		// !!! AT LEAST THE SCREEN VOXEL FRAME CONCEPT IS SOMEWHAT PROVEN TO WORK, THE IDEA IS SOMEWHAT OK
 		// !!! THERE WERE A FEW LITTLE VOXEL/PIXELS MAYBE MISSING IN COMPUTE SPRITE VOXEL OR SOMETHING
-		// !!! BUT THE IDEA ITSELF ISN'T BAD... AND ALLOWS VERY FAST/EFFICIENT 1 SCREEN PIXEL = 1 SUN RAY COMPUTATIONS.
+		// !!! BUT THE IDEA ITSELF ISN"T BAD... AND ALLOWS VERY FAST/EFFICIENT 1 SCREEN PIXEL = 1 SUN RAY COMPUTATIONS.
 		// !!!
 		// !!! WITH A RAY TRACER TO REPLACE THE SCREEN VOXEL FRAME, THAT WOULD MOSTLY REMAIN THE SAME... AGAIN
 		// !!!
@@ -8644,7 +9044,7 @@ void Map::drawTerrain(Surface *surface)
 
 //		Sun.X = (38.3 * 16);
 //		Sun.Y = (30.2 * 16);
-		Sun.X = HalfWayX + ( cos(EatShitAndDie/120.0) * HalfWayX ); 
+		Sun.X = HalfWayX + ( cos(EatShitAndDie/120.0) * HalfWayX );
 		Sun.Y = HalfWayY + ( sin(EatShitAndDie/120.0) * HalfWayY );
 		Sun.Z = (3.3 * 24);
 
@@ -8672,10 +9072,10 @@ void Map::drawTerrain(Surface *surface)
 			{
 				bool ScreenPixelLit;
 
-				// ground/earth/building voxel position basically		
+				// ground/earth/building voxel position basically
 				int vVoxelPositionZ = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Z;
-				int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y; 
-				int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X; 
+				int vVoxelPositionY = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].Y;
+				int vVoxelPositionX = _screenVoxelFrame->mVoxelPosition[ ScreenPixelOffset ].X;
 
 /*
 				int vLastTileHitX = -1;
@@ -8688,7 +9088,7 @@ void Map::drawTerrain(Surface *surface)
 */
 
 /*
-				// let's try and figure out what is really going on with these voxel coordinates inside the screen voxel frame
+				// let"s try and figure out what is really going on with these voxel coordinates inside the screen voxel frame
 				// do they really match up ?!?!?
 				// convert back to tile position and voxel position within the tile
 				// and then set the traversed bool to true and render it later on
@@ -8717,7 +9117,7 @@ void Map::drawTerrain(Surface *surface)
 
 					// funny enough these are all integers, I kinda wanted to do a little epsilon... hmmmm...
 					// so it kinda does go to next voxel... but ok, so far it looks pretty good.
-					// though let's be honest it's also kinda it's own voxel.. the corner...
+					// though let"s be honest it"s also kinda it"s own voxel.. the corner...
 					// maybe it depends on how the rounding happens and the floating point inaccuracies happen.
 					// sometimes it will be left, sometimes right, that could very maybe also be an issue, maybe this solve it too haha.
 //					for (int vRayCornerY=0; vRayCornerY <= 1; vRayCornerY++)
@@ -8735,7 +9135,7 @@ void Map::drawTerrain(Surface *surface)
 			//				if (!Computed[ScreenPixelY*_screenVoxelFrame->mWidth + ScreenPixelX])
 							{
 								vVoxelRay.ComputeTileStopScaled();
-								vVoxelRay.QuickSetup(); 
+								vVoxelRay.QuickSetup();
 
 								// traverse phase
 								// sloppy fix, use HasTileBegin above later
@@ -8752,7 +9152,7 @@ void Map::drawTerrain(Surface *surface)
 							//			if (!tile) continue;
 				//						tile->setTraversed( true );
 
-										// if tile is not full of air then start voxel traversal 
+										// if tile is not full of air then start voxel traversal
 										if (!vTraverseTile->isVoid())
 										{
 											// original integer version working well:
@@ -8790,7 +9190,7 @@ void Map::drawTerrain(Surface *surface)
 													)
 													{
 			//											vTraverseTile->VoxelTraversedMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] = true;
-									
+
 														if (vTraverseTile->VoxelMap._Present[VoxelTraverseZ][VoxelTraverseY][VoxelTraverseX] == true)
 														{
 		/*
@@ -8824,7 +9224,7 @@ void Map::drawTerrain(Surface *surface)
 															)
 															{
 																// lit
-																
+
 
 															} else
 															{
@@ -8848,7 +9248,7 @@ void Map::drawTerrain(Surface *surface)
 												} while (!vVoxelRay.IsVoxelTraverseDone());
 											}
 
-		/*									
+		/*
 											// fill up the entire tile to see which tiles are being traversed.
 											for (int vVoxelZ=0; vVoxelZ<24; vVoxelZ++)
 											{
@@ -8907,9 +9307,9 @@ void Map::drawTerrain(Surface *surface)
 
 						int SunShade;
 
-						DeltaToSunX = Sun.X - vVoxelPositionX; 
-						DeltaToSunY = Sun.Y - vVoxelPositionY; 
-						DeltaToSunZ = Sun.Z - vVoxelPositionZ; 
+						DeltaToSunX = Sun.X - vVoxelPositionX;
+						DeltaToSunY = Sun.Y - vVoxelPositionY;
+						DeltaToSunZ = Sun.Z - vVoxelPositionZ;
 
 						DistanceToSun = (DeltaToSunX * DeltaToSunX);
 						DistanceToSun += (DeltaToSunY * DeltaToSunY);
@@ -8945,10 +9345,10 @@ void Map::drawTerrain(Surface *surface)
 
 							surface->setPixel( ScreenPixelX, ScreenPixelY, FinalColor );
 
-//							Uint8 FinalColor =  SunShade; // BaseColor - ShadowShade; 
+//							Uint8 FinalColor =  SunShade; // BaseColor - ShadowShade;
 //							surface->setPixel( ScreenPixelX, ScreenPixelY, FinalColor );
 						}
-				
+
 					} else
 					{
 						// could use distance to hit point maybe to make the shadow a little bit less severe
@@ -8964,7 +9364,7 @@ void Map::drawTerrain(Surface *surface)
 						// surface->setPixel( ScreenPixelX, ScreenPixelY, 0 );
 
 						// good code
-					
+
 						Uint8 PixelColor = surface->getPixel( ScreenPixelX, ScreenPixelY );
 						Uint8 BaseColor = (PixelColor & 240) + 15;   // invert base color, so it goes from dark=x to light= x+15
 						Uint8 TextureColor = 15 - (PixelColor & 15); // invert texture color, so it goes from dark=0 to light=15
@@ -8988,7 +9388,7 @@ void Map::drawTerrain(Surface *surface)
 							Uint8 TextureColor = PixelColor & 15; // isolate "texture information"
 
 							TextureColor = TextureColor >> 3; // div 8   1, 4, 8
-							
+
 							Uint8 FinalColor = (BaseColor - TextureColor); // plus little bit of light, could use darkness setting or whatever.
 //							Uint8 FinalColor = BaseColor; // plus little bit of light, could use darkness setting or whatever.
 
@@ -8999,7 +9399,7 @@ void Map::drawTerrain(Surface *surface)
 							Uint8 TextureColor = PixelColor & 15; // isolate "texture information"
 
 							TextureColor = TextureColor >> 3; // 1, 4, 8
-							
+
 							Uint8 FinalColor = BaseColor + TextureColor; // plus little bit of light, could use darkness setting or whatever.
 //							Uint8 FinalColor = BaseColor + 2; // plus little bit of light, could use darkness setting or whatever.
 
@@ -9076,7 +9476,7 @@ void Map::drawTerrain(Surface *surface)
 
 
 						// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-						// !!! SKYBUCK: MAKE SURE IT'S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
+						// !!! SKYBUCK: MAKE SURE IT"S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
 						// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
 	//					DrawTileVoxelTraversedMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
@@ -9161,7 +9561,7 @@ void Map::drawTerrain(Surface *surface)
 		}
 		if (_numWaypid)
 		{
-			_numWaypid->setBordered(false); // make sure we remove the border in case it's being used for missile waypoints.
+			_numWaypid->setBordered(false); // make sure we remove the border in case it"s being used for missile waypoints.
 		}
 	}
 	unit = (BattleUnit*)_save->getSelectedUnit();
@@ -9228,14 +9628,19 @@ void Map::drawTerrain(Surface *surface)
 			}
 		}
 	}
-	surface->unlock();
 
+	if (_save->IsPBRTExportOn())
+	{
+		PBRTExport_CloseFile();
+	}
+
+	surface->unlock();
 }
 
 
 /**
  * Draw the terrain.
- * Keep this function as optimised as possible. It's big to minimise overhead of function calls.
+ * Keep this function as optimised as possible. It"s big to minimise overhead of function calls.
  * @param surface The surface to draw on.
  */
 
@@ -9768,7 +10173,7 @@ void Map::drawTerrain(Surface *surface)
 								default:
 									break;
 								}
-								// at this point, let's assume the shot is adjusted and set the text amber.
+								// at this point, let"s assume the shot is adjusted and set the text amber.
 								_txtAccuracy->setColor(Palette::blockOffset(Pathfinding::yellow - 1)-1);
 
 								if (distance > upperLimit)
@@ -9930,7 +10335,7 @@ void Map::drawTerrain(Surface *surface)
 		}
 		if (_numWaypid)
 		{
-			_numWaypid->setBordered(false); // make sure we remove the border in case it's being used for missile waypoints.
+			_numWaypid->setBordered(false); // make sure we remove the border in case it"s being used for missile waypoints.
 		}
 	}
 	unit = (BattleUnit*)_save->getSelectedUnit();
@@ -10177,7 +10582,7 @@ void Map::calculateWalkingOffset(BattleUnit *unit, Position *offset, int *shadeO
 		}
 	}
 
-	// If we are walking in between tiles, interpolate it's terrain level.
+	// If we are walking in between tiles, interpolate it"s terrain level.
 	if (unit->getStatus() == STATUS_WALKING || unit->getStatus() == STATUS_FLYING)
 	{
 		if (phase < midphase)
@@ -10198,7 +10603,7 @@ void Map::calculateWalkingOffset(BattleUnit *unit, Position *offset, int *shadeO
 		else
 		{
 			// from phase 4 onwards the unit behind the scenes already is on the destination tile
-			// we have to get it's last position to calculate the correct offset
+			// we have to get it"s last position to calculate the correct offset
 			int fromLevel = getTerrainLevel(unit->getLastPosition(), size);
 			int toLevel = getTerrainLevel(unit->getDestination(), size);
 			if (unit->getLastPosition().z > unit->getDestination().z)
@@ -10220,7 +10625,7 @@ void Map::calculateWalkingOffset(BattleUnit *unit, Position *offset, int *shadeO
 		{
 			unit->setFloorAbove(false);
 
-			// make sure this unit isn't obscured by the floor above him, otherwise it looks weird.
+			// make sure this unit isn"t obscured by the floor above him, otherwise it looks weird.
 			if (_camera->getViewLevel() > unit->getPosition().z)
 			{
 				for (int z = std::min(_camera->getViewLevel(), _save->getMapSizeZ() - 1); z != unit->getPosition().z; --z)
@@ -10395,7 +10800,7 @@ std::vector<Position> *Map::getWaypoints()
 }
 
 /**
- * Sets mouse-buttons' pressed state.
+ * Sets mouse-buttons" pressed state.
  * @param button Index of the button.
  * @param pressed The state of the button.
  */
@@ -10451,7 +10856,7 @@ void Map::setWidth(int width)
 }
 
 /**
- * Get the hidden movement screen's vertical position.
+ * Get the hidden movement screen"s vertical position.
  * @return the vertical position of the hidden movement window.
  */
 int Map::getMessageY() const
@@ -10494,7 +10899,7 @@ int Map::getSoundAngle(const Position& pos) const
 	// convert the relative distance to a relative increment of an 80 degree angle
 	// we use +- 80 instead of +- 90, so as not to go ALL the way left or right
 	// which would effectively mute the sound out of one speaker.
-	// since Mix_SetPosition uses modulo 360, we can't feed it a negative number, so add 360 instead.
+	// since Mix_SetPosition uses modulo 360, we can"t feed it a negative number, so add 360 instead.
 	return 360 + (relativePosition.x / (midPoint / 80.0));
 }
 

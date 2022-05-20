@@ -64,6 +64,7 @@ private:
 	bool _debugMode;
 	bool _LightCastingOn;
 	bool _LightTraversingOn;
+	bool _PBRTExportOn;
 	bool _aborted;
 	int _itemId;
 	int _objectiveType, _objectivesDestroyed, _objectivesNeeded;
@@ -309,6 +310,9 @@ public:
 
 	void ToggleLightTraversingOn();
 	bool IsLightTraversingOn() const;
+
+	void TogglePBRTExportOn();
+	bool IsPBRTExportOn() const;
 };
 
 }

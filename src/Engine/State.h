@@ -53,9 +53,11 @@ protected:
 	RuleInterface *_ruleInterface;
 	RuleInterface *_ruleInterfaceParent;
 
-	SDL_Color _palette[256];
+
 	Uint8 _cursorColor;
 public:
+	SDL_Color _palette[256];
+
 	/// Creates a new state linked to a game.
 	State();
 	/// Cleans up the state.

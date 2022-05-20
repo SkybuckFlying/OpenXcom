@@ -1611,6 +1611,17 @@ inline void BattlescapeState::handle(Action *action)
 						{
 							debug("Light Traversing Off");
 						}
+					}
+					else if (action->getDetails()->key.keysym.sym == SDLK_p && (SDL_GetModState() & KMOD_CTRL) != 0)
+					{
+						_save->TogglePBRTExportOn();
+						if (_save->IsPBRTExportOn())
+						{
+							debug("PBRT Export On");
+						} else
+						{
+							debug("PBRT Export Off");
+						}
 					} 
 					// "ctrl-v" - reset tile visibility
 					else if (_save->getDebugMode() && action->getDetails()->key.keysym.sym == SDLK_v && (SDL_GetModState() & KMOD_CTRL) != 0)

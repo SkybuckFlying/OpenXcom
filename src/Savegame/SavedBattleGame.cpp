@@ -57,6 +57,11 @@ SavedBattleGame::SavedBattleGame() : _battleState(0), _mapsize_x(0), _mapsize_y(
 		_tileSearch[i].x = ((i%11) - 5);
 		_tileSearch[i].y = ((i/11) - 5);
 	}
+
+	_LightCastingOn = false;
+	_LightTraversingOn = false;
+
+	_PBRTExportOn = false;
 }
 
 /**
@@ -943,6 +948,11 @@ void SavedBattleGame::ToggleLightTraversingOn()
 	_LightTraversingOn = not _LightTraversingOn;
 }
 
+void SavedBattleGame::TogglePBRTExportOn()
+{
+	_PBRTExportOn = not _PBRTExportOn;
+}
+
 /**
  * Gets the current debug mode.
  * @return Debug mode.
@@ -961,6 +971,12 @@ bool SavedBattleGame::IsLightTraversingOn() const
 {
 	return _LightTraversingOn;
 }
+
+bool SavedBattleGame::IsPBRTExportOn() const
+{
+	return _PBRTExportOn;
+}
+
 
 /**
  * Gets the BattlescapeState.
