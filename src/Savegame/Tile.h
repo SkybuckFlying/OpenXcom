@@ -23,8 +23,11 @@
 #include "../Mod/MapData.h"
 #include "BattleUnit.h"
 #include "../Battlescape/TileEngine.h"
+#include <string.h>
 
 #include <SDL_types.h> // for Uint8
+
+#include "../Engine/VoxelGrid.h"
 
 namespace OpenXcom
 {
@@ -86,9 +89,18 @@ protected:
 
 
 public:
-	// Skybuck: put voxels in here later.
-//	TileVoxelMap3D VoxelMap; // Skybuck: for debugging voxel traversal only !!!
+	// this is not a good idea
+	// consuming 921.600.000 bytes for nothing.
+	// or even more if mulitplied by 4.
+/*
+	Uint8 ObjectVoxelColor[4][24][16][16];
+	bool ObjectVoxelPresent[4][24][16][16];
+	std::string ObjectVoxelMaterial[4][24][16][16];
 
+	Uint8 IntegratedVoxelColor[24][16][16];
+	bool IntegratedVoxelPresent[24][16][16];
+	std::string IntegratedVoxelMaterial[24][16][16];
+*/
 
 	/// Creates a tile.
 	Tile(Position pos);
@@ -178,8 +190,10 @@ public:
 	int getExplosiveType() const;
 	/// Animated the tile parts.
 	void animate();
+
 	/// Get object sprites.
 	Surface *getSprite(int part) const;
+
 	/// Set a unit on this tile.
 	void setUnit(BattleUnit *unit, Tile *tileBelow = 0);
 	/**
@@ -267,7 +281,7 @@ public:
 	void resetObstacle(void);
 
 	// Skybuck: could place to compute voxel map
-
+	void ComputeVoxelGrid( TileEngine *ParaTileEngine, VoxelGrid *ParaVoxelGrid );
 };
 
 }

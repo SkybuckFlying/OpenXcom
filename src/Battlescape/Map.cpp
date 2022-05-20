@@ -47,6 +47,7 @@
 #include "../Interface/NumberText.h"
 #include "../Interface/Text.h"
 #include "../fmath.h"
+#include "../Engine/SpriteUtils.h"
 
 #include <math.h> // for pi
 
@@ -598,7 +599,6 @@ void PBRTExport_Voxel( int ParaWorldVoxelX, int ParaWorldVoxelY, int ParaWorldVo
 
 	VoxelColor = PBRTExport_LookUpPaletteIndex( ParaPaletteIndex );
 
-
 	AddString( "AttributeBegin 								 ");
 	AddString( "Translate " + std::to_string(ParaWorldVoxelX) + " " + std::to_string(ParaWorldVoxelY) + " "  + std::to_string(ParaWorldVoxelZ) );
 	AddString( "	Material \"coateddiffuse\"				 ");
@@ -611,26 +611,7 @@ void PBRTExport_Voxel( int ParaWorldVoxelX, int ParaWorldVoxelY, int ParaWorldVo
 }
 
 
-void ComputeSpriteCoordinate( int ParaVoxelX, int ParaVoxelY, int ParaVoxelZ, int *ParaSpriteX, int *ParaSpriteY )
-{
-	int SpriteStartX, SpriteStartY;
-	int Component;
-//	float Component;
-	int SpriteX, SpriteY;
 
-	// setup sprite start x, sprite start y
-	SpriteStartX = 15; // tile width
-	SpriteStartY = 24; // tile depth
-
-	// calculate sprite x position based on voxel position (x,y,z)
-	*ParaSpriteX = (SpriteStartX + ParaVoxelX) - ParaVoxelY;
-
-	Component = ParaVoxelX + ParaVoxelY;
-	Component = Component >> 1; // should this be a float ? is this causing imprecise graphics ? probably not maybe check it later
-//				Component = Component / 2.0;
-
-	*ParaSpriteY = (SpriteStartY + Component) - ParaVoxelZ;
-}
 
 void PBRTExport_Tile( Tile *ParaTile, Surface *ParaSprite )
 {
@@ -735,6 +716,48 @@ void PBRTExport_Tile( Tile *ParaTile, Surface *ParaSprite )
 
 
 
+void PBRTExport_TileVoxelGrid( Tile *ParaTile, VoxelGrid *ParaVoxelGrid )
+{
+	int TileX, TileY, TileZ;
+	int VoxelX, VoxelY, VoxelZ;
+
+	int WorldVoxelX, WorldVoxelY, WorldVoxelZ;
+
+	bool VoxelPresent;
+	Uint8 VoxelPaletteIndex;
+
+	TileX = ParaTile->getPosition().x;
+	TileY = ParaTile->getPosition().y;
+	TileZ = ParaTile->getPosition().z;
+
+	// walk over all voxels of the tile object
+	for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+	{
+		for (VoxelY=15; VoxelY >= 0; VoxelY--)
+		{
+			for (VoxelX=15; VoxelX >= 0; VoxelX--)
+			{
+				VoxelPresent = ParaVoxelGrid->mEntry[VoxelZ][VoxelY][VoxelX].mPresent;
+
+				if (VoxelPresent == true)
+				{
+					// compute world voxel coordinate
+					WorldVoxelX = (TileX * 16) + VoxelX;
+					WorldVoxelY = (TileY * 16) + VoxelY;
+					WorldVoxelZ = (TileZ * 24) + VoxelZ;
+
+					// lookup voxel material/color for the sprite color/palette index
+//					WorldVoxelColor = VoxelMaterialLookUp( SpritePixelColor );
+
+					// lay the sprite texture on top of the voxel
+					VoxelPaletteIndex = ParaVoxelGrid->mEntry[VoxelZ][VoxelY][VoxelX].mPaletteIndex;
+					PBRTExport_Voxel( WorldVoxelX, WorldVoxelY, WorldVoxelZ, VoxelPaletteIndex );
+				}
+			}
+		}
+	}
+}
+
 void PBRTExport_OpenFile()
 {
 	std::string vFilename = "E:\\SourceCode\\OpenXCom\\ExportToPBRT\\PBRTv4Scenes\\OpenXcomFrame" + std::to_string(EatShitAndDie) + ".pbrt";
@@ -751,7 +774,6 @@ void PBRTExport_CloseFile()
 {
   	OutputStreamPBRT.close();
 }
-
 
 // slighty modified draw terrain to include "draw sprite voxel frame"
 /**
@@ -776,6 +798,32 @@ void Map::drawTerrain(Surface *surface)
 
 	NumberText *_numWaypid = 0;
 
+/*
+	Uint8 ObjectVoxelColor[4][24][16][16];
+	bool ObjectVoxelPresent[4][24][16][16];
+	std::string ObjectVoxelMaterial[4][24][16][16];
+
+	Uint8 IntegratedVoxelColor[24][16][16];
+	bool IntegratedVoxelPresent[24][16][16];
+	std::string IntegratedVoxelMaterial[24][16][16];
+*/
+
+/*
+	bool FloorVoxelPresent[24][16][16];
+	bool WestWallVoxelPresent[24][16][16];
+	bool NorthWallVoxelPresent[24][16][16];
+	bool ObjectVoxelPresent[24][16][16];
+
+	Uint8 FloorVoxelColor[24][16][16];
+	Uint8 WestWallVoxelColor[24][16][16];
+	Uint8 NorthWallVoxelColor[24][16][16];
+	Uint8 ObjectVoxelColor[24][16][16];
+
+	Uint8 TileVoxelColor[24][16][16];
+*/
+
+	// in the name of efficiency let's do it in just one data structure
+	VoxelGrid TileVoxelGrid;
 
 	// if we got bullet, get the highest x and y tiles to draw it on
 	if (_projectile && _explosions.empty())
@@ -908,12 +956,13 @@ void Map::drawTerrain(Surface *surface)
 
 	if (_save->IsPBRTExportOn())
 	{
-
 		PBRT_LoadPaletteRGB();
 
 		PBRTExport_OpenFile();
 
 		PBRTExport_Header();
+
+		TileVoxelGrid.Clear();
 	}
 
 	for (int itZ = beginZ; itZ <= endZ; itZ++)
@@ -923,6 +972,7 @@ void Map::drawTerrain(Surface *surface)
 		{
 			for (int itY = beginY; itY <= endY; itY++)
 			{
+
 				mapPosition = Position(itX, itY, itZ);
 				_camera->convertMapToScreen(mapPosition, &screenPosition);
 				screenPosition += _camera->getMapOffset();
@@ -966,11 +1016,6 @@ void Map::drawTerrain(Surface *surface)
 							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), obstacleShade, false);
 						else
 							tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_FLOOR)->getYOffset(), tileShade, false);
-
-						if (_save->IsPBRTExportOn())
-						{
-							PBRTExport_Tile( tile, tmpSurface );
-						}
 					}
 					unit = tile->getUnit();
 
@@ -1034,13 +1079,8 @@ void Map::drawTerrain(Surface *surface)
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), obstacleShade, false);
 							else
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_WESTWALL)->getYOffset(), wallShade, false);
-
-							if (_save->IsPBRTExportOn())
-							{
-								PBRTExport_Tile( tile, tmpSurface );
-							}
-
 						}
+
 						// Draw north wall
 						tmpSurface = tile->getSprite(O_NORTHWALL);
 						if (tmpSurface)
@@ -1054,12 +1094,6 @@ void Map::drawTerrain(Surface *surface)
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), obstacleShade, tile->getMapData(O_WESTWALL) != 0);
 							else
 								tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_NORTHWALL)->getYOffset(), wallShade, tile->getMapData(O_WESTWALL) != 0);
-
-							if (_save->IsPBRTExportOn())
-							{
-								PBRTExport_Tile( tile, tmpSurface );
-							}
-					
 						}
 
 						// Draw object
@@ -1072,11 +1106,6 @@ void Map::drawTerrain(Surface *surface)
 									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), obstacleShade, false);
 								else
 									tmpSurface->blitNShade(surface, screenPosition.x, screenPosition.y - tile->getMapData(O_OBJECT)->getYOffset(), tileShade, false);
-
-								if (_save->IsPBRTExportOn())
-								{
-									PBRTExport_Tile( tile, tmpSurface );
-								}
 							}
 
 
@@ -1096,6 +1125,14 @@ void Map::drawTerrain(Surface *surface)
 					// !!! SKYBUCK: MAKE SURE IT"S OUTSIDE THE OTHER IF STATEMENTS OTHERWISE IT WILL NOT RENDER ALL TILES/VOXELS !!!
 					// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //					DrawTileVoxelMap3D( _save->getTileEngine(), surface, screenPosition.x, screenPosition.y, tile, itZ );
+
+					if (_save->IsPBRTExportOn())
+					{
+//						PBRTExport_Tile( tile, tmpSurface );
+						tile->ComputeVoxelGrid( _save->getTileEngine(), &TileVoxelGrid );
+
+						PBRTExport_TileVoxelGrid( tile, &TileVoxelGrid );
+					}
 
 					// check if we got bullet && it is in Field Of View
 					if (_projectile && _projectileInFOV)

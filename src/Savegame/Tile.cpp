@@ -30,6 +30,8 @@
 #include "SerializationHelper.h"
 #include "../Battlescape/Particle.h"
 #include "../fmath.h"
+#include "../Engine/VoxelGrid.h"
+#include "../Engine/SpriteUtils.h"
 
 namespace OpenXcom
 {
@@ -1093,6 +1095,113 @@ void Tile::PrecomputeVoxelMap3D( TileEngine *ParaTileEngine, TileVoxelMap3D *Par
 
 */
 
+// Skybuck: funny enough all sprites can be gathered from the tile itself !
+void Tile::ComputeVoxelGrid( TileEngine *ParaTileEngine, VoxelGrid *ParaVoxelGrid )
+{
+//	ParaVoxelGrid->mEntry[4][5][6].mPresent = true;
+
+	// MELT FLOOR, WESTWELL, NORTHWELL, OBJECT VOXELS/LOFTS TOGETHER INTO ONE
+	// AND DO IT MEMORY ACCESS PATTERN EFFICIENTLY
+	MapData *vMapData;
+	Surface *vSpriteSurface; 
+
+	int ObjectIndex;
+	int VoxelX, VoxelY, VoxelZ;
+
+	int XBitIndex;
+	int YIntegerIndex;
+	int ZLoftSliceIndex;
+
+	int LoftLayer;
+	int LoftID;
+	int LoftIDOptimization;
+
+	Uint16 LoftBits;
+
+	bool VoxelPresent;
+
+	int SpriteX;
+	int SpriteY;
+	Uint8 vSpritePixelColor;
+
+	for (ObjectIndex = 3; ObjectIndex >= 0; ObjectIndex--) // TilePart
+	{
+		vMapData = _objects[ObjectIndex];
+		vSpriteSurface = getSprite(ObjectIndex); 
+
+		if (vMapData != 0)
+		{
+			// walk over all voxels of the tile object
+			for (VoxelZ=23; VoxelZ >= 0; VoxelZ--)
+			{
+				LoftLayer = VoxelZ >> 1; // does mod first matter for negative z ?!?
+//				LoftLayer = (VoxelZ / 2) % 12; // Skybuck: I like this better but not sure if it's mathetically 100% equivalent concerning negative values for VoxelZ.
+				LoftID = vMapData->getLoftID( LoftLayer );
+//				LoftIDOptimization = (LoftID * 16); 
+				LoftIDOptimization = (LoftID << 4); // shl 1 = * 2, shl 2 = * 4, shl 3 = * 8, shl 4 = * 16
+
+				for (VoxelY=15; VoxelY >= 0; VoxelY--)
+				{
+					YIntegerIndex = VoxelY;
+					ZLoftSliceIndex = LoftIDOptimization + YIntegerIndex; // 16 = size of a loft slice in the loft slice array down below
+
+					for (VoxelX=15; VoxelX >= 0; VoxelX--)
+					{
+						LoftBits = ParaTileEngine->_voxelData->at(ZLoftSliceIndex); // voxel data = loft slice array from tile engine... loft slices re-used for many tiles.
+
+						// maybe the acquisition of this could be made more efficient, these 16 bits maybe only need to be acquired once.
+						XBitIndex = 15 - VoxelX;
+						// (LoftBits & (1 << XBitIndex) // old code doesn't make a nice boolean value
+
+						// new code should make a nice boolean value
+						VoxelPresent = (LoftBits >> XBitIndex) & 1; 
+
+						if (VoxelPresent == true)
+						{
+
+							// only update voxel if it was not yet processed, present can be used to indicated that it was processed
+							if (ParaVoxelGrid->mEntry[VoxelZ][VoxelY][VoxelX].mPresent == false)
+							{
+								// check if the sprite is present
+								if (vSpriteSurface != 0)
+								{
+									// try and compute it's color
+
+									// first compute the sprite coordinates that belong to the voxel
+									ComputeSpriteCoordinate( VoxelX, VoxelY, VoxelZ, &SpriteX, &SpriteY );
+
+									// then acquire the sprite pixel color associated with that coordinate
+									vSpritePixelColor = vSpriteSurface->getPixel( SpriteX, SpriteY );
+
+									// only set voxel present to true, if the sprite agrees with that there should be a voxel
+									// however sprites are a bit weird and have a double line at center, not sure if this going to effect it properly not
+									// because voxel grid are smaller anyway.
+
+									// check for transparency
+									if (vSpritePixelColor != 0)
+									{
+										// now set the voxel as present
+										ParaVoxelGrid->mEntry[VoxelZ][VoxelY][VoxelX].mPresent = true;
+
+										// now also set the voxel color to the sprite pixel color
+										ParaVoxelGrid->mEntry[VoxelZ][VoxelY][VoxelX].mPaletteIndex = vSpritePixelColor;
+
+										/*
+										if (VoxelZ != 1) // the double floor is causing problems for the ray traversal/graphics, it heightens the floors, ending the light rays prematurely.
+										{
+											ParaVoxelMap->_Present[VoxelZ][VoxelY][VoxelX] = ParaVoxelMap->_Present[VoxelZ][VoxelY][VoxelX] || VoxelPresent;
+										}
+										*/
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
 
 
 }

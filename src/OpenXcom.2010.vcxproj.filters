@@ -945,6 +945,12 @@
     <ClCompile Include="Menu\ModConfirmExtendedState.cpp">
       <Filter>Menu</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\SpriteUtils.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\VoxelGrid.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -1929,6 +1935,12 @@
     </ClInclude>
     <ClInclude Include="Menu\ModConfirmExtendedState.h">
       <Filter>Menu</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\VoxelGrid.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\SpriteUtils.h">
+      <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
