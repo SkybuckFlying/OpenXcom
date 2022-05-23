@@ -30,7 +30,6 @@
 #include "../Interface/Text.h"
 #include "../Engine/Action.h"
 #include "MainMenuState.h"
-#include "../Geoscape/GeoscapeState.h"
 #include "../Battlescape/BattlescapeState.h"
 #include "OptionsVideoState.h"
 #include "OptionsAudioState.h"
@@ -138,11 +137,11 @@ void OptionsBaseState::restart(OptionsOrigin origin)
 	}
 	else if (origin == OPT_GEOSCAPE)
 	{
-		_game->setState(new GeoscapeState);
+
 	}
 	else if (origin == OPT_BATTLESCAPE)
 	{
-		_game->setState(new GeoscapeState);
+
 		BattlescapeState *bs = new BattlescapeState;
 		_game->pushState(bs);
 		_game->getSavedGame()->getSavedBattle()->setBattleState(bs);

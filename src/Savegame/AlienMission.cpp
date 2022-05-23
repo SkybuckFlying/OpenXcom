@@ -24,7 +24,6 @@
 #include "../Engine/Game.h"
 #include "../Engine/Logger.h"
 #include "../Engine/RNG.h"
-#include "../Geoscape/Globe.h"
 #include "../Mod/RuleAlienMission.h"
 #include "../Mod/RuleRegion.h"
 #include "../Mod/RuleCountry.h"
@@ -217,18 +216,6 @@ void AlienMission::think(Game &engine, const Globe &globe)
 				MissionArea area;
 				std::pair<double, double> pos;
 				int tries = 0;
-				do
-				{
-					area = areas.at(RNG::generate(0, areas.size()-1));
-					pos.first = RNG::generate(std::min(area.lonMin, area.lonMax), std::max(area.lonMin, area.lonMax));
-					pos.second = RNG::generate(std::min(area.latMin, area.latMax), std::max(area.latMin, area.latMax));
-					++tries;
-				}
-				while (!(globe.insideLand(pos.first, pos.second)
-					&& region->insideRegion(pos.first, pos.second))
-					&& tries < 100);
-				spawnAlienBase(engine, area, pos);
-				break;
 			}
 		}
 		// Infiltrations loop for ever.
@@ -241,17 +228,6 @@ void AlienMission::think(Game &engine, const Globe &globe)
 		MissionArea area;
 		std::pair<double, double> pos;
 		int tries = 0;
-		do
-		{
-			area = areas.at(RNG::generate(0, areas.size()-1));
-			pos.first = RNG::generate(std::min(area.lonMin, area.lonMax), std::max(area.lonMin, area.lonMax));
-			pos.second = RNG::generate(std::min(area.latMin, area.latMax), std::max(area.latMin, area.latMax));
-			++tries;
-		}
-		while (!(globe.insideLand(pos.first, pos.second)
-			&& region->insideRegion(pos.first, pos.second))
-			&& tries < 100);
-		spawnAlienBase(engine, area, pos);
 	}
 
 	if (_nextWave != _rule.getWaveCount())
@@ -511,20 +487,7 @@ void AlienMission::ufoReachedWaypoint(Ufo &ufo, Game &engine, const Globe &globe
 		}
 		else
 		{
-			if (globe.insideLand(ufo.getLongitude(), ufo.getLatitude()))
-			{
-				// Set timer for UFO on the ground.
-				ufo.setSecondsRemaining(trajectory.groundTimer() * 5);
-				if (ufo.getDetected() && ufo.getLandId() == 0)
-				{
-					ufo.setLandId(engine.getSavedGame()->getId("STR_LANDING_SITE"));
-				}
-			}
-			else
-			{
-				// There's nothing to land on
-				ufo.setSecondsRemaining(5);
-			}
+
 		}
 	}
 }
@@ -782,20 +745,7 @@ std::pair<double, double> AlienMission::getLandPoint(const Globe &globe, const R
 	}
 	else
 	{
-		int tries = 0;
-		do
-		{
-			pos = region.getRandomPoint(zone);
-			++tries;
-		}
-		while (!(globe.insideLand(pos.first, pos.second)
-			&& region.insideRegion(pos.first, pos.second))
-			&& tries < 100);
 
-		if (tries == 100)
-		{
-			Log(LOG_DEBUG) << "Region: " << region.getType() << " Longitude: " << pos.first << " Latitude: " << pos.second << " invalid zone: " << zone << " ufo forced to land on water!";
-		}
 	}
 	return pos;
 }

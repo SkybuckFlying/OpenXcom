@@ -27,7 +27,6 @@
 #include "../Engine/Screen.h"
 #include "../Engine/LocalizedText.h"
 #include "../Interface/Text.h"
-#include "../Geoscape/GeoscapeState.h"
 #include "ErrorMessageState.h"
 #include "../Battlescape/BattlescapeState.h"
 #include "../Mod/Mod.h"
@@ -170,7 +169,7 @@ void LoadGameState::think()
 				Options::baseXResolution = Options::baseXGeoscape;
 				Options::baseYResolution = Options::baseYGeoscape;
 				_game->getScreen()->resetDisplay(false);
-				_game->setState(new GeoscapeState);
+
 				if (_game->getSavedGame()->getSavedBattle() != 0)
 				{
 					_game->getSavedGame()->getSavedBattle()->loadMapResources(_game->getMod());

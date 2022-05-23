@@ -94,7 +94,8 @@ inline Logger::~Logger()
 
 inline SeverityLevel& Logger::reportingLevel()
 {
-	static SeverityLevel reportingLevel = LOG_DEBUG;
+//	static SeverityLevel reportingLevel = LOG_DEBUG;
+	static SeverityLevel reportingLevel = LOG_VERBOSE;
 	return reportingLevel;
 }
 

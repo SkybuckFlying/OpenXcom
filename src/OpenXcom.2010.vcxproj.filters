@@ -2,63 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Basescape\MiniBaseView.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\MonthlyCostsState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\PlaceFacilityState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\PurchaseState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\ResearchState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\SackSoldierState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\SellState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\SoldierInfoState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\SoldiersState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\StoresState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\BaseInfoState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\BasescapeState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\BaseView.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\BuildFacilitiesState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\CraftInfoState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\CraftSoldiersState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\CraftsState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\CraftWeaponsState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\DismantleFacilityState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
     <ClCompile Include="Engine\Screen.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -182,66 +125,6 @@
     <ClCompile Include="Savegame\Region.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
-    <ClCompile Include="Geoscape\ConfirmDestinationState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\ConfirmNewBaseState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\CraftPatrolState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\DogfightState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\FundingState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\GeoscapeCraftState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\GeoscapeState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\Globe.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\GraphsState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\InterceptState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\LowFuelState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\MonthlyReportState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\MultipleTargetsState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\SelectDestinationState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\TargetInfoState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\UfoDetectedState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\UfoLostState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\BaseNameState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\BuildNewBaseState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\PlaceLiftState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
     <ClCompile Include="Engine\Action.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
@@ -290,9 +173,6 @@
     <ClCompile Include="Savegame\BattleItem.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
-    <ClCompile Include="Geoscape\ConfirmLandingState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
     <ClCompile Include="Battlescape\BattlescapeGenerator.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
@@ -307,9 +187,6 @@
     </ClCompile>
     <ClCompile Include="Battlescape\BattleState.cpp">
       <Filter>Battlescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\TransfersState.cpp">
-      <Filter>Basescape</Filter>
     </ClCompile>
     <ClCompile Include="Battlescape\ExplosionBState.cpp">
       <Filter>Battlescape</Filter>
@@ -326,56 +203,8 @@
     <ClCompile Include="Battlescape\Explosion.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
-    <ClCompile Include="Geoscape\ItemsArrivingState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleState.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateText.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateTextImage.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\Ufopaedia.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\UfopaediaSelectState.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\UfopaediaStartState.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\ProductionCompleteState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateCraft.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateCraftWeapon.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\CraftEquipmentState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\CraftArmorState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\SoldierArmorState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\TransferItemsState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\TransferBaseState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
     <ClCompile Include="Battlescape\ActionMenuItem.cpp">
       <Filter>Battlescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\TransferConfirmState.cpp">
-      <Filter>Basescape</Filter>
     </ClCompile>
     <ClCompile Include="Engine\CrossPlatform.cpp">
       <Filter>Engine</Filter>
@@ -398,15 +227,6 @@
     <ClCompile Include="Engine\Options.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateBaseFacility.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateItem.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateUfo.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
     <ClCompile Include="Battlescape\NextTurnState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
@@ -428,12 +248,6 @@
     <ClCompile Include="Battlescape\DebriefingState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
-    <ClCompile Include="Basescape\NewResearchListState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\NewPossibleResearchState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
     <ClCompile Include="Savegame\ResearchProject.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
@@ -445,9 +259,6 @@
     </ClCompile>
     <ClCompile Include="Battlescape\UnitDieBState.cpp">
       <Filter>Battlescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateArmor.cpp">
-      <Filter>Ufopaedia</Filter>
     </ClCompile>
     <ClCompile Include="Battlescape\MiniMapState.cpp">
       <Filter>Battlescape</Filter>
@@ -488,35 +299,11 @@
     <ClCompile Include="Menu\NewBattleState.cpp">
       <Filter>Menu</Filter>
     </ClCompile>
-    <ClCompile Include="Basescape\ManufactureStartState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\ManageAlienContainmentState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\ManufactureInfoState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\NewManufactureListState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\ResearchInfoState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\ManufactureState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\ResearchCompleteState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
     <ClCompile Include="Battlescape\BriefingState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
     <ClCompile Include="Menu\ErrorMessageState.cpp">
       <Filter>Menu</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\CraftErrorState.cpp">
-      <Filter>Geoscape</Filter>
     </ClCompile>
     <ClCompile Include="Savegame\Vehicle.cpp">
       <Filter>Savegame</Filter>
@@ -525,20 +312,8 @@
     <ClCompile Include="Battlescape\CannotReequipState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateVehicle.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\NewPossibleManufactureState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\SelectStartFacilityState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
     <ClCompile Include="Savegame\EquipmentLayoutItem.cpp">
       <Filter>Savegame</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\PlaceStartFacilityState.cpp">
-      <Filter>Basescape</Filter>
     </ClCompile>
     <ClCompile Include="Savegame\AlienBase.cpp">
       <Filter>Savegame</Filter>
@@ -546,32 +321,14 @@
     <ClCompile Include="Savegame\AlienMission.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
-    <ClCompile Include="Geoscape\AlienBaseState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\AllocatePsiTrainingState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\PsiTrainingState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
     <ClCompile Include="Savegame\WeightedOptions.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
     <ClCompile Include="Savegame\AlienStrategy.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
-    <ClCompile Include="Geoscape\BaseDefenseState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
     <ClCompile Include="Menu\DeleteGameState.cpp">
       <Filter>Menu</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\BaseDestroyedState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\ConfirmCydoniaState.cpp">
-      <Filter>Geoscape</Filter>
     </ClCompile>
     <ClCompile Include="Battlescape\UnitFallBState.cpp">
       <Filter>Battlescape</Filter>
@@ -651,14 +408,8 @@
     <ClCompile Include="Battlescape\AliensCrashState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
-    <ClCompile Include="Geoscape\ResearchRequiredState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
     <ClCompile Include="Savegame\SoldierDeath.cpp">
       <Filter>Savegame</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\SoldierMemorialState.cpp">
-      <Filter>Basescape</Filter>
     </ClCompile>
     <ClCompile Include="Menu\OptionsVideoState.cpp">
       <Filter>Menu</Filter>
@@ -723,9 +474,6 @@
     <ClCompile Include="Menu\OptionsNoAudioState.cpp">
       <Filter>Menu</Filter>
     </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateTFTD.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
     <ClCompile Include="Interface\BattlescapeButton.cpp">
       <Filter>Interface</Filter>
     </ClCompile>
@@ -734,27 +482,6 @@
     </ClCompile>
     <ClCompile Include="Battlescape\Particle.cpp">
       <Filter>Battlescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateTFTDFacility.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateTFTDCraft.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateTFTDUso.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateTFTDArmor.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateTFTDItem.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateTFTDCraftWeapon.cpp">
-      <Filter>Ufopaedia</Filter>
-    </ClCompile>
-    <ClCompile Include="Ufopaedia\ArticleStateTFTDVehicle.cpp">
-      <Filter>Ufopaedia</Filter>
     </ClCompile>
     <ClCompile Include="Savegame\SaveConverter.cpp">
       <Filter>Savegame</Filter>
@@ -768,17 +495,11 @@
     <ClCompile Include="Savegame\MissionSite.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
-    <ClCompile Include="Geoscape\MissionDetectedState.cpp">
-      <Filter>Geoscape</Filter>
-    </ClCompile>
     <ClCompile Include="Battlescape\MeleeAttackBState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
     <ClCompile Include="Battlescape\PsiAttackBState.cpp">
       <Filter>Battlescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Geoscape\DogfightErrorState.cpp">
-      <Filter>Geoscape</Filter>
     </ClCompile>
     <ClCompile Include="Mod\AlienDeployment.cpp">
       <Filter>Mod</Filter>
@@ -915,15 +636,6 @@
     <ClCompile Include="Savegame\SoldierDiary.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
-    <ClCompile Include="Basescape\SoldierDiaryMissionState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\SoldierDiaryOverviewState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Basescape\SoldierDiaryPerformanceState.cpp">
-      <Filter>Basescape</Filter>
-    </ClCompile>
     <ClCompile Include="Mod\RuleConverter.cpp">
       <Filter>Mod</Filter>
     </ClCompile>
@@ -948,69 +660,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
-    <ClInclude Include="Basescape\ManufactureState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\ManageAlienContainmentState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\MiniBaseView.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\MonthlyCostsState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\PlaceFacilityState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\PurchaseState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\ResearchState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\SackSoldierState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\SellState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\SoldierInfoState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\SoldiersState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\StoresState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\BaseInfoState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\BasescapeState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\BaseView.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\BuildFacilitiesState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\CraftInfoState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\CraftSoldiersState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\CraftsState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\CraftWeaponsState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\DismantleFacilityState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\RNG.h">
       <Filter>Engine</Filter>
     </ClInclude>
@@ -1134,66 +783,6 @@
     <ClInclude Include="Savegame\Region.h">
       <Filter>Savegame</Filter>
     </ClInclude>
-    <ClInclude Include="Geoscape\ConfirmDestinationState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\ConfirmNewBaseState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\CraftPatrolState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\DogfightState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\FundingState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\GeoscapeCraftState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\GeoscapeState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\Globe.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\GraphsState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\InterceptState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\LowFuelState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\MonthlyReportState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\MultipleTargetsState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\SelectDestinationState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\TargetInfoState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\UfoDetectedState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\UfoLostState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\BaseNameState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\BuildNewBaseState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\PlaceLiftState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\Action.h">
       <Filter>Engine</Filter>
     </ClInclude>
@@ -1245,9 +834,6 @@
     <ClInclude Include="Savegame\BattleItem.h">
       <Filter>Savegame</Filter>
     </ClInclude>
-    <ClInclude Include="Geoscape\ConfirmLandingState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
     <ClInclude Include="Battlescape\BattlescapeGenerator.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
@@ -1282,59 +868,8 @@
     <ClInclude Include="Battlescape\Explosion.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
-    <ClInclude Include="Basescape\TransfersState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\ItemsArrivingState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleState.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateText.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateTextImage.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\Ufopaedia.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\UfopaediaSelectState.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\UfopaediaStartState.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\ProductionCompleteState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateCraft.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateCraftWeapon.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\CraftEquipmentState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\CraftArmorState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\SoldierArmorState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\TransferItemsState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\TransferBaseState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
     <ClInclude Include="Battlescape\ActionMenuItem.h">
       <Filter>Battlescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\TransferConfirmState.h">
-      <Filter>Basescape</Filter>
     </ClInclude>
     <ClInclude Include="Engine\CrossPlatform.h">
       <Filter>Engine</Filter>
@@ -1357,15 +892,6 @@
     <ClInclude Include="Engine\Options.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateBaseFacility.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateItem.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateUfo.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
     <ClInclude Include="Battlescape\NextTurnState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
@@ -1387,12 +913,6 @@
     <ClInclude Include="Battlescape\DebriefingState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
-    <ClInclude Include="Basescape\NewResearchListState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\NewPossibleResearchState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
     <ClInclude Include="Savegame\ResearchProject.h">
       <Filter>Savegame</Filter>
     </ClInclude>
@@ -1404,9 +924,6 @@
     </ClInclude>
     <ClInclude Include="Battlescape\UnitDieBState.h">
       <Filter>Battlescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateArmor.h">
-      <Filter>Ufopaedia</Filter>
     </ClInclude>
     <ClInclude Include="Battlescape\MiniMapState.h">
       <Filter>Battlescape</Filter>
@@ -1447,29 +964,11 @@
     <ClInclude Include="Menu\NewBattleState.h">
       <Filter>Menu</Filter>
     </ClInclude>
-    <ClInclude Include="Basescape\ManufactureStartState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\ManufactureInfoState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\ResearchInfoState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\NewManufactureListState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\ResearchCompleteState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
     <ClInclude Include="Battlescape\BriefingState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
     <ClInclude Include="Menu\ErrorMessageState.h">
       <Filter>Menu</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\CraftErrorState.h">
-      <Filter>Geoscape</Filter>
     </ClInclude>
     <ClInclude Include="Savegame\Vehicle.h">
       <Filter>Savegame</Filter>
@@ -1478,20 +977,8 @@
     <ClInclude Include="Battlescape\CannotReequipState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateVehicle.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\NewPossibleManufactureState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\Logger.h">
       <Filter>Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\SelectStartFacilityState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\PlaceStartFacilityState.h">
-      <Filter>Basescape</Filter>
     </ClInclude>
     <ClInclude Include="Savegame\AlienBase.h">
       <Filter>Savegame</Filter>
@@ -1499,17 +986,8 @@
     <ClInclude Include="Savegame\AlienMission.h">
       <Filter>Savegame</Filter>
     </ClInclude>
-    <ClInclude Include="Geoscape\AlienBaseState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
     <ClInclude Include="Savegame\EquipmentLayoutItem.h">
       <Filter>Savegame</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\AllocatePsiTrainingState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\PsiTrainingState.h">
-      <Filter>Geoscape</Filter>
     </ClInclude>
     <ClInclude Include="Savegame\WeightedOptions.h">
       <Filter>Savegame</Filter>
@@ -1517,17 +995,8 @@
     <ClInclude Include="Savegame\AlienStrategy.h">
       <Filter>Savegame</Filter>
     </ClInclude>
-    <ClInclude Include="Geoscape\BaseDefenseState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
     <ClInclude Include="Menu\DeleteGameState.h">
       <Filter>Menu</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\ConfirmCydoniaState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\BaseDestroyedState.h">
-      <Filter>Geoscape</Filter>
     </ClInclude>
     <ClInclude Include="Battlescape\UnitFallBState.h">
       <Filter>Battlescape</Filter>
@@ -1617,14 +1086,8 @@
     <ClInclude Include="Battlescape\AliensCrashState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
-    <ClInclude Include="Geoscape\ResearchRequiredState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
     <ClInclude Include="Savegame\SoldierDeath.h">
       <Filter>Savegame</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\SoldierMemorialState.h">
-      <Filter>Basescape</Filter>
     </ClInclude>
     <ClInclude Include="Menu\OptionsVideoState.h">
       <Filter>Menu</Filter>
@@ -1696,9 +1159,6 @@
     <ClInclude Include="Engine\DosFont.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateTFTD.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
     <ClInclude Include="Interface\BattlescapeButton.h">
       <Filter>Interface</Filter>
     </ClInclude>
@@ -1710,27 +1170,6 @@
     </ClInclude>
     <ClInclude Include="Battlescape\Particle.h">
       <Filter>Battlescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateTFTDFacility.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateTFTDCraft.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateTFTDUso.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateTFTDArmor.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateTFTDItem.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateTFTDCraftWeapon.h">
-      <Filter>Ufopaedia</Filter>
-    </ClInclude>
-    <ClInclude Include="Ufopaedia\ArticleStateTFTDVehicle.h">
-      <Filter>Ufopaedia</Filter>
     </ClInclude>
     <ClInclude Include="Savegame\SaveConverter.h">
       <Filter>Savegame</Filter>
@@ -1744,17 +1183,11 @@
     <ClInclude Include="Savegame\MissionSite.h">
       <Filter>Savegame</Filter>
     </ClInclude>
-    <ClInclude Include="Geoscape\MissionDetectedState.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
     <ClInclude Include="Battlescape\MeleeAttackBState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
     <ClInclude Include="Battlescape\PsiAttackBState.h">
       <Filter>Battlescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Geoscape\DogfightErrorState.h">
-      <Filter>Geoscape</Filter>
     </ClInclude>
     <ClInclude Include="Mod\AlienDeployment.h">
       <Filter>Mod</Filter>
@@ -1888,9 +1321,6 @@
     <ClInclude Include="Battlescape\CommendationState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
-    <ClInclude Include="Geoscape\Cord.h">
-      <Filter>Geoscape</Filter>
-    </ClInclude>
     <ClInclude Include="Savegame\MissionStatistics.h">
       <Filter>Savegame</Filter>
     </ClInclude>
@@ -1899,15 +1329,6 @@
     </ClInclude>
     <ClInclude Include="Savegame\SoldierDiary.h">
       <Filter>Savegame</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\SoldierDiaryMissionState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\SoldierDiaryOverviewState.h">
-      <Filter>Basescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Basescape\SoldierDiaryPerformanceState.h">
-      <Filter>Basescape</Filter>
     </ClInclude>
     <ClInclude Include="Mod\RuleConverter.h">
       <Filter>Mod</Filter>
@@ -1932,17 +1353,11 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Geoscape">
-      <UniqueIdentifier>{f0521223-4515-4155-bf25-5f00373167d5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Engine">
       <UniqueIdentifier>{8fafa8d9-0283-4082-9361-01ebd937e3bb}</UniqueIdentifier>
     </Filter>
     <Filter Include="Interface">
       <UniqueIdentifier>{e996bc13-2f6a-4a8b-bdd9-7a8621048cea}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Basescape">
-      <UniqueIdentifier>{cc069fa8-f772-4dae-be38-87bcd1013fdd}</UniqueIdentifier>
     </Filter>
     <Filter Include="Battlescape">
       <UniqueIdentifier>{f7e493ce-c074-420c-8b38-40d81b2d0509}</UniqueIdentifier>
@@ -1952,9 +1367,6 @@
     </Filter>
     <Filter Include="Menu">
       <UniqueIdentifier>{4218da2f-b393-45b2-a55f-da7fa4d91fe4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Ufopaedia">
-      <UniqueIdentifier>{41135935-090f-4179-a64d-0efbd66b5f5c}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\Scalers">
       <UniqueIdentifier>{fef61e76-5d44-4389-a40c-12da6e590e2c}</UniqueIdentifier>

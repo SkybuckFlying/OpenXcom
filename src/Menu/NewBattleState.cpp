@@ -48,7 +48,6 @@
 #include "../Engine/Action.h"
 #include "../Engine/Options.h"
 #include "../Engine/Logger.h"
-#include "../Basescape/CraftInfoState.h"
 #include "../Engine/CrossPlatform.h"
 #include "../Mod/RuleAlienMission.h"
 #include "../Mod/RuleGlobe.h"
@@ -585,7 +584,7 @@ void NewBattleState::btnRandomClick(Action *)
  */
 void NewBattleState::btnEquipClick(Action *)
 {
-	_game->pushState(new CraftInfoState(_game->getSavedGame()->getBases()->front(), 0));
+
 }
 
 /**

@@ -24,8 +24,6 @@
 #include "../Interface/ToggleTextButton.h"
 #include "../Interface/Window.h"
 #include "../Interface/Text.h"
-#include "../Geoscape/GeoscapeState.h"
-#include "../Geoscape/BuildNewBaseState.h"
 #include "../Engine/Options.h"
 #include "../Savegame/SavedGame.h"
 
@@ -146,10 +144,6 @@ void NewGameState::btnOkClick(Action *)
 	save->setIronman(_btnIronman->getPressed());
 	_game->setSavedGame(save);
 
-	GeoscapeState *gs = new GeoscapeState;
-	_game->setState(gs);
-	gs->init();
-	_game->pushState(new BuildNewBaseState(_game->getSavedGame()->getBases()->back(), gs->getGlobe(), true));
 }
 
 /**

@@ -57,9 +57,7 @@
 #include "../Menu/MainMenuState.h"
 #include "../Interface/Cursor.h"
 #include "../Engine/Options.h"
-#include "../Basescape/ManageAlienContainmentState.h"
 #include "../Engine/Screen.h"
-#include "../Basescape/SellState.h"
 #include "../Menu/SaveGameState.h"
 #include "../Mod/AlienDeployment.h"
 #include "../Mod/RuleInterface.h"
@@ -708,12 +706,12 @@ void DebriefingState::btnOkClick(Action *)
 			}
 			if (_manageContainment)
 			{
-				_game->pushState(new ManageAlienContainmentState(_base, OPT_BATTLESCAPE));
+
 				_game->pushState(new ErrorMessageState(tr("STR_CONTAINMENT_EXCEEDED").arg(_base->getName()), _palette, _game->getMod()->getInterface("debriefing")->getElement("errorMessage")->color, "BACK01.SCR", _game->getMod()->getInterface("debriefing")->getElement("errorPalette")->color));
 			}
 			if (!_manageContainment && Options::storageLimitsEnforced && _base->storesOverfull())
 			{
-				_game->pushState(new SellState(_base, OPT_BATTLESCAPE));
+
 				_game->pushState(new ErrorMessageState(tr("STR_STORAGE_EXCEEDED").arg(_base->getName()), _palette, _game->getMod()->getInterface("debriefing")->getElement("errorMessage")->color, "BACK01.SCR", _game->getMod()->getInterface("debriefing")->getElement("errorPalette")->color));
 			}
 		}

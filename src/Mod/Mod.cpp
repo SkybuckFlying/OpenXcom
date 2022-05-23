@@ -68,7 +68,6 @@
 #include "ExtraStrings.h"
 #include "RuleInterface.h"
 #include "RuleMissionScript.h"
-#include "../Geoscape/Globe.h"
 #include "../Savegame/SavedGame.h"
 #include "../Savegame/Region.h"
 #include "../Savegame/Base.h"
@@ -78,7 +77,6 @@
 #include "../Savegame/Vehicle.h"
 #include "../Savegame/ItemContainer.h"
 #include "../Savegame/Transfer.h"
-#include "../Ufopaedia/Ufopaedia.h"
 #include "../Savegame/AlienStrategy.h"
 #include "../Savegame/GameTime.h"
 #include "../Savegame/SoldierDiary.h"
@@ -172,13 +170,6 @@ void Mod::resetGlobalStatics()
 	FIRE_DAMAGE_RANGE[1] = 10;
 	DEBRIEF_MUSIC_GOOD = "GMMARS";
 	DEBRIEF_MUSIC_BAD = "GMMARS";
-
-	Globe::OCEAN_COLOR = Palette::blockOffset(12);
-	Globe::OCEAN_SHADING = true;
-	Globe::COUNTRY_LABEL_COLOR = 239;
-	Globe::LINE_COLOR = 162;
-	Globe::CITY_LABEL_COLOR = 138;
-	Globe::BASE_LABEL_COLOR = 133;
 
 	TextButton::soundPress = 0;
 
@@ -1324,18 +1315,6 @@ void Mod::loadFile(const std::string &filename)
 			}
 			_ufopaediaListOrder += 100;
 			rule->load(*i, _ufopaediaListOrder);
-			if (rule->section != UFOPAEDIA_NOT_AVAILABLE)
-			{
-				if (_ufopaediaSections.find(rule->section) == _ufopaediaSections.end())
-				{
-					_ufopaediaSections[rule->section] = rule->getListOrder();
-					_ufopaediaCatIndex.push_back(rule->section);
-				}
-				else
-				{
-					_ufopaediaSections[rule->section] = std::min(_ufopaediaSections[rule->section], rule->getListOrder());
-				}
-			}
 		}
 		else if ((*i)["delete"])
 		{
@@ -2486,9 +2465,6 @@ void Mod::sortLists()
 	// special cases
 	std::sort(_craftWeaponsIndex.begin(), _craftWeaponsIndex.end(), compareRule<RuleCraftWeapon>(this));
 	std::sort(_armorsIndex.begin(), _armorsIndex.end(), compareRule<Armor>(this));
-	_ufopaediaSections[UFOPAEDIA_NOT_AVAILABLE] = 0;
-	std::sort(_ufopaediaIndex.begin(), _ufopaediaIndex.end(), compareRule<ArticleDefinition>(this));
-	std::sort(_ufopaediaCatIndex.begin(), _ufopaediaCatIndex.end(), compareSection(this));
 }
 
 /**

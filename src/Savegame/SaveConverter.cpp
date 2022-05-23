@@ -55,7 +55,6 @@
 #include "../Mod/UfoTrajectory.h"
 #include "../Engine/RNG.h"
 #include "../Mod/RuleConverter.h"
-#include "../Ufopaedia/Ufopaedia.h"
 #include "../fmath.h"
 
 namespace OpenXcom
@@ -1150,22 +1149,6 @@ void SaveConverter::loadDatUp()
 	{
 		char *rdata = (data + i * ENTRY_SIZE);
 		ArticleDefinition *article = _mod->getUfopaediaArticle(_rules->getUfopaedia()[i]);
-		if (article != 0 && article->section != UFOPAEDIA_NOT_AVAILABLE)
-		{
-			bool discovered = load<Uint8>(rdata + 0x08) == 2;
-			if (discovered)
-			{
-				std::vector<std::string> requires = article->requires;
-				for (std::vector<std::string>::const_iterator r = requires.begin(); r != requires.end(); ++r)
-				{
-					RuleResearch *research = _mod->getResearch(*r);
-					if (research && research->getCost() == 0)
-					{
-						_save->addFinishedResearch(research, _mod, 0, false);
-					}
-				}
-			}
-		}
 	}
 }
 

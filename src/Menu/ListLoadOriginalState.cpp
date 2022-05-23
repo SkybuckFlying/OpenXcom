@@ -30,7 +30,6 @@
 #include "../Interface/TextButton.h"
 #include "../Interface/Window.h"
 #include "../Interface/Text.h"
-#include "../Geoscape/GeoscapeState.h"
 #include "../Battlescape/BattlescapeState.h"
 #include "ErrorMessageState.h"
 #include "../Mod/RuleInterface.h"
@@ -193,7 +192,7 @@ void ListLoadOriginalState::btnSlotClick(Action *action)
 			Options::baseXResolution = Options::baseXGeoscape;
 			Options::baseYResolution = Options::baseYGeoscape;
 			_game->getScreen()->resetDisplay(false);
-			_game->setState(new GeoscapeState);
+//			_game->setState(new GeoscapeState); // Skybuck: set to BattlescapeState ?
 			if (_game->getSavedGame()->getSavedBattle() != 0)
 			{
 				_game->getSavedGame()->getSavedBattle()->loadMapResources(_game->getMod());
