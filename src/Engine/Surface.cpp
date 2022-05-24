@@ -24,7 +24,6 @@
 #include <SDL_gfxPrimitives.h>
 #include <SDL_image.h>
 #include <SDL_endian.h>
-#include "../lodepng.h"
 #include "Palette.h"
 #include "Exception.h"
 #include "Logger.h"
@@ -298,47 +297,6 @@ void Surface::loadImage(const std::string &filename)
 	_surface = 0;
 
 	Log(LOG_VERBOSE) << "Loading image: " << filename;
-
-	// Try loading with LodePNG first
-	if (CrossPlatform::compareExt(filename, "png"))
-	{
-		std::vector<unsigned char> png;
-		unsigned error = lodepng::load_file(png, filename);
-		if (!error)
-		{
-			std::vector<unsigned char> image;
-			unsigned width, height;
-			lodepng::State state;
-			state.decoder.color_convert = 0;
-			error = lodepng::decode(image, width, height, state, png);
-			if (!error)
-			{
-				LodePNGColorMode *color = &state.info_png.color;
-				unsigned bpp = lodepng_get_bpp(color);
-				if (bpp == 8)
-				{
-					_alignedBuffer = NewAligned(bpp, width, height);
-					_surface = SDL_CreateRGBSurfaceFrom(_alignedBuffer, width, height, bpp, GetPitch(bpp, width), 0, 0, 0, 0);
-					if (_surface)
-					{
-						loadRaw(image);
-						setPalette((SDL_Color*)color->palette, 0, color->palettesize);
-						int transparent = 0;
-						for (int c = 0; c < _surface->format->palette->ncolors; ++c)
-						{
-							SDL_Color *palColor = _surface->format->palette->colors + c;
-							if (palColor->unused == 0)
-							{
-								transparent = c;
-								break;
-							}
-						}
-						SDL_SetColorKey(_surface, SDL_SRCCOLORKEY, transparent);
-					}
-				}
-			}
-		}
-	}
 
 	// Otherwise default to SDL_Image
 	if (!_surface)
