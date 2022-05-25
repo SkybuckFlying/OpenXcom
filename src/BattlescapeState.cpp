@@ -159,7 +159,7 @@ BattlescapeState::BattlescapeState() : _reserve(0), _firstInit(true), _isMouseSc
 	_txtTooltip = new Text(300, 10, x + 2, y - 10);
 
 	// Set palette
-	_game->getSavedGame()->getSavedBattle()->setPaletteByDepth(this);
+	_game->getSavedGame()->getSavedBattle()->setPaletteByDepth(this); 
 
 	if (_game->getMod()->getInterface("battlescape")->getElement("pathfinding"))
 	{

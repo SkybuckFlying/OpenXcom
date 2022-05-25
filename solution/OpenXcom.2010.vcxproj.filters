@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="Engine\Zoom.cpp">
-      <Filter>Engine</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\AbandonGameState.cpp">
       <Filter>Source Code</Filter>
     </ClCompile>
@@ -586,11 +583,11 @@
     <ClCompile Include="..\src\Zoom.cpp">
       <Filter>Source Code</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\AliveSoldiers.cpp">
+      <Filter>Source Code</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Engine\Zoom.h">
-      <Filter>Engine</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\AbandonGameState.h">
       <Filter>Source Code</Filter>
     </ClInclude>
@@ -1213,6 +1210,9 @@
       <Filter>Source Code</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Zoom.h">
+      <Filter>Source Code</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\AliveSoldiers.h">
       <Filter>Source Code</Filter>
     </ClInclude>
   </ItemGroup>

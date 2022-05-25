@@ -43,6 +43,8 @@ namespace OpenXcom
 /// Initializes static member
 Game* State::_game = 0;
 
+
+
 /**
  * Initializes a brand new state with no child elements.
  * By default states are full-screen.
@@ -490,6 +492,7 @@ void State::setPalette(SDL_Color *colors, int firstcolor, int ncolors, bool imme
  */
 void State::setPalette(const std::string &palette, int backpals)
 {
+	// Skybuck: palette located !
 	setPalette(_game->getMod()->getPalette(palette)->getColors(), 0, 256, false);
 	if (palette == "PAL_GEOSCAPE")
 	{
@@ -514,6 +517,7 @@ void State::setPalette(const std::string &palette, int backpals)
 	if (backpals != -1)
 		setPalette(_game->getMod()->getPalette("BACKPALS.DAT")->getColors(Palette::blockOffset(backpals)), Palette::backPos, 16, false);
 	setPalette(NULL); // delay actual update to the end
+
 }
 
 /**

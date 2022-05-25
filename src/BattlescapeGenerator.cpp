@@ -56,6 +56,8 @@
 #include "AlienDeployment.h"
 #include "Texture.h"
 
+#include "AliveSoldiers.h"
+
 namespace OpenXcom
 {
 
@@ -581,10 +583,13 @@ void BattlescapeGenerator::run()
 
 	deployAliens(ruleDeploy);
 
+	// Skybuck: disabled for now
+/*
 	if (unitCount == _save->getUnits()->size())
 	{
 		throw Exception("Map generator encountered an error: no alien units could be placed on the map.");
 	}
+*/
 
 	deployCivilians(ruleDeploy->getCivilians());
 
@@ -632,6 +637,11 @@ void BattlescapeGenerator::deployXCOM()
 	}
 
 	// add soldiers that are in the craft or base
+
+
+/*
+
+	// add soldiers that are in the craft or base
 	for (std::vector<Soldier*>::iterator i = _game->getSavedGame()->_aliveSoldiers.begin(); i != _game->getSavedGame()->_aliveSoldiers.end(); ++i)
 	{
 		{
@@ -640,12 +650,25 @@ void BattlescapeGenerator::deployXCOM()
 				_save->setSelectedUnit(unit);
 		}
 	}
+*/
 
+	// add soldiers that are in the craft or base
+	
+	for (std::vector<Soldier*>::iterator i = NewAliveSoldiers.begin(); i != NewAliveSoldiers.end(); ++i)
+	{
+		{
+			BattleUnit *unit = addXCOMUnit(new BattleUnit(*i, _save->getDepth()));
+			if (unit && !_save->getSelectedUnit())
+				_save->setSelectedUnit(unit);
+		}
+	}
+	
 	if (_save->getUnits()->empty())
 	{
 		throw Exception("Map generator encountered an error: no xcom units could be placed on the map.");
 	}
 
+/*
 	// maybe we should assign all units to the first tile of the skyranger before the inventory pre-equip and then reassign them to their correct tile afterwards?
 	// fix: make them invisible, they are made visible afterwards.
 	for (std::vector<BattleUnit*>::iterator i = _save->getUnits()->begin(); i != _save->getUnits()->end(); ++i)
@@ -656,7 +679,9 @@ void BattlescapeGenerator::deployXCOM()
 			(*i)->setVisible(false);
 		}
 	}
+*/
 
+/*
 	if (_craft != 0)
 	{
 		// add items that are in the craft
@@ -683,6 +708,7 @@ void BattlescapeGenerator::deployXCOM()
 	// load weapons before loadouts take extra clips.
 	loadWeapons();
 
+
 	for (std::vector<BattleItem*>::iterator i = _craftInventoryTile->getInventory()->begin(); i != _craftInventoryTile->getInventory()->end(); ++i)
 	{
 		// we only need to distribute extra ammo at this point.
@@ -693,6 +719,7 @@ void BattlescapeGenerator::deployXCOM()
 
 	// auto-equip soldiers (only soldiers without layout) and clean up moved items
 	autoEquip(*_save->getUnits(), _game->getMod(), _save, _craftInventoryTile->getInventory(), ground, _worldShade, _allowAutoLoadout, false);
+*/
 }
 
 void BattlescapeGenerator::autoEquip(std::vector<BattleUnit*> units, Mod *mod, SavedBattleGame *addToSave, std::vector<BattleItem*> *craftInv,
@@ -832,6 +859,7 @@ BattleUnit *BattlescapeGenerator::addXCOMVehicle(Vehicle *v)
  */
 BattleUnit *BattlescapeGenerator::addXCOMUnit(BattleUnit *unit)
 {
+
 	if (_baseInventory)
 	{
 		if (unit->hasInventory())
@@ -843,6 +871,7 @@ BattleUnit *BattlescapeGenerator::addXCOMUnit(BattleUnit *unit)
 	}
 	else
 	{
+/*
 		if (_craft == 0 || !_craftDeployed)
 		{
 			Node* node = _save->getSpawnNode(NR_XCOM, unit);
@@ -896,6 +925,7 @@ BattleUnit *BattlescapeGenerator::addXCOMUnit(BattleUnit *unit)
 			}
 		}
 		else
+*/
 		{
 			for (int i = 0; i < _mapsize_x * _mapsize_y * _mapsize_z; ++i)
 			{
@@ -922,6 +952,7 @@ BattleUnit *BattlescapeGenerator::addXCOMUnit(BattleUnit *unit)
  */
 bool BattlescapeGenerator::canPlaceXCOMUnit(Tile *tile)
 {
+/*
 	// to spawn an xcom soldier, there has to be a tile, with a floor, with the starting point attribute and no object in the way
 	if (tile &&
 		tile->getMapData(O_FLOOR) &&
@@ -931,10 +962,12 @@ bool BattlescapeGenerator::canPlaceXCOMUnit(Tile *tile)
 	{
 		if (_craftInventoryTile == 0)
 			_craftInventoryTile = tile;
-
 		return true;
-	}
+
+		}
 	return false;
+*/
+	return true;
 }
 
 /**
@@ -954,6 +987,9 @@ void BattlescapeGenerator::deployAliens(AlienDeployment *deployment)
 	{
 		_alienRace = _alienRace + "_UNDERWATER";
 	}
+
+	// Skybuck: no aliens for now
+	return;
 
 	AlienRace *race = _game->getMod()->getAlienRace(_alienRace);
 	if (race == 0)

@@ -50,6 +50,8 @@
 #include "Logger.h"
 #include "CrossPlatform.h"
 
+#include "AliveSoldiers.h"
+
 namespace OpenXcom
 {
 
@@ -365,7 +367,8 @@ void NewBattleState::initSave()
 		UnitStats* stats = soldier->getCurrentStats();
 		stats->bravery = (int)ceil(stats->bravery / 10.0) * 10; // keep it a multiple of 10
 
-		save->_aliveSoldiers.push_back( soldier );
+//		save->_aliveSoldiers.push_back( soldier );
+		NewAliveSoldiers.push_back( soldier );
 
 
 //		BattleUnit *vBattleUnit = new BattleUnit( soldier, 0 );

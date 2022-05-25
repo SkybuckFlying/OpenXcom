@@ -31,6 +31,7 @@
     <ClInclude Include="..\src\AlienRace.h" />
     <ClInclude Include="..\src\AliensCrashState.h" />
     <ClInclude Include="..\src\AlienStrategy.h" />
+    <ClInclude Include="..\src\AliveSoldiers.h" />
     <ClInclude Include="..\src\Armor.h" />
     <ClInclude Include="..\src\ArrowButton.h" />
     <ClInclude Include="..\src\Bar.h" />
@@ -241,6 +242,7 @@
     <ClCompile Include="..\src\AlienRace.cpp" />
     <ClCompile Include="..\src\AliensCrashState.cpp" />
     <ClCompile Include="..\src\AlienStrategy.cpp" />
+    <ClCompile Include="..\src\AliveSoldiers.cpp" />
     <ClCompile Include="..\src\Armor.cpp" />
     <ClCompile Include="..\src\ArrowButton.cpp" />
     <ClCompile Include="..\src\Bar.cpp" />
