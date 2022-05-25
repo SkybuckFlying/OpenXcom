@@ -1,0 +1,1254 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="Engine\Zoom.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Zoom.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MainSource\main.cpp">
+      <Filter>MainSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\AbandonGameState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\AbortMissionState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Action.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ActionMenuItem.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ActionMenuState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\AdlibMusic.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\adlplayer.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\AIModule.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\AlienDeployment.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\AlienRace.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\AliensCrashState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\AlienStrategy.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Armor.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ArrowButton.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Bar.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\BattleItem.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\BattlescapeButton.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\BattlescapeGame.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\BattlescapeGenerator.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\BattlescapeMessage.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\BattlescapeState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\BattleState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\BattleUnit.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\BriefingState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Camera.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\CannotReequipState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\CatFile.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ComboBox.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\CommendationLateState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\CommendationState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ConfirmLoadState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Craft.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\CraftWeapon.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\CraftWeaponProjectile.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\CrossPlatform.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Cursor.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\CutsceneState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\DebriefingState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\DeleteGameState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\EquipmentLayoutItem.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ErrorMessageState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Explosion.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ExplosionBState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ExtraSounds.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ExtraSprites.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ExtraStrings.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\FastLineClip.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\FileMap.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\FlcPlayer.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\fmopl.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Font.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\FpsCounter.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Frame.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Game.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\GameTime.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\GenerateSoldiers.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\GMCat.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\hq2x.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\hq3x.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\hq4x.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ImageButton.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\InfoboxOKState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\InfoboxState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\init.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\InteractiveSurface.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Inventory.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\InventoryState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ItemContainer.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Language.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\LanguagePlurality.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ListGamesState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ListLoadOriginalState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ListLoadState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ListSaveState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\LoadGameState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\LocalizedText.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\main.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MainMenuState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Map.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MapBlock.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MapData.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MapDataSet.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MapScript.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MCDPatch.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MedikitState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MedikitView.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MeleeAttackBState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MiniMapState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MiniMapView.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MissionSite.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Mod.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ModConfirmExtendedState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ModInfo.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ModListState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\MovingTarget.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Music.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\NewBattleState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\NewGameState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\NextTurnState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Node.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\NumberText.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OpenGL.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionInfo.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Options.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionsAdvancedState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionsAudioState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionsBaseState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionsBattlescapeState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionsConfirmState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionsControlsState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionsDefaultsState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionsGeoscapeState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionsNoAudioState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\OptionsVideoState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Palette.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Particle.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Pathfinding.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\PathfindingNode.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\PathfindingOpenSet.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\PauseState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\PrimeGrenadeState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Projectile.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ProjectileFlyBState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\PsiAttackBState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Region.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RNG.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleCommendations.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleCraft.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleCraftWeapon.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleInterface.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleInventory.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleItem.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleMissionScript.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleMusic.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleSoldier.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleTerrain.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleUfo.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\RuleVideo.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SavedBattleGame.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SavedGame.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SaveGameState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\scale2x.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\scale3x.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\scalebit.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ScannerState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ScannerView.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Screen.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ScrollBar.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SerializationHelper.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SetWindowedRootState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Slider.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SlideshowState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Soldier.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SoldierDeath.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SoldierDiary.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SoldierNamePool.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Sound.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SoundDefinition.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SoundSet.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\StartState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\State.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\StatisticsState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\StatString.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\StatStringCondition.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Surface.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\SurfaceSet.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Target.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\TestState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Text.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\TextButton.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\TextEdit.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\TextList.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Texture.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Tile.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\TileEngine.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Timer.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\ToggleTextButton.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Ufo.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Unicode.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Unit.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\UnitDieBState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\UnitFallBState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\UnitInfoState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\UnitPanicBState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\UnitSprite.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\UnitTurnBState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\UnitWalkBState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Vehicle.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\VideoState.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\WarningMessage.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Waypoint.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\WeightedOptions.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Window.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\xbrz.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\GameSource\Zoom.cpp">
+      <Filter>GameSource</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Engine\Zoom.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Zoom.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MainSource\version.h">
+      <Filter>MainSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MainSource\dirent.h">
+      <Filter>MainSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MainSource\fmath.h">
+      <Filter>MainSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MainSource\resource.h">
+      <Filter>MainSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\AbandonGameState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\AbortMissionState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Action.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ActionMenuItem.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ActionMenuState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\AdlibMusic.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\adlplayer.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\AIModule.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\AlienDeployment.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\AlienRace.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\AliensCrashState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\AlienStrategy.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Armor.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ArrowButton.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Bar.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\BattleItem.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\BattlescapeButton.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\BattlescapeGame.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\BattlescapeGenerator.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\BattlescapeMessage.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\BattlescapeState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\BattleState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\BattleUnit.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\BattleUnitStatistics.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\BriefingState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Camera.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\CannotReequipState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\CatFile.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ComboBox.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\CommendationLateState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\CommendationState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\common.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\config.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ConfirmLoadState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Craft.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\CraftWeapon.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\CraftWeaponProjectile.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\CrossPlatform.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Cursor.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\CutsceneState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\DebriefingState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\DeleteGameState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\dirent.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\DosFont.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\EquipmentLayoutItem.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ErrorMessageState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Exception.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Explosion.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ExplosionBState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ExtraSounds.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ExtraSprites.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ExtraStrings.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\FastLineClip.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\FileMap.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\FlcPlayer.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\fmath.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\fmopl.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Font.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\FpsCounter.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Frame.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Game.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\GameTime.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\GenerateSoldiers.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\GMCat.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\GraphSubset.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\hqx.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ImageButton.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\InfoboxOKState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\InfoboxState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\InteractiveSurface.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Inventory.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\InventoryState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ItemContainer.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Language.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\LanguagePlurality.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ListGamesState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ListLoadOriginalState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ListLoadState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ListSaveState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\LoadGameState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\LocalizedText.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Logger.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MainMenuState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Map.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MapBlock.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MapData.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MapDataSet.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MapScript.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MCDPatch.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MedikitState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MedikitView.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MeleeAttackBState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MiniMapState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MiniMapView.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MissionSite.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MissionStatistics.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Mod.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ModConfirmExtendedState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ModInfo.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ModListState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\MovingTarget.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Music.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\NewBattleState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\NewGameState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\NextTurnState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Node.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\NumberText.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OpenGL.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionInfo.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Options.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Options.inc.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionsAdvancedState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionsAudioState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionsBaseState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionsBattlescapeState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionsConfirmState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionsControlsState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionsDefaultsState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionsGeoscapeState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionsNoAudioState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\OptionsVideoState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Palette.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Particle.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Pathfinding.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\PathfindingNode.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\PathfindingOpenSet.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\PauseState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Position.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\PrimeGrenadeState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Projectile.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ProjectileFlyBState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\PsiAttackBState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Region.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\resource.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RNG.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleCommendations.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleCraft.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleCraftWeapon.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleInterface.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleInventory.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleItem.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleMissionScript.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleMusic.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleSoldier.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleTerrain.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleUfo.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\RuleVideo.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SavedBattleGame.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SavedGame.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SaveGameState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\scale2x.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\scale3x.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\scalebit.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ScannerState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ScannerView.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Screen.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ScrollBar.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SerializationHelper.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SetWindowedRootState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ShaderDraw.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ShaderDrawHelper.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ShaderMove.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ShaderRepeat.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Slider.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SlideshowState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Soldier.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SoldierDeath.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SoldierDiary.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SoldierNamePool.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Sound.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SoundDefinition.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SoundSet.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\StartState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\State.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\StatisticsState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\StatString.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\StatStringCondition.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Surface.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\SurfaceSet.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Target.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\TestState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Text.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\TextButton.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\TextEdit.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\TextList.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Texture.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Tile.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\TileEngine.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Timer.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\ToggleTextButton.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Ufo.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Unicode.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Unit.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\UnitDieBState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\UnitFallBState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\UnitInfoState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\UnitPanicBState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\UnitSprite.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\UnitTurnBState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\UnitWalkBState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Vehicle.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\version.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\VideoState.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\WarningMessage.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Waypoint.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\WeightedOptions.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Window.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\xbrz.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\GameSource\Zoom.h">
+      <Filter>GameSource</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="MainSource">
+      <UniqueIdentifier>{764782d0-ccee-4e0f-9e01-6c734b16ddc7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GameSource">
+      <UniqueIdentifier>{5ae93cc2-2d30-4226-b4f0-92fb651b5a2a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
