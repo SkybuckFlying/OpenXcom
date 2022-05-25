@@ -1920,6 +1920,9 @@ Soldier *Mod::genSoldier(SavedGame *save, std::string type) const
 		type = _soldiersIndex.front();
 	}
 
+	delete soldier;
+	soldier = new Soldier(getSoldier(type, true), getArmor(getSoldier(type, true)->getArmor(), true), newId);
+
 	// calculate new statString
 	soldier->calcStatString(getStatStrings(), (Options::psiStrengthEval));
 

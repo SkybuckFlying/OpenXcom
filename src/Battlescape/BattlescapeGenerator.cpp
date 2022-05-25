@@ -573,6 +573,8 @@ void BattlescapeGenerator::run()
 
 	setupObjectives(ruleDeploy);
 
+
+
 	deployXCOM();
 
 	size_t unitCount = _save->getUnits()->size();
@@ -626,6 +628,18 @@ void BattlescapeGenerator::deployXCOM()
 				if (unit && !_save->getSelectedUnit())
 					_save->setSelectedUnit(unit);
 			}
+		}
+	}
+
+	// add soldiers that are in the craft or base
+	for (std::vector<Soldier*>::iterator i = _base->getSoldiers()->begin(); i != _base->getSoldiers()->end(); ++i)
+	{
+		if ((_craft != 0 && (*i)->getCraft() == _craft) ||
+			(_craft == 0 && (*i)->getWoundRecovery() == 0 && ((*i)->getCraft() == 0 || (*i)->getCraft()->getStatus() != "STR_OUT")))
+		{
+			BattleUnit *unit = addXCOMUnit(new BattleUnit(*i, _save->getDepth()));
+			if (unit && !_save->getSelectedUnit())
+				_save->setSelectedUnit(unit);
 		}
 	}
 
