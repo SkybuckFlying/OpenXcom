@@ -592,7 +592,6 @@ void BattlescapeGame::checkForCasualties(BattleItem *murderweapon, BattleUnit *o
 		BattleUnit *murderer = origMurderer;
 
 		BattleUnitKills killStat;
-		killStat.mission = _parentState->getGame()->getSavedGame()->getMissionStatistics()->size();
 		killStat.setTurn(_save->getTurn(), _save->getSide());
 		killStat.setUnitStats(victim);
 		killStat.faction = victim->getFaction();
@@ -763,7 +762,6 @@ void BattlescapeGame::checkForCasualties(BattleItem *murderweapon, BattleUnit *o
 						deathStat->setUnitStats(murderer);
 						deathStat->faction = murderer->getFaction();
 					}
-					_parentState->getGame()->getSavedGame()->killSoldier(victim->getGeoscapeSoldier(), deathStat);
 				}
 			}
 			else if ((*j)->getStunlevel() >= (*j)->getHealth() && (*j)->getStatus() != STATUS_UNCONSCIOUS)

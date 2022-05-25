@@ -18,7 +18,7 @@
  */
 #include "ListLoadOriginalState.h"
 #include <sstream>
-#include "../Savegame/SaveConverter.h"
+
 #include "../Savegame/SavedGame.h"
 #include "../Savegame/SavedBattleGame.h"
 #include "../Engine/Game.h"
@@ -66,22 +66,6 @@ ListLoadOriginalState::ListLoadOriginalState(OptionsOrigin origin) : _origin(ori
 	add(_txtTime, "text", "saveMenus");
 	add(_txtDate, "text", "saveMenus");
 
-	int y = 34;
-	for (int i = 0; i < SaveConverter::NUM_SAVES; ++i)
-	{
-		_btnSlot[i] = new TextButton(24, 12, 10, y-2);
-		_txtSlotName[i] = new Text(160, 9, 36, y);
-		_txtSlotTime[i] = new Text(30, 9, 195, y);
-		_txtSlotDate[i] = new Text(90, 9, 225, y);
-
-		add(_btnSlot[i], "button", "saveMenus");
-		add(_txtSlotName[i], "list", "saveMenus");
-		add(_txtSlotTime[i], "list", "saveMenus");
-		add(_txtSlotDate[i], "list", "saveMenus");
-
-		y += 14;
-	}
-
 	centerAllSurfaces();
 
 	// Set up objects
@@ -105,19 +89,6 @@ ListLoadOriginalState::ListLoadOriginalState(OptionsOrigin origin) : _origin(ori
 
 	_txtDate->setText(tr("STR_DATE"));
 
-	std::string dots(80, '.');
-	SaveConverter::getList(_game->getLanguage(), _saves);
-	for (int i = 0; i < SaveConverter::NUM_SAVES; ++i)
-	{
-		std::ostringstream ss;
-		ss << (i + 1);
-		_btnSlot[i]->setText(ss.str());
-		_btnSlot[i]->onMouseClick((ActionHandler)&ListLoadOriginalState::btnSlotClick);
-
-		_txtSlotName[i]->setText(_saves[i].name + dots);
-		_txtSlotTime[i]->setText(_saves[i].time);
-		_txtSlotDate[i]->setText(_saves[i].date);
-	}
 }
 
 /**
@@ -167,44 +138,8 @@ void ListLoadOriginalState::btnCancelClick(Action *action)
  */
 void ListLoadOriginalState::btnSlotClick(Action *action)
 {
-	int n = 0;
-	for (int i = 0; i < SaveConverter::NUM_SAVES; ++i)
-	{
-		if (action->getSender() == _btnSlot[i])
-		{
-			n = i;
-			break;
-		}
-	}
-	if (_saves[n].id > 0)
-	{
-		if (_saves[n].tactical)
-		{
-			std::ostringstream error;
-			error << tr("STR_LOAD_UNSUCCESSFUL") << Unicode::TOK_NL_SMALL << "Battlescape saves aren't supported.";
-			_game->pushState(new ErrorMessageState(error.str(), _palette, _game->getMod()->getInterface("errorMessages")->getElement("geoscapeColor")->color, "BACK01.SCR", _game->getMod()->getInterface("errorMessages")->getElement("geoscapePalette")->color));
 
-		}
-		else
-		{
-			SaveConverter converter(_saves[n].id, _game->getMod());
-			_game->setSavedGame(converter.loadOriginal());
-			Options::baseXResolution = Options::baseXGeoscape;
-			Options::baseYResolution = Options::baseYGeoscape;
-			_game->getScreen()->resetDisplay(false);
-//			_game->setState(new GeoscapeState); // Skybuck: set to BattlescapeState ?
-			if (_game->getSavedGame()->getSavedBattle() != 0)
-			{
-				_game->getSavedGame()->getSavedBattle()->loadMapResources(_game->getMod());
-				Options::baseXResolution = Options::baseXBattlescape;
-				Options::baseYResolution = Options::baseYBattlescape;
-				_game->getScreen()->resetDisplay(false);
-				BattlescapeState *bs = new BattlescapeState;
-				_game->pushState(bs);
-				_game->getSavedGame()->getSavedBattle()->setBattleState(bs);
-			}
-		}
-	}
+
 }
 
 }

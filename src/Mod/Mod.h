@@ -25,7 +25,6 @@
 #include "../Engine/Options.h"
 #include "../Savegame/GameTime.h"
 #include "Unit.h"
-#include "RuleAlienMission.h"
 
 namespace OpenXcom
 {
@@ -43,9 +42,7 @@ class Music;
 class Palette;
 class SavedGame;
 class Soldier;
-class RuleCountry;
 class RuleRegion;
-class RuleBaseFacility;
 class RuleCraft;
 class RuleCraftWeapon;
 class RuleItem;
@@ -55,15 +52,11 @@ class MapDataSet;
 class RuleSoldier;
 class Unit;
 class Armor;
-class ArticleDefinition;
 class RuleInventory;
-class RuleResearch;
-class RuleManufacture;
 class AlienRace;
 class AlienDeployment;
 class UfoTrajectory;
 class RuleAlienMission;
-class Base;
 class MCDPatch;
 class ExtraSprites;
 class ExtraSounds;
@@ -71,8 +64,6 @@ class ExtraStrings;
 class RuleCommendations;
 class StatString;
 class RuleInterface;
-class RuleGlobe;
-class RuleConverter;
 class SoundDefinition;
 class MapScript;
 class ModInfo;
@@ -116,9 +107,7 @@ private:
 	std::vector<Uint16> _voxelData;
 	std::vector<std::vector<Uint8> > _transparencyLUTs;
 
-	std::map<std::string, RuleCountry*> _countries;
 	std::map<std::string, RuleRegion*> _regions;
-	std::map<std::string, RuleBaseFacility*> _facilities;
 	std::map<std::string, RuleCraft*> _crafts;
 	std::map<std::string, RuleCraftWeapon*> _craftWeapons;
 	std::map<std::string, RuleItem*> _items;
@@ -130,10 +119,7 @@ private:
 	std::map<std::string, AlienRace*> _alienRaces;
 	std::map<std::string, AlienDeployment*> _alienDeployments;
 	std::map<std::string, Armor*> _armors;
-	std::map<std::string, ArticleDefinition*> _ufopaediaArticles;
 	std::map<std::string, RuleInventory*> _invs;
-	std::map<std::string, RuleResearch *> _research;
-	std::map<std::string, RuleManufacture *> _manufacture;
 	std::map<std::string, UfoTrajectory *> _ufoTrajectories;
 	std::map<std::string, RuleAlienMission *> _alienMissions;
 	std::map<std::string, RuleInterface *> _interfaces;
@@ -148,8 +134,6 @@ private:
 	std::map<std::string, ExtraStrings *> _extraStrings;
 	std::vector<StatString*> _statStrings;
 	std::map<std::string, RuleMusic *> _musicDefs;
-	RuleGlobe *_globe;
-	RuleConverter *_converter;
 	int _costEngineer, _costScientist, _timePersonnel, _initialFunding, _turnAIUseGrenade, _turnAIUseBlaster, _defeatScore, _defeatFunds;
 	bool _difficultyDemigod;
 	std::pair<std::string, int> _alienFuel;
@@ -158,7 +142,6 @@ private:
 	GameTime _startingTime;
 	StatAdjustment _statAdjustment[5];
 
-	std::map<std::string, int> _ufopaediaSections;
 	std::vector<std::string> _countriesIndex, _regionsIndex, _facilitiesIndex, _craftsIndex, _craftWeaponsIndex, _itemsIndex, _invsIndex, _ufosIndex;
 	std::vector<std::string> _soldiersIndex, _aliensIndex, _deploymentsIndex, _armorsIndex, _ufopaediaIndex, _ufopaediaCatIndex, _researchIndex, _manufactureIndex;
 	std::vector<std::string> _alienMissionsIndex, _terrainIndex, _missionScriptIndex;
@@ -245,9 +228,6 @@ public:
 	/// Cleans up the mod.
 	~Mod();
 
-	/// For internal use only
-	const std::map<std::string, int> &getUfopaediaSections() const { return _ufopaediaSections; }
-
 	/// Gets a particular font.
 	Font *getFont(const std::string &name, bool error = true) const;
 	/// Gets a particular surface.
@@ -290,18 +270,7 @@ public:
 	void loadAll(const std::vector< std::pair< std::string, std::vector<std::string> > > &mods);
 	/// Generates the starting saved game.
 	SavedGame *newSave() const;
-	/// Gets the ruleset for a country type.
-	RuleCountry *getCountry(const std::string &id, bool error = false) const;
-	/// Gets the available countries.
-	const std::vector<std::string> &getCountriesList() const;
-	/// Gets the ruleset for a region type.
-	RuleRegion *getRegion(const std::string &id, bool error = false) const;
-	/// Gets the available regions.
-	const std::vector<std::string> &getRegionsList() const;
-	/// Gets the ruleset for a facility type.
-	RuleBaseFacility *getBaseFacility(const std::string &id, bool error = false) const;
-	/// Gets the available facilities.
-	const std::vector<std::string> &getBaseFacilitiesList() const;
+
 	/// Gets the ruleset for a craft type.
 	RuleCraft *getCraft(const std::string &id, bool error = false) const;
 	/// Gets the available crafts.
@@ -346,12 +315,7 @@ public:
 	Armor *getArmor(const std::string &name, bool error = false) const;
 	/// Gets the available armors.
 	const std::vector<std::string> &getArmorsList() const;
-	/// Gets Ufopaedia article definition.
-	ArticleDefinition *getUfopaediaArticle(const std::string &name, bool error = false) const;
-	/// Gets the available articles.
-	const std::vector<std::string> &getUfopaediaList() const;
-	/// Gets the available article categories.
-	const std::vector<std::string> &getUfopaediaCategoryList() const;
+
 	/// Gets the inventory list.
 	std::map<std::string, RuleInventory*> *getInventories();
 	/// Gets the ruleset for a specific inventory.
@@ -362,24 +326,7 @@ public:
 	int getScientistCost() const;
 	/// Gets the transfer time of personnel.
 	int getPersonnelTime() const;
-	/// Gets the ruleset for a specific research project.
-	RuleResearch *getResearch (const std::string &id, bool error = false) const;
-	/// Gets the list of all research projects.
-	const std::vector<std::string> &getResearchList() const;
-	/// Gets the ruleset for a specific manufacture project.
-	RuleManufacture *getManufacture (const std::string &id, bool error = false) const;
-	/// Gets the list of all manufacture projects.
-	const std::vector<std::string> &getManufactureList() const;
-	/// Gets facilities for custom bases.
-	std::vector<RuleBaseFacility*> getCustomBaseFacilities() const;
-	/// Gets a specific UfoTrajectory.
-	const UfoTrajectory *getUfoTrajectory(const std::string &id, bool error = false) const;
-	/// Gets the ruleset for a specific alien mission.
-	const RuleAlienMission *getAlienMission(const std::string &id, bool error = false) const;
-	/// Gets the ruleset for a random alien mission.
-	const RuleAlienMission *getRandomMission(MissionObjective objective, size_t monthsPassed) const;
-	/// Gets the list of all alien missions.
-	const std::vector<std::string> &getAlienMissionList() const;
+
 	/// Gets the alien item level table.
 	const std::vector<std::vector<int> > &getAlienItemLevels() const;
 	/// Gets the player starting base.
@@ -396,8 +343,7 @@ public:
 	const std::map<std::string, ExtraStrings *> &getExtraStrings() const;
 	/// Gets the list of StatStrings.
 	const std::vector<StatString *> &getStatStrings() const;
-	/// Gets the research-requirements for Psi-Lab (it's a cache for psiStrengthEval)
-	const std::vector<std::string> &getPsiRequirements() const;
+
 	/// Returns the sorted list of inventories.
 	const std::vector<std::string> &getInvsList() const;
 	/// Generates a new soldier.
@@ -412,14 +358,9 @@ public:
 	int getTurnAIUseGrenade() const {return _turnAIUseGrenade;}
 	/// Gets first turn when AI can use Blaster launcher.
 	int getTurnAIUseBlaster() const {return _turnAIUseBlaster;}
-	/// Gets the minimum radar's range.
-	int getMinRadarRange() const;
+
 	/// Gets information on an interface element.
 	RuleInterface *getInterface(const std::string &id, bool error = true) const;
-	/// Gets the ruleset for the globe.
-	RuleGlobe *getGlobe() const;
-	/// Gets the ruleset for the converter.
-	RuleConverter *getConverter() const;
 	/// Gets the list of selective files for insertion into our cat files.
 	const std::map<std::string, SoundDefinition *> *getSoundDefinitions() const;
 	/// Gets the list of transparency colors,

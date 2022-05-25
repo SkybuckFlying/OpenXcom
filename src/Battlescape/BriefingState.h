@@ -26,7 +26,6 @@ class TextButton;
 class Window;
 class Text;
 class Craft;
-class Base;
 
 /**
  * Briefing screen which displays info
@@ -41,7 +40,7 @@ private:
 	std::string _cutsceneId, _musicId;
 public:
 	/// Creates the Briefing state.
-	BriefingState(Craft *craft = 0, Base *base = 0);
+	BriefingState(Craft *craft = 0);
 	/// Cleans up the Briefing state.
 	~BriefingState();
 	/// Initialization

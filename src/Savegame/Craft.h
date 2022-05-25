@@ -79,8 +79,7 @@ public:
 	int getMarker() const;
 	/// Gets the craft's base.
 	Base *getBase() const;
-	/// Sets the craft's base.
-	void setBase(Base *base, bool move = true);
+
 	/// Gets the craft's status.
 	std::string getStatus() const;
 	/// Sets the craft's status.
@@ -123,20 +122,16 @@ public:
 	bool getMissionComplete() const;
 	/// Sets whether the craft has just finished a mission.
 	void setMissionComplete(bool mission);
-	/// Gets the craft's distance from its base.
-	double getDistanceFromBase() const;
 	/// Gets the craft's fuel consumption.
 	int getFuelConsumption() const;
 	/// Gets the craft's fuel consumption at a certain speed.
 	int getFuelConsumption(int speed) const;
 	/// Gets the craft's minimum fuel limit.
 	int getFuelLimit() const;
-	/// Gets the craft's minimum fuel limit to go to a base.
-	int getFuelLimit(Base *base) const;
+
 
 	double getBaseRange() const;
-	/// Returns the craft to its base.
-	void returnToBase();
+
 	/// Checks if a target is detected by the craft's radar.
 	bool detect(Target *target) const;
 	/// Checks if a target is inside the craft's radar range.
@@ -149,10 +144,8 @@ public:
 	void consumeFuel();
 	/// Repairs the craft.
 	void repair();
-	/// Refuels the craft.
-	std::string refuel();
-	/// Rearms the craft.
-	std::string rearm(const Mod *mod);
+
+
 	/// Sets the craft's battlescape status.
 	void setInBattlescape(bool inbattle);
 	/// Gets if the craft is in battlescape.
@@ -175,8 +168,7 @@ public:
 	int getInterceptionOrder() const;
 	/// Gets the craft's unique id.
 	CraftId getUniqueId() const;
-	/// Unloads the craft.
-	void unload(const Mod *mod);
+
 	/// Reuses a base item.
 	void reuseItem(const std::string &item);
 };

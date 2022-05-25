@@ -101,15 +101,6 @@
     <ClCompile Include="Savegame\Waypoint.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
-    <ClCompile Include="Savegame\Base.cpp">
-      <Filter>Savegame</Filter>
-    </ClCompile>
-    <ClCompile Include="Savegame\BaseFacility.cpp">
-      <Filter>Savegame</Filter>
-    </ClCompile>
-    <ClCompile Include="Savegame\Country.cpp">
-      <Filter>Savegame</Filter>
-    </ClCompile>
     <ClCompile Include="Savegame\Craft.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
@@ -182,9 +173,6 @@
     <ClCompile Include="Battlescape\Projectile.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
-    <ClCompile Include="Savegame\Transfer.cpp">
-      <Filter>Savegame</Filter>
-    </ClCompile>
     <ClCompile Include="Battlescape\BattleState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
@@ -248,9 +236,6 @@
     <ClCompile Include="Battlescape\DebriefingState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
-    <ClCompile Include="Savegame\ResearchProject.cpp">
-      <Filter>Savegame</Filter>
-    </ClCompile>
     <ClCompile Include="Battlescape\InfoboxState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
@@ -266,9 +251,6 @@
     <ClCompile Include="Battlescape\MiniMapView.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
-    <ClCompile Include="Savegame\Production.cpp">
-      <Filter>Savegame</Filter>
-    </ClCompile>
     <ClCompile Include="Battlescape\Camera.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
@@ -282,9 +264,6 @@
       <Filter>Battlescape</Filter>
     </ClCompile>
     <ClCompile Include="Battlescape\ScannerView.cpp">
-      <Filter>Battlescape</Filter>
-    </ClCompile>
-    <ClCompile Include="Battlescape\PromotionsState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
     <ClCompile Include="Battlescape\BattlescapeGame.cpp">
@@ -312,12 +291,6 @@
       <Filter>Battlescape</Filter>
     </ClCompile>
     <ClCompile Include="Savegame\EquipmentLayoutItem.cpp">
-      <Filter>Savegame</Filter>
-    </ClCompile>
-    <ClCompile Include="Savegame\AlienBase.cpp">
-      <Filter>Savegame</Filter>
-    </ClCompile>
-    <ClCompile Include="Savegame\AlienMission.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
     <ClCompile Include="Savegame\WeightedOptions.cpp">
@@ -482,9 +455,6 @@
     <ClCompile Include="Battlescape\Particle.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
-    <ClCompile Include="Savegame\SaveConverter.cpp">
-      <Filter>Savegame</Filter>
-    </ClCompile>
     <ClCompile Include="Menu\ListLoadOriginalState.cpp">
       <Filter>Menu</Filter>
     </ClCompile>
@@ -507,12 +477,6 @@
       <Filter>Mod</Filter>
     </ClCompile>
     <ClCompile Include="Mod\Armor.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
-    <ClCompile Include="Mod\ArticleDefinition.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
-    <ClCompile Include="Mod\City.cpp">
       <Filter>Mod</Filter>
     </ClCompile>
     <ClCompile Include="Mod\ExtraSounds.cpp">
@@ -539,28 +503,10 @@
     <ClCompile Include="Mod\MCDPatch.cpp">
       <Filter>Mod</Filter>
     </ClCompile>
-    <ClCompile Include="Mod\Polygon.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
-    <ClCompile Include="Mod\Polyline.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
-    <ClCompile Include="Mod\RuleAlienMission.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
-    <ClCompile Include="Mod\RuleBaseFacility.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
-    <ClCompile Include="Mod\RuleCountry.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
     <ClCompile Include="Mod\RuleCraft.cpp">
       <Filter>Mod</Filter>
     </ClCompile>
     <ClCompile Include="Mod\RuleCraftWeapon.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
-    <ClCompile Include="Mod\RuleGlobe.cpp">
       <Filter>Mod</Filter>
     </ClCompile>
     <ClCompile Include="Mod\RuleInterface.cpp">
@@ -572,19 +518,10 @@
     <ClCompile Include="Mod\RuleItem.cpp">
       <Filter>Mod</Filter>
     </ClCompile>
-    <ClCompile Include="Mod\RuleManufacture.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
     <ClCompile Include="Mod\RuleMissionScript.cpp">
       <Filter>Mod</Filter>
     </ClCompile>
     <ClCompile Include="Mod\RuleMusic.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
-    <ClCompile Include="Mod\RuleRegion.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
-    <ClCompile Include="Mod\RuleResearch.cpp">
       <Filter>Mod</Filter>
     </ClCompile>
     <ClCompile Include="Mod\RuleSoldier.cpp">
@@ -614,9 +551,6 @@
     <ClCompile Include="Mod\Texture.cpp">
       <Filter>Mod</Filter>
     </ClCompile>
-    <ClCompile Include="Mod\UfoTrajectory.cpp">
-      <Filter>Mod</Filter>
-    </ClCompile>
     <ClCompile Include="Mod\Unit.cpp">
       <Filter>Mod</Filter>
     </ClCompile>
@@ -634,9 +568,6 @@
     </ClCompile>
     <ClCompile Include="Savegame\SoldierDiary.cpp">
       <Filter>Savegame</Filter>
-    </ClCompile>
-    <ClCompile Include="Mod\RuleConverter.cpp">
-      <Filter>Mod</Filter>
     </ClCompile>
     <ClCompile Include="Menu\StatisticsState.cpp">
       <Filter>Menu</Filter>
@@ -758,15 +689,6 @@
     <ClInclude Include="Savegame\Waypoint.h">
       <Filter>Savegame</Filter>
     </ClInclude>
-    <ClInclude Include="Savegame\Base.h">
-      <Filter>Savegame</Filter>
-    </ClInclude>
-    <ClInclude Include="Savegame\BaseFacility.h">
-      <Filter>Savegame</Filter>
-    </ClInclude>
-    <ClInclude Include="Savegame\Country.h">
-      <Filter>Savegame</Filter>
-    </ClInclude>
     <ClInclude Include="Savegame\Craft.h">
       <Filter>Savegame</Filter>
     </ClInclude>
@@ -846,9 +768,6 @@
     <ClInclude Include="Battlescape\Projectile.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
-    <ClInclude Include="Savegame\Transfer.h">
-      <Filter>Savegame</Filter>
-    </ClInclude>
     <ClInclude Include="Battlescape\BattleState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
@@ -912,9 +831,6 @@
     <ClInclude Include="Battlescape\DebriefingState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
-    <ClInclude Include="Savegame\ResearchProject.h">
-      <Filter>Savegame</Filter>
-    </ClInclude>
     <ClInclude Include="Battlescape\InfoboxState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
@@ -930,9 +846,6 @@
     <ClInclude Include="Battlescape\MiniMapView.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
-    <ClInclude Include="Savegame\Production.h">
-      <Filter>Savegame</Filter>
-    </ClInclude>
     <ClInclude Include="Battlescape\Camera.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
@@ -946,9 +859,6 @@
       <Filter>Battlescape</Filter>
     </ClInclude>
     <ClInclude Include="Battlescape\ScannerView.h">
-      <Filter>Battlescape</Filter>
-    </ClInclude>
-    <ClInclude Include="Battlescape\PromotionsState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
     <ClInclude Include="Battlescape\BattlescapeGame.h">
@@ -977,12 +887,6 @@
     </ClInclude>
     <ClInclude Include="Engine\Logger.h">
       <Filter>Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="Savegame\AlienBase.h">
-      <Filter>Savegame</Filter>
-    </ClInclude>
-    <ClInclude Include="Savegame\AlienMission.h">
-      <Filter>Savegame</Filter>
     </ClInclude>
     <ClInclude Include="Savegame\EquipmentLayoutItem.h">
       <Filter>Savegame</Filter>
@@ -1169,9 +1073,6 @@
     <ClInclude Include="Battlescape\Particle.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
-    <ClInclude Include="Savegame\SaveConverter.h">
-      <Filter>Savegame</Filter>
-    </ClInclude>
     <ClInclude Include="Menu\ListLoadOriginalState.h">
       <Filter>Menu</Filter>
     </ClInclude>
@@ -1194,12 +1095,6 @@
       <Filter>Mod</Filter>
     </ClInclude>
     <ClInclude Include="Mod\Armor.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
-    <ClInclude Include="Mod\ArticleDefinition.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
-    <ClInclude Include="Mod\City.h">
       <Filter>Mod</Filter>
     </ClInclude>
     <ClInclude Include="Mod\ExtraSounds.h">
@@ -1226,28 +1121,10 @@
     <ClInclude Include="Mod\MCDPatch.h">
       <Filter>Mod</Filter>
     </ClInclude>
-    <ClInclude Include="Mod\Polygon.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
-    <ClInclude Include="Mod\Polyline.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
-    <ClInclude Include="Mod\RuleAlienMission.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
-    <ClInclude Include="Mod\RuleBaseFacility.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
-    <ClInclude Include="Mod\RuleCountry.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
     <ClInclude Include="Mod\RuleCraft.h">
       <Filter>Mod</Filter>
     </ClInclude>
     <ClInclude Include="Mod\RuleCraftWeapon.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
-    <ClInclude Include="Mod\RuleGlobe.h">
       <Filter>Mod</Filter>
     </ClInclude>
     <ClInclude Include="Mod\RuleInterface.h">
@@ -1259,19 +1136,10 @@
     <ClInclude Include="Mod\RuleItem.h">
       <Filter>Mod</Filter>
     </ClInclude>
-    <ClInclude Include="Mod\RuleManufacture.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
     <ClInclude Include="Mod\RuleMissionScript.h">
       <Filter>Mod</Filter>
     </ClInclude>
     <ClInclude Include="Mod\RuleMusic.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
-    <ClInclude Include="Mod\RuleRegion.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
-    <ClInclude Include="Mod\RuleResearch.h">
       <Filter>Mod</Filter>
     </ClInclude>
     <ClInclude Include="Mod\RuleSoldier.h">
@@ -1301,9 +1169,6 @@
     <ClInclude Include="Mod\Texture.h">
       <Filter>Mod</Filter>
     </ClInclude>
-    <ClInclude Include="Mod\UfoTrajectory.h">
-      <Filter>Mod</Filter>
-    </ClInclude>
     <ClInclude Include="Mod\Unit.h">
       <Filter>Mod</Filter>
     </ClInclude>
@@ -1327,9 +1192,6 @@
     </ClInclude>
     <ClInclude Include="Savegame\SoldierDiary.h">
       <Filter>Savegame</Filter>
-    </ClInclude>
-    <ClInclude Include="Mod\RuleConverter.h">
-      <Filter>Mod</Filter>
     </ClInclude>
     <ClInclude Include="Menu\StatisticsState.h">
       <Filter>Menu</Filter>

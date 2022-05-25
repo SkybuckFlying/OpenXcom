@@ -388,7 +388,7 @@ void InventoryState::updateStats()
 		_txtPSkill->setText("");
 	}
 
-	if (unit->getBaseStats()->psiSkill > 0 || (Options::psiStrengthEval && _game->getSavedGame()->isResearched(_game->getMod()->getPsiRequirements())))
+	if (unit->getBaseStats()->psiSkill > 0 || (Options::psiStrengthEval))
 	{
 		_txtPStr->setText(tr("STR_PSIONIC_STRENGTH_SHORT").arg(unit->getBaseStats()->psiStrength));
 	}
@@ -838,14 +838,7 @@ void InventoryState::invMouseOver(Action *)
 		}
 		else
 		{
-			if (_game->getSavedGame()->isResearched(item->getRules()->getRequirements()))
-			{
-				_txtItem->setText(tr(item->getRules()->getName()));
-			}
-			else
-			{
-				_txtItem->setText(tr("STR_ALIEN_ARTIFACT"));
-			}
+			_txtItem->setText(tr(item->getRules()->getName()));
 		}
 		std::string s;
 		if (item->getAmmoItem() != 0 && item->needsAmmo())

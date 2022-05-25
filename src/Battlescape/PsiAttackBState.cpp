@@ -156,7 +156,6 @@ void PsiAttackBState::psiAttack()
 		killStat.weapon = _action.weapon->getRules()->getName();
 		killStat.weaponAmmo = _action.weapon->getRules()->getName(); //Psi weapons got no ammo, just filling up the field
 		killStat.faction = _target->getFaction();
-		killStat.mission = _parent->getSave()->getGeoscapeSave()->getMissionStatistics()->size();
 		killStat.id = _target->getId();
 
 		if (_action.type == BA_PANIC)

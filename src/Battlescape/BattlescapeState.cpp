@@ -543,11 +543,7 @@ void BattlescapeState::init()
 	if (_autosave)
 	{
 		_autosave = false;
-		if (_game->getSavedGame()->isIronman())
-		{
-			_game->pushState(new SaveGameState(OPT_BATTLESCAPE, SAVE_IRONMAN, _palette));
-		}
-		else if (Options::autosave)
+		if (Options::autosave)
 		{
 			_game->pushState(new SaveGameState(OPT_BATTLESCAPE, SAVE_AUTO_BATTLESCAPE, _palette));
 		}
@@ -1650,7 +1646,6 @@ inline void BattlescapeState::handle(Action *action)
 					}
 				}
 				// quick save and quick load
-				if (!_game->getSavedGame()->isIronman())
 				{
 					if (action->getDetails()->key.keysym.sym == Options::keyQuickSave)
 					{
@@ -2001,79 +1996,6 @@ void BattlescapeState::finishBattle(bool abort, int inExitArea)
 	if (_save->getAmbientSound() != -1)
 	{
 		_game->getMod()->getSoundByDepth(0, _save->getAmbientSound())->stopLoop();
-	}
-	AlienDeployment *ruleDeploy = _game->getMod()->getDeployment(_save->getMissionType());
-	if (!ruleDeploy)
-	{
-		for (std::vector<Ufo*>::iterator ufo =_game->getSavedGame()->getUfos()->begin(); ufo != _game->getSavedGame()->getUfos()->end(); ++ufo)
-		{
-			if ((*ufo)->isInBattlescape())
-			{
-				ruleDeploy = _game->getMod()->getDeployment((*ufo)->getRules()->getType());
-				break;
-			}
-		}
-	}
-	std::string nextStage;
-	if (ruleDeploy)
-	{
-		nextStage = ruleDeploy->getNextStage();
-	}
-
-	if (!nextStage.empty() && inExitArea)
-	{
-		// if there is a next mission stage + we have people in exit area OR we killed all aliens, load the next stage
-		_popups.clear();
-		_save->setMissionType(nextStage);
-		BattlescapeGenerator bgen = BattlescapeGenerator(_game);
-		bgen.nextStage();
-		_game->popState();
-		_game->pushState(new BriefingState(0, 0));
-	}
-	else
-	{
-		_popups.clear();
-		_animTimer->stop();
-		_gameTimer->stop();
-		_game->popState();
-		_game->pushState(new DebriefingState);
-		std::string cutscene;
-		if (ruleDeploy)
-		{
-			if (abort)
-			{
-				cutscene = ruleDeploy->getAbortCutscene();
-			}
-			else if (inExitArea == 0)
-			{
-				cutscene = ruleDeploy->getLoseCutscene();
-			}
-			else
-			{
-				cutscene = ruleDeploy->getWinCutscene();
-			}
-		}
-		if (!cutscene.empty())
-		{
-			// if cutscene is "wingame" or "losegame", then the DebriefingState
-			// pushed above will get popped without being shown.  otherwise
-			// it will get shown after the cutscene.
-			_game->pushState(new CutsceneState(cutscene));
-
-			if (cutscene == CutsceneState::WIN_GAME)
-			{
-				_game->getSavedGame()->setEnding(END_WIN);
-			}
-			else if (cutscene == CutsceneState::LOSE_GAME)
-			{
-				_game->getSavedGame()->setEnding(END_LOSE);
-			}
-			// Autosave if game is over
-			if (_game->getSavedGame()->getEnding() != END_NONE && _game->getSavedGame()->isIronman())
-			{
-				_game->pushState(new SaveGameState(OPT_BATTLESCAPE, SAVE_IRONMAN, _palette));
-			}
-		}
 	}
 }
 

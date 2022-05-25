@@ -144,7 +144,7 @@ void Soldier::load(const YAML::Node& node, const Mod *mod, SavedGame *save)
 		_diary = new SoldierDiary();
 		_diary->load(node["diary"], mod);
 	}
-	calcStatString(mod->getStatStrings(), (Options::psiStrengthEval && save->isResearched(mod->getPsiRequirements())));
+	calcStatString(mod->getStatStrings(), (Options::psiStrengthEval));
 }
 
 /**

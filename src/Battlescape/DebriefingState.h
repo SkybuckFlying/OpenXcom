@@ -34,7 +34,6 @@ class BattleItem;
 class Craft;
 class Base;
 class Region;
-class Country;
 class RuleItem;
 class BattleUnit;
 struct UnitStats;

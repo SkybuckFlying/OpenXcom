@@ -20,7 +20,7 @@
 #include "AlienStrategy.h"
 #include "WeightedOptions.h"
 #include "../Mod/Mod.h"
-#include "../Mod/RuleRegion.h"
+
 
 namespace OpenXcom
 {
@@ -54,14 +54,7 @@ AlienStrategy::~AlienStrategy()
  */
 void AlienStrategy::init(const Mod *mod)
 {
-	std::vector<std::string> regions = mod->getRegionsList();
-	for (std::vector<std::string>::const_iterator rr = regions.begin(); rr != regions.end(); ++rr)
-	{
-		RuleRegion *region = mod->getRegion(*rr, true);
-		_regionChances.set(*rr, region->getWeight());
-		WeightedOptions *missions = new WeightedOptions(region->getAvailableMissions());
-		_regionMissions.insert(std::make_pair(*rr, missions));
-	}
+
 }
 
 /**

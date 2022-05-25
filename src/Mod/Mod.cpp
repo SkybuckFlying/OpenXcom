@@ -47,9 +47,6 @@
 #include "../Engine/RNG.h"
 #include "../Engine/Options.h"
 #include "../Battlescape/Pathfinding.h"
-#include "RuleCountry.h"
-#include "RuleRegion.h"
-#include "RuleBaseFacility.h"
 #include "RuleCraft.h"
 #include "RuleCraftWeapon.h"
 #include "RuleItem.h"
@@ -61,32 +58,24 @@
 #include "AlienRace.h"
 #include "AlienDeployment.h"
 #include "Armor.h"
-#include "ArticleDefinition.h"
 #include "RuleInventory.h"
-#include "RuleResearch.h"
-#include "RuleManufacture.h"
 #include "ExtraStrings.h"
 #include "RuleInterface.h"
 #include "RuleMissionScript.h"
 #include "../Savegame/SavedGame.h"
 #include "../Savegame/Region.h"
-#include "../Savegame/Base.h"
-#include "../Savegame/Country.h"
+
+
 #include "../Savegame/Soldier.h"
 #include "../Savegame/Craft.h"
 #include "../Savegame/Vehicle.h"
 #include "../Savegame/ItemContainer.h"
-#include "../Savegame/Transfer.h"
 #include "../Savegame/AlienStrategy.h"
 #include "../Savegame/GameTime.h"
 #include "../Savegame/SoldierDiary.h"
-#include "UfoTrajectory.h"
-#include "RuleAlienMission.h"
 #include "MCDPatch.h"
 #include "StatString.h"
-#include "RuleGlobe.h"
 #include "RuleVideo.h"
-#include "RuleConverter.h"
 
 #define ARRAYLEN(x) (sizeof(x) / sizeof(x[0]))
 
@@ -196,8 +185,7 @@ Mod::Mod() : _costEngineer(0), _costScientist(0), _timePersonnel(0), _initialFun
 {
 	_muteMusic = new Music();
 	_muteSound = new Sound();
-	_globe = new RuleGlobe();
-	_converter = new RuleConverter();
+
 	_statAdjustment[0].aimAndArmorMultiplier = 0.5;
 	_statAdjustment[0].growthMultiplier = 0;
 	for (int i = 1; i != 5; ++i)
@@ -214,8 +202,7 @@ Mod::~Mod()
 {
 	delete _muteMusic;
 	delete _muteSound;
-	delete _globe;
-	delete _converter;
+
 	for (std::map<std::string, Font*>::iterator i = _fonts.begin(); i != _fonts.end(); ++i)
 	{
 		delete i->second;
@@ -240,18 +227,12 @@ Mod::~Mod()
 	{
 		delete i->second;
 	}
-	for (std::map<std::string, RuleCountry*>::iterator i = _countries.begin(); i != _countries.end(); ++i)
-	{
-		delete i->second;
-	}
+
 	for (std::map<std::string, RuleRegion*>::iterator i = _regions.begin(); i != _regions.end(); ++i)
 	{
 		delete i->second;
 	}
-	for (std::map<std::string, RuleBaseFacility*>::iterator i = _facilities.begin(); i != _facilities.end(); ++i)
-	{
-		delete i->second;
-	}
+
 	for (std::map<std::string, RuleCraft*>::iterator i = _crafts.begin(); i != _crafts.end(); ++i)
 	{
 		delete i->second;
@@ -296,22 +277,12 @@ Mod::~Mod()
 	{
 		delete i->second;
 	}
-	for (std::map<std::string, ArticleDefinition*>::iterator i = _ufopaediaArticles.begin(); i != _ufopaediaArticles.end(); ++i)
-	{
-		delete i->second;
-	}
+
 	for (std::map<std::string, RuleInventory*>::iterator i = _invs.begin(); i != _invs.end(); ++i)
 	{
 		delete i->second;
 	}
-	for (std::map<std::string, RuleResearch *>::const_iterator i = _research.begin(); i != _research.end(); ++i)
-	{
-		delete i->second;
-	}
-	for (std::map<std::string, RuleManufacture *>::const_iterator i = _manufacture.begin(); i != _manufacture.end(); ++i)
-	{
-		delete i->second;
-	}
+
 	for (std::map<std::string, UfoTrajectory *>::const_iterator i = _ufoTrajectories.begin(); i != _ufoTrajectories.end(); ++i)
 	{
 		delete i->second;
@@ -370,10 +341,7 @@ Mod::~Mod()
 	{
 		delete (*i);
 	}
-	for (std::map<std::string, RuleCommendations *>::const_iterator i = _commendations.begin(); i != _commendations.end(); ++i)
-	{
-		delete i->second;
-	}
+
 }
 
 /**
@@ -963,63 +931,6 @@ void Mod::loadMod(const std::vector<std::string> &rulesetFiles)
 			throw Exception((*i) + ": " + std::string(e.what()));
 		}
 	}
-
-	// these need to be validated, otherwise we're gonna get into some serious trouble down the line.
-	// it may seem like a somewhat arbitrary limitation, but there is a good reason behind it.
-	// i'd need to know what results are going to be before they are formulated, and there's a hierarchical structure to
-	// the order in which variables are determined for a mission, and the order is DIFFERENT for regular missions vs
-	// missions that spawn a mission site. where normally we pick a region, then a mission based on the weights for that region.
-	// a terror-type mission picks a mission type FIRST, then a region based on the criteria defined by the mission.
-	// there is no way i can conceive of to reconcile this difference to allow mixing and matching,
-	// short of knowing the results of calls to the RNG before they're determined.
-	// the best solution i can come up with is to disallow it, as there are other ways to achieve what this would amount to anyway,
-	// and they don't require time travel. - Warboy
-	for (std::map<std::string, RuleMissionScript*>::iterator i = _missionScripts.begin(); i != _missionScripts.end(); ++i)
-	{
-		RuleMissionScript *rule = (*i).second;
-		std::set<std::string> missions = rule->getAllMissionTypes();
-		if (!missions.empty())
-		{
-			std::set<std::string>::const_iterator j = missions.begin();
-			if (!getAlienMission(*j))
-			{
-				throw Exception("Error with MissionScript: " + (*i).first + ": alien mission type: " + *j + " not defined, do not incite the judgement of Amaunator.");
-			}
-			bool isSiteType = getAlienMission(*j)->getObjective() == OBJECTIVE_SITE;
-			rule->setSiteType(isSiteType);
-			for (;j != missions.end(); ++j)
-			{
-				if (getAlienMission(*j) && (getAlienMission(*j)->getObjective() == OBJECTIVE_SITE) != isSiteType)
-				{
-					throw Exception("Error with MissionScript: " + (*i).first + ": cannot mix terror/non-terror missions in a single command, so sayeth the wise Alaundo.");
-				}
-			}
-		}
-	}
-
-	// instead of passing a pointer to the region load function and moving the alienMission loading before region loading
-	// and sanitizing there, i'll sanitize here, i'm sure this sanitation will grow, and will need to be refactored into
-	// its own function at some point, but for now, i'll put it here next to the missionScript sanitation, because it seems
-	// the logical place for it, given that this sanitation is required as a result of moving all terror mission handling
-	// into missionScripting behaviour. apologies to all the modders that will be getting errors and need to adjust their
-	// rulesets, but this will save you weird errors down the line.
-	for (std::map<std::string, RuleRegion*>::iterator i = _regions.begin(); i != _regions.end(); ++i)
-	{
-		// bleh, make copies, const correctness kinda screwed me here.
-		WeightedOptions weights = (*i).second->getAvailableMissions();
-		std::vector<std::string> names = weights.getNames();
-		for (std::vector<std::string>::iterator j = names.begin(); j != names.end(); ++j)
-		{
-			if (!getAlienMission(*j))
-			{
-				throw Exception("Error with MissionWeights: Region: " + (*i).first + ": alien mission type: " + *j + " not defined, do not incite the judgement of Amaunator.");
-			}
-			if (getAlienMission(*j)->getObjective() == OBJECTIVE_SITE)
-			{
-				throw Exception("Error with MissionWeights: Region: " + (*i).first + " has " + *j + " listed. Terror mission can only be invoked via missionScript, so sayeth the Spider Queen.");
-			}
-		}
-	}
 }
 
 /**
@@ -1136,31 +1047,8 @@ void Mod::loadFile(const std::string &filename)
 {
 	YAML::Node doc = YAML::LoadFile(filename);
 
-	for (YAML::const_iterator i = doc["countries"].begin(); i != doc["countries"].end(); ++i)
-	{
-		RuleCountry *rule = loadRule(*i, &_countries, &_countriesIndex);
-		if (rule != 0)
-		{
-			rule->load(*i);
-		}
-	}
-	for (YAML::const_iterator i = doc["regions"].begin(); i != doc["regions"].end(); ++i)
-	{
-		RuleRegion *rule = loadRule(*i, &_regions, &_regionsIndex);
-		if (rule != 0)
-		{
-			rule->load(*i);
-		}
-	}
-	for (YAML::const_iterator i = doc["facilities"].begin(); i != doc["facilities"].end(); ++i)
-	{
-		RuleBaseFacility *rule = loadRule(*i, &_facilities, &_facilitiesIndex);
-		if (rule != 0)
-		{
-			_facilityListOrder += 100;
-			rule->load(*i, this, _facilityListOrder);
-		}
-	}
+
+
 	for (YAML::const_iterator i = doc["crafts"].begin(); i != doc["crafts"].end(); ++i)
 	{
 		RuleCraft *rule = loadRule(*i, &_crafts, &_craftsIndex);
@@ -1252,85 +1140,8 @@ void Mod::loadFile(const std::string &filename)
 			rule->load(*i, this);
 		}
 	}
-	for (YAML::const_iterator i = doc["research"].begin(); i != doc["research"].end(); ++i)
-	{
-		RuleResearch *rule = loadRule(*i, &_research, &_researchIndex, "name");
-		if (rule != 0)
-		{
-			_researchListOrder += 100;
-			rule->load(*i, _researchListOrder);
-			if ((*i)["unlockFinalMission"].as<bool>(false))
-			{
-				_finalResearch = (*i)["name"].as<std::string>(_finalResearch);
-			}
-		}
-	}
-	for (YAML::const_iterator i = doc["manufacture"].begin(); i != doc["manufacture"].end(); ++i)
-	{
-		RuleManufacture *rule = loadRule(*i, &_manufacture, &_manufactureIndex, "name");
-		if (rule != 0)
-		{
-			_manufactureListOrder += 100;
-			rule->load(*i, _manufactureListOrder);
-		}
-	}
-	for (YAML::const_iterator i = doc["ufopaedia"].begin(); i != doc["ufopaedia"].end(); ++i)
-	{
-		if ((*i)["id"])
-		{
-			std::string id = (*i)["id"].as<std::string>();
-			ArticleDefinition *rule;
-			if (_ufopaediaArticles.find(id) != _ufopaediaArticles.end())
-			{
-				rule = _ufopaediaArticles[id];
-			}
-			else
-			{
-				UfopaediaTypeId type = (UfopaediaTypeId)(*i)["type_id"].as<int>();
-				switch (type)
-				{
-				case UFOPAEDIA_TYPE_CRAFT: rule = new ArticleDefinitionCraft(); break;
-				case UFOPAEDIA_TYPE_CRAFT_WEAPON: rule = new ArticleDefinitionCraftWeapon(); break;
-				case UFOPAEDIA_TYPE_VEHICLE: rule = new ArticleDefinitionVehicle(); break;
-				case UFOPAEDIA_TYPE_ITEM: rule = new ArticleDefinitionItem(); break;
-				case UFOPAEDIA_TYPE_ARMOR: rule = new ArticleDefinitionArmor(); break;
-				case UFOPAEDIA_TYPE_BASE_FACILITY: rule = new ArticleDefinitionBaseFacility(); break;
-				case UFOPAEDIA_TYPE_TEXTIMAGE: rule = new ArticleDefinitionTextImage(); break;
-				case UFOPAEDIA_TYPE_TEXT: rule = new ArticleDefinitionText(); break;
-				case UFOPAEDIA_TYPE_UFO: rule = new ArticleDefinitionUfo(); break;
-				case UFOPAEDIA_TYPE_TFTD:
-				case UFOPAEDIA_TYPE_TFTD_CRAFT:
-				case UFOPAEDIA_TYPE_TFTD_CRAFT_WEAPON:
-				case UFOPAEDIA_TYPE_TFTD_VEHICLE:
-				case UFOPAEDIA_TYPE_TFTD_ITEM:
-				case UFOPAEDIA_TYPE_TFTD_ARMOR:
-				case UFOPAEDIA_TYPE_TFTD_BASE_FACILITY:
-				case UFOPAEDIA_TYPE_TFTD_USO:
-					rule = new ArticleDefinitionTFTD();
-					break;
-				default: rule = 0; break;
-				}
-				_ufopaediaArticles[id] = rule;
-				_ufopaediaIndex.push_back(id);
-			}
-			_ufopaediaListOrder += 100;
-			rule->load(*i, _ufopaediaListOrder);
-		}
-		else if ((*i)["delete"])
-		{
-			std::string type = (*i)["delete"].as<std::string>();
-			std::map<std::string, ArticleDefinition*>::iterator j = _ufopaediaArticles.find(type);
-			if (j != _ufopaediaArticles.end())
-			{
-				_ufopaediaArticles.erase(j);
-			}
-			std::vector<std::string>::iterator idx = std::find(_ufopaediaIndex.begin(), _ufopaediaIndex.end(), type);
-			if (idx != _ufopaediaIndex.end())
-			{
-				_ufopaediaIndex.erase(idx);
-			}
-		}
-	}
+
+
 	// Bases can't be copied, so for savegame purposes we store the node instead
 	YAML::Node base = doc["startingBase"];
 	if (base)
@@ -1365,22 +1176,8 @@ void Mod::loadFile(const std::string &filename)
 			++num;
 		}
 	}
-	for (YAML::const_iterator i = doc["ufoTrajectories"].begin(); i != doc["ufoTrajectories"].end(); ++i)
-	{
-		UfoTrajectory *rule = loadRule(*i, &_ufoTrajectories, 0, "id");
-		if (rule != 0)
-		{
-			rule->load(*i);
-		}
-	}
-	for (YAML::const_iterator i = doc["alienMissions"].begin(); i != doc["alienMissions"].end(); ++i)
-	{
-		RuleAlienMission *rule = loadRule(*i, &_alienMissions, &_alienMissionsIndex);
-		if (rule != 0)
-		{
-			rule->load(*i);
-		}
-	}
+
+
 	_alienItemLevels = doc["alienItemLevels"].as< std::vector< std::vector<int> > >(_alienItemLevels);
 	for (YAML::const_iterator i = doc["MCDPatches"].begin(); i != doc["MCDPatches"].end(); ++i)
 	{
@@ -1456,14 +1253,7 @@ void Mod::loadFile(const std::string &filename)
 			rule->load(*i);
 		}
 	}
-	if (doc["globe"])
-	{
-		_globe->load(doc["globe"]);
-	}
-	if (doc["converter"])
-	{
-		_converter->load(doc["converter"]);
-	}
+
 	if (const YAML::Node& constants = doc["constants"])
 	{
 		//backward compatibility version
@@ -1507,17 +1297,6 @@ void Mod::loadFile(const std::string &filename)
 		if (rule != 0)
 		{
 			rule->load(*i);
-		}
-	}
-
-	// refresh _psiRequirements for psiStrengthEval
-	for (std::vector<std::string>::const_iterator i = _facilitiesIndex.begin(); i != _facilitiesIndex.end(); ++i)
-	{
-		RuleBaseFacility *rule = getBaseFacility(*i);
-		if (rule->getPsiLaboratories() > 0)
-		{
-			_psiRequirements = rule->getRequirements();
-			break;
 		}
 	}
 
@@ -1618,56 +1397,6 @@ SavedGame *Mod::newSave() const
 {
 	SavedGame *save = new SavedGame();
 
-	// Add countries
-	for (std::vector<std::string>::const_iterator i = _countriesIndex.begin(); i != _countriesIndex.end(); ++i)
-	{
-		RuleCountry *country = getCountry(*i);
-		if (!country->getLonMin().empty())
-			save->getCountries()->push_back(new Country(country));
-	}
-	// Adjust funding to total $6M
-	int missing = ((_initialFunding - save->getCountryFunding()/1000) / (int)save->getCountries()->size()) * 1000;
-	for (std::vector<Country*>::iterator i = save->getCountries()->begin(); i != save->getCountries()->end(); ++i)
-	{
-		int funding = (*i)->getFunding().back() + missing;
-		if (funding < 0)
-		{
-			funding = (*i)->getFunding().back();
-		}
-		(*i)->setFunding(funding);
-	}
-	save->setFunds(save->getCountryFunding());
-
-	// Add regions
-	for (std::vector<std::string>::const_iterator i = _regionsIndex.begin(); i != _regionsIndex.end(); ++i)
-	{
-		RuleRegion *region = getRegion(*i);
-		if (!region->getLonMin().empty())
-			save->getRegions()->push_back(new Region(region));
-	}
-
-	// Set up starting base
-	Base *base = new Base(this);
-	base->load(_startingBase, save, true);
-	save->getBases()->push_back(base);
-
-	// Correct IDs
-	for (std::vector<Craft*>::const_iterator i = base->getCrafts()->begin(); i != base->getCrafts()->end(); ++i)
-	{
-		save->getId((*i)->getRules()->getType());
-	}
-
-	// Determine starting transport craft
-	Craft *transportCraft = 0;
-	for (std::vector<Craft*>::iterator c = base->getCrafts()->begin(); c != base->getCrafts()->end(); ++c)
-	{
-		if ((*c)->getRules()->getSoldiers() > 0)
-		{
-			transportCraft = (*c);
-			break;
-		}
-	}
-
 	// Determine starting soldier types
 	std::vector<std::string> soldierTypes = _soldiersIndex;
 	for (std::vector<std::string>::iterator i = soldierTypes.begin(); i != soldierTypes.end();)
@@ -1707,52 +1436,7 @@ SavedGame *Mod::newSave() const
 				randomTypes.push_back(soldierTypes[RNG::generate(0, soldierTypes.size() - 1)]);
 			}
 		}
-		// Generate soldiers
-		unsigned maxSoldiersInTransportCraft = 0;
-		if (transportCraft != 0)
-		{
-			maxSoldiersInTransportCraft = transportCraft->getRules()->getSoldiers();
-			for (std::vector<Vehicle*>::iterator v = transportCraft->getVehicles()->begin(); v != transportCraft->getVehicles()->end();)
-			{
-				if ((int)maxSoldiersInTransportCraft < (*v)->getSize())
-				{
-					base->getStorageItems()->addItem((*v)->getRules()->getType(), 1);
-					if ((*v)->getAmmo() > 0 && !(*v)->getRules()->getCompatibleAmmo()->empty())
-					{
-						base->getStorageItems()->addItem(
-							(*v)->getRules()->getCompatibleAmmo()->front(),
-							(*v)->getAmmo() / getItem((*v)->getRules()->getCompatibleAmmo()->front())->getClipSize());
-					}
-					delete (*v);
-					v = transportCraft->getVehicles()->erase(v);
-				}
-				else
-				{
-					maxSoldiersInTransportCraft -= (*v)->getSize();
-					++v;
-				}
-			}
-		}
 
-		for (size_t i = 0; i < randomTypes.size(); ++i)
-		{
-			Soldier *soldier = genSoldier(save, randomTypes[i]);
-			if (transportCraft != 0 && i < maxSoldiersInTransportCraft)
-			{
-				soldier->setCraft(transportCraft);
-			}
-			base->getSoldiers()->push_back(soldier);
-			// Award soldier a special 'original eight' commendation
-			if (_commendations.find("STR_MEDAL_ORIGINAL8_NAME") != _commendations.end())
-			{
-				SoldierDiary *diary = soldier->getDiary();
-				diary->awardOriginalEightCommendation();
-				for (std::vector<SoldierCommendations*>::iterator comm = diary->getSoldierCommendations()->begin(); comm != diary->getSoldierCommendations()->end(); ++comm)
-				{
-					(*comm)->makeOld();
-				}
-			}
-		}
 	}
 
 	// Setup alien strategy
@@ -1760,66 +1444,6 @@ SavedGame *Mod::newSave() const
 	save->setTime(_startingTime);
 
 	return save;
-}
-
-/**
- * Returns the rules for the specified country.
- * @param id Country type.
- * @return Rules for the country.
- */
-RuleCountry *Mod::getCountry(const std::string &id, bool error) const
-{
-	return getRule(id, "Country", _countries, error);
-}
-
-/**
- * Returns the list of all countries
- * provided by the mod.
- * @return List of countries.
- */
-const std::vector<std::string> &Mod::getCountriesList() const
-{
-	return _countriesIndex;
-}
-
-/**
- * Returns the rules for the specified region.
- * @param id Region type.
- * @return Rules for the region.
- */
-RuleRegion *Mod::getRegion(const std::string &id, bool error) const
-{
-	return getRule(id, "Region", _regions, error);
-}
-
-/**
- * Returns the list of all regions
- * provided by the mod.
- * @return List of regions.
- */
-const std::vector<std::string> &Mod::getRegionsList() const
-{
-	return _regionsIndex;
-}
-
-/**
- * Returns the rules for the specified base facility.
- * @param id Facility type.
- * @return Rules for the facility.
- */
-RuleBaseFacility *Mod::getBaseFacility(const std::string &id, bool error) const
-{
-	return getRule(id, "Facility", _facilities, error);
-}
-
-/**
- * Returns the list of all base facilities
- * provided by the mod.
- * @return List of base facilities.
- */
-const std::vector<std::string> &Mod::getBaseFacilitiesList() const
-{
-	return _facilitiesIndex;
 }
 
 /**
@@ -2085,35 +1709,6 @@ int Mod::getPersonnelTime() const
 	return _timePersonnel;
 }
 
-/**
- * Returns the article definition for a given name.
- * @param name Article name.
- * @return Article definition.
- */
-ArticleDefinition *Mod::getUfopaediaArticle(const std::string &name, bool error) const
-{
-	return getRule(name, "UFOpaedia Article", _ufopaediaArticles, error);
-}
-
-/**
- * Returns the list of all articles
- * provided by the mod.
- * @return List of articles.
- */
-const std::vector<std::string> &Mod::getUfopaediaList() const
-{
-	return _ufopaediaIndex;
-}
-
-/**
-* Returns the list of all article categories
-* provided by the mod.
-* @return List of categories.
-*/
-const std::vector<std::string> &Mod::getUfopaediaCategoryList() const
-{
-	return _ufopaediaCatIndex;
-}
 
 /**
  * Returns the list of inventories.
@@ -2143,125 +1738,10 @@ const std::vector<std::string> &Mod::getInvsList() const
 	return _invsIndex;
 }
 
-/**
- * Returns the rules for the specified research project.
- * @param id Research project type.
- * @return Rules for the research project.
- */
-RuleResearch *Mod::getResearch (const std::string &id, bool error) const
-{
-	return getRule(id, "Research", _research, error);
-}
 
-/**
- * Returns the list of research projects.
- * @return The list of research projects.
- */
-const std::vector<std::string> &Mod::getResearchList() const
-{
-	return _researchIndex;
-}
 
-/**
- * Returns the rules for the specified manufacture project.
- * @param id Manufacture project type.
- * @return Rules for the manufacture project.
- */
-RuleManufacture *Mod::getManufacture (const std::string &id, bool error) const
-{
-	return getRule(id, "Manufacture", _manufacture, error);
-}
 
-/**
- * Returns the list of manufacture projects.
- * @return The list of manufacture projects.
- */
-const std::vector<std::string> &Mod::getManufactureList() const
-{
-	return _manufactureIndex;
-}
 
-/**
- * Generates and returns a list of facilities for custom bases.
- * The list contains all the facilities that are listed in the 'startingBase'
- * part of the ruleset.
- * @return The list of facilities for custom bases.
- */
-std::vector<RuleBaseFacility*> Mod::getCustomBaseFacilities() const
-{
-	std::vector<RuleBaseFacility*> placeList;
-
-	for (YAML::const_iterator i = _startingBase["facilities"].begin(); i != _startingBase["facilities"].end(); ++i)
-	{
-		std::string type = (*i)["type"].as<std::string>();
-		RuleBaseFacility *facility = getBaseFacility(type, true);
-		if (!facility->isLift())
-		{
-			placeList.push_back(facility);
-		}
-	}
-	return placeList;
-}
-
-/**
- * Returns the data for the specified ufo trajectory.
- * @param id Ufo trajectory id.
- * @return A pointer to the data for the specified ufo trajectory.
- */
-const UfoTrajectory *Mod::getUfoTrajectory(const std::string &id, bool error) const
-{
-	return getRule(id, "Trajectory", _ufoTrajectories, error);
-}
-
-/**
- * Returns the rules for the specified alien mission.
- * @param id Alien mission type.
- * @return Rules for the alien mission.
- */
-const RuleAlienMission *Mod::getAlienMission(const std::string &id, bool error) const
-{
-	return getRule(id, "Alien Mission", _alienMissions, error);
-}
-
-/**
- * Returns the rules for a random alien mission based on a specific objective.
- * @param objective Alien mission objective.
- * @return Rules for the alien mission.
- */
-const RuleAlienMission *Mod::getRandomMission(MissionObjective objective, size_t monthsPassed) const
-{
-	int totalWeight = 0;
-	std::map<int, RuleAlienMission*> possibilities;
-	for (std::map<std::string, RuleAlienMission *>::const_iterator i = _alienMissions.begin(); i != _alienMissions.end(); ++i)
-	{
-		if (i->second->getObjective() == objective && i->second->getWeight(monthsPassed) > 0)
-		{
-			totalWeight += i->second->getWeight(monthsPassed);
-			possibilities[totalWeight] = i->second;
-		}
-	}
-	if (totalWeight > 0)
-	{
-		int pick = RNG::generate(1, totalWeight);
-		for (std::map<int, RuleAlienMission*>::const_iterator i = possibilities.begin(); i != possibilities.end(); ++i)
-		{
-			if (pick <= i->first)
-			{
-				return i->second;
-			}
-		}
-	}
-	return 0;
-}
-
-/**
- * Returns the list of alien mission types.
- * @return The list of alien mission types.
- */
-const std::vector<std::string> &Mod::getAlienMissionList() const
-{
-	return _alienMissionsIndex;
-}
 
 /**
  * Gets the alien item level table.
@@ -2409,47 +1889,8 @@ struct compareRule<Armor> : public std::binary_function<const std::string&, cons
 	}
 };
 
-/**
- * Ufopaedia articles use section and list order.
- */
-template <>
-struct compareRule<ArticleDefinition> : public std::binary_function<const std::string&, const std::string&, bool>
-{
-	Mod *_mod;
-	const std::map<std::string, int> &_sections;
 
-	compareRule(Mod *mod) : _mod(mod), _sections(mod->getUfopaediaSections())
-	{
-	}
 
-	bool operator()(const std::string &r1, const std::string &r2) const
-	{
-		ArticleDefinition *rule1 = _mod->getUfopaediaArticle(r1);
-		ArticleDefinition *rule2 = _mod->getUfopaediaArticle(r2);
-		if (rule1->section == rule2->section)
-			return (rule1->getListOrder() < rule2->getListOrder());
-		else
-			return (_sections.at(rule1->section) < _sections.at(rule2->section));
-	}
-};
-
-/**
- * Ufopaedia sections use article list order.
- */
-struct compareSection : public std::binary_function<const std::string&, const std::string&, bool>
-{
-	Mod *_mod;
-	const std::map<std::string, int> &_sections;
-
-	compareSection(Mod *mod) : _mod(mod), _sections(mod->getUfopaediaSections())
-	{
-	}
-
-	bool operator()(const std::string &r1, const std::string &r2) const
-	{
-		return _sections.at(r1) < _sections.at(r2);
-	}
-};
 
 /**
  * Sorts all our lists according to their weight.
@@ -2458,21 +1899,10 @@ void Mod::sortLists()
 {
 	std::sort(_itemsIndex.begin(), _itemsIndex.end(), compareRule<RuleItem>(this, (compareRule<RuleItem>::RuleLookup)&Mod::getItem));
 	std::sort(_craftsIndex.begin(), _craftsIndex.end(), compareRule<RuleCraft>(this, (compareRule<RuleCraft>::RuleLookup)&Mod::getCraft));
-	std::sort(_facilitiesIndex.begin(), _facilitiesIndex.end(), compareRule<RuleBaseFacility>(this, (compareRule<RuleBaseFacility>::RuleLookup)&Mod::getBaseFacility));
-	std::sort(_researchIndex.begin(), _researchIndex.end(), compareRule<RuleResearch>(this, (compareRule<RuleResearch>::RuleLookup)&Mod::getResearch));
-	std::sort(_manufactureIndex.begin(), _manufactureIndex.end(), compareRule<RuleManufacture>(this, (compareRule<RuleManufacture>::RuleLookup)&Mod::getManufacture));
 	std::sort(_invsIndex.begin(), _invsIndex.end(), compareRule<RuleInventory>(this, (compareRule<RuleInventory>::RuleLookup)&Mod::getInventory));
 	// special cases
 	std::sort(_craftWeaponsIndex.begin(), _craftWeaponsIndex.end(), compareRule<RuleCraftWeapon>(this));
 	std::sort(_armorsIndex.begin(), _armorsIndex.end(), compareRule<Armor>(this));
-}
-
-/**
- * Gets the research-requirements for Psi-Lab (it's a cache for psiStrengthEval)
- */
-const std::vector<std::string> &Mod::getPsiRequirements() const
-{
-	return _psiRequirements;
 }
 
 /**
@@ -2490,35 +1920,8 @@ Soldier *Mod::genSoldier(SavedGame *save, std::string type) const
 		type = _soldiersIndex.front();
 	}
 
-	// Check for duplicates
-	// Original X-COM gives up after 10 tries so might as well do the same here
-	bool duplicate = true;
-	for (int tries = 0; tries < 10 && duplicate; ++tries)
-	{
-		delete soldier;
-		soldier = new Soldier(getSoldier(type, true), getArmor(getSoldier(type, true)->getArmor(), true), newId);
-		duplicate = false;
-		for (std::vector<Base*>::iterator i = save->getBases()->begin(); i != save->getBases()->end() && !duplicate; ++i)
-		{
-			for (std::vector<Soldier*>::iterator j = (*i)->getSoldiers()->begin(); j != (*i)->getSoldiers()->end() && !duplicate; ++j)
-			{
-				if ((*j)->getName() == soldier->getName())
-				{
-					duplicate = true;
-				}
-			}
-			for (std::vector<Transfer*>::iterator k = (*i)->getTransfers()->begin(); k != (*i)->getTransfers()->end() && !duplicate; ++k)
-			{
-				if ((*k)->getType() == TRANSFER_SOLDIER && (*k)->getSoldier()->getName() == soldier->getName())
-				{
-					duplicate = true;
-				}
-			}
-		}
-	}
-
 	// calculate new statString
-	soldier->calcStatString(getStatStrings(), (Options::psiStrengthEval && save->isResearched(getPsiRequirements())));
+	soldier->calcStatString(getStatStrings(), (Options::psiStrengthEval));
 
 	return soldier;
 }
@@ -2550,30 +1953,6 @@ std::string Mod::getFontName() const
 	return _fontName;
 }
 
-/**
- * Returns the smallest facility's radar range.
- * @return The minimum range.
- */
- int Mod::getMinRadarRange() const
- {
-	int minRadarRange = 0;
-
-	{
-		for (std::vector<std::string>::const_iterator i = _facilitiesIndex.begin(); i != _facilitiesIndex.end(); ++i)
-		{
-			RuleBaseFacility *f = getBaseFacility(*i);
-			if (f == 0) continue;
-
-			int radarRange = f->getRadarRange();
-			if (radarRange > 0 && (minRadarRange == 0 || minRadarRange > radarRange))
-			{
-				minRadarRange = radarRange;
-			}
-		}
-	}
-
-	return minRadarRange;
- }
 
 /**
  * Gets information on an interface.
@@ -2585,23 +1964,6 @@ RuleInterface *Mod::getInterface(const std::string &id, bool error) const
 	return getRule(id, "Interface", _interfaces, error);
 }
 
-/**
- * Gets the rules for the Geoscape globe.
- * @return Pointer to globe rules.
- */
-RuleGlobe *Mod::getGlobe() const
-{
-	return _globe;
-}
-
-/**
-* Gets the rules for the Save Converter.
-* @return Pointer to converter rules.
-*/
-RuleConverter *Mod::getConverter() const
-{
-	return _converter;
-}
 
 const std::map<std::string, SoundDefinition *> *Mod::getSoundDefinitions() const
 {

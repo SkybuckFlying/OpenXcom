@@ -210,14 +210,7 @@ void ActionMenuState::btnActionMenuItemClick(Action *action)
 	{
 		_action->type = _actionMenu[btnID]->getAction();
 		_action->TU = _actionMenu[btnID]->getTUs();
-		if (_action->type != BA_THROW &&
-			_action->actor->getOriginalFaction() == FACTION_PLAYER &&
-			!_game->getSavedGame()->isResearched(weapon->getRequirements()))
-		{
-			_action->result = "STR_UNABLE_TO_USE_ALIEN_ARTIFACT_UNTIL_RESEARCHED";
-			_game->popState();
-		}
-		else if (_action->type != BA_THROW && !weaponUsable.empty())
+		if (_action->type != BA_THROW && !weaponUsable.empty())
 		{
 			_action->result = weaponUsable;
 			_game->popState();

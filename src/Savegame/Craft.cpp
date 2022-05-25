@@ -27,11 +27,9 @@
 #include "SavedGame.h"
 #include "ItemContainer.h"
 #include "Soldier.h"
-#include "Base.h"
 #include "Ufo.h"
 #include "Waypoint.h"
 #include "MissionSite.h"
-#include "AlienBase.h"
 #include "Vehicle.h"
 #include "../Mod/RuleItem.h"
 #include "../Mod/AlienDeployment.h"
@@ -58,10 +56,7 @@ Craft::Craft(RuleCraft *rules, Base *base, int id) : MovingTarget(), _rules(rule
 	{
 		_weapons.push_back(0);
 	}
-	if (base != 0)
-	{
-		setBase(base);
-	}
+
 	_speedMaxRadian = calculateRadianSpeed(_rules->getMaxSpeed()) * 120;
 }
 
@@ -153,55 +148,6 @@ void Craft::load(const YAML::Node &node, const Mod *mod, SavedGame *save)
 	{
 		std::string type = dest["type"].as<std::string>();
 		int id = dest["id"].as<int>();
-		if (type == "STR_BASE")
-		{
-			returnToBase();
-		}
-		else if (type == "STR_UFO")
-		{
-			for (std::vector<Ufo*>::iterator i = save->getUfos()->begin(); i != save->getUfos()->end(); ++i)
-			{
-				if ((*i)->getId() == id)
-				{
-					setDestination(*i);
-					break;
-				}
-			}
-		}
-		else if (type == "STR_WAY_POINT")
-		{
-			for (std::vector<Waypoint*>::iterator i = save->getWaypoints()->begin(); i != save->getWaypoints()->end(); ++i)
-			{
-				if ((*i)->getId() == id)
-				{
-					setDestination(*i);
-					break;
-				}
-			}
-		}
-		else
-		{
-			// Backwards compatibility
-			if (type == "STR_ALIEN_TERROR")
-				type = "STR_TERROR_SITE";
-			bool found = false;
-			for (std::vector<MissionSite*>::iterator i = save->getMissionSites()->begin(); i != save->getMissionSites()->end() && !found; ++i)
-			{
-				if ((*i)->getId() == id && (*i)->getDeployment()->getMarkerName() == type)
-				{
-					setDestination(*i);
-					found = true;
-				}
-			}
-			for (std::vector<AlienBase*>::iterator i = save->getAlienBases()->begin(); i != save->getAlienBases()->end() && !found; ++i)
-			{
-				if ((*i)->getId() == id && (*i)->getDeployment()->getMarkerName() == type)
-				{
-					setDestination(*i);
-					found = true;
-				}
-			}
-		}
 	}
 	_takeoff = node["takeoff"].as<int>(_takeoff);
 	_inBattlescape = node["inBattlescape"].as<bool>(_inBattlescape);
@@ -327,20 +273,6 @@ Base *Craft::getBase() const
 	return _base;
 }
 
-/**
- * Changes the base the craft belongs to.
- * @param base Pointer to base.
- * @param move Move the craft to the base coordinates.
- */
-void Craft::setBase(Base *base, bool move)
-{
-	_base = base;
-	if (move)
-	{
-		_lon = base->getLongitude();
-		_lat = base->getLatitude();
-	}
-}
 
 /**
  * Returns the current status of the craft.
@@ -431,12 +363,6 @@ int Craft::getNumSoldiers() const
 		return 0;
 
 	int total = 0;
-
-	for (std::vector<Soldier*>::iterator i = _base->getSoldiers()->begin(); i != _base->getSoldiers()->end(); ++i)
-	{
-		if ((*i)->getCraft() == this)
-			total++;
-	}
 
 	return total;
 }
@@ -602,16 +528,6 @@ void Craft::setMissionComplete(bool mission)
 }
 
 /**
- * Returns the current distance between the craft
- * and the base it belongs to.
- * @return Distance in radian.
- */
-double Craft::getDistanceFromBase() const
-{
-	return getDistance(_base);
-}
-
-/**
  * Returns the amount of fuel the craft uses up
  * while it's on the air, based on its current speed.
  * @return Fuel amount.
@@ -635,27 +551,6 @@ int Craft::getFuelConsumption(int speed) const
 }
 
 /**
- * Returns the minimum required fuel for the
- * craft to make it back to base.
- * @return Fuel amount.
- */
-int Craft::getFuelLimit() const
-{
-	return getFuelLimit(_base);
-}
-
-/**
- * Returns the minimum required fuel for the
- * craft to go to a base.
- * @param base Pointer to target base.
- * @return Fuel amount.
- */
-int Craft::getFuelLimit(Base *base) const
-{
-	return (int)floor(getFuelConsumption(_rules->getMaxSpeed()) * getDistance(base) / _speedMaxRadian);
-}
-
-/**
  * Returns the maximum range the craft can travel
  * from its origin base on its current fuel.
  * @return Range in radians.
@@ -663,14 +558,6 @@ int Craft::getFuelLimit(Base *base) const
 double Craft::getBaseRange() const
 {
 	return _fuel / 2.0 / getFuelConsumption(_rules->getMaxSpeed()) * _speedMaxRadian;
-}
-
-/**
- * Sends the craft back to its origin base.
- */
-void Craft::returnToBase()
-{
-	setDestination(_base);
 }
 
 /**
@@ -787,105 +674,6 @@ void Craft::repair()
 	{
 		_status = "STR_REARMING";
 	}
-}
-
-/**
- * Refuels the craft every 30 minutes
- * while it's docked in the base.
- * @return The item ID missing for refuelling, or "" if none.
- */
-std::string Craft::refuel()
-{
-	std::string fuel;
-	if (_fuel < _rules->getMaxFuel())
-	{
-		std::string item = _rules->getRefuelItem();
-		if (item.empty())
-		{
-			setFuel(_fuel + _rules->getRefuelRate());
-		}
-		else
-		{
-			if (_base->getStorageItems()->getItem(item) > 0)
-			{
-				_base->getStorageItems()->removeItem(item);
-				setFuel(_fuel + _rules->getRefuelRate());
-				_lowFuel = false;
-			}
-			else if (!_lowFuel)
-			{
-				fuel = item;
-				if (_fuel > 0)
-				{
-					_status = "STR_READY";
-				}
-				else
-				{
-					_lowFuel = true;
-				}
-			}
-		}
-	}
-	if (_fuel >= _rules->getMaxFuel())
-	{
-		_status = "STR_READY";
-		for (std::vector<CraftWeapon*>::iterator i = _weapons.begin(); i != _weapons.end(); ++i)
-		{
-			if (*i && (*i)->isRearming())
-			{
-				_status = "STR_REARMING";
-				break;
-			}
-		}
-	}
-	return fuel;
-}
-
-/**
- * Rearms the craft's weapons by adding ammo every hour
- * while it's docked in the base.
- * @param mod Pointer to mod.
- * @return The ammo ID missing for rearming, or "" if none.
- */
-std::string Craft::rearm(const Mod *mod)
-{
-	std::string ammo;
-	for (std::vector<CraftWeapon*>::iterator i = _weapons.begin(); ; ++i)
-	{
-		if (i == _weapons.end())
-		{
-			_status = "STR_REFUELLING";
-			break;
-		}
-		if (*i != 0 && (*i)->isRearming())
-		{
-			std::string clip = (*i)->getRules()->getClipItem();
-			int available = _base->getStorageItems()->getItem(clip);
-			if (clip.empty())
-			{
-				(*i)->rearm(0, 0);
-			}
-			else if (available > 0)
-			{
-				int used = (*i)->rearm(available, mod->getItem(clip)->getClipSize());
-
-				if (used == available && (*i)->isRearming())
-				{
-					ammo = clip;
-					(*i)->setRearming(false);
-				}
-
-				_base->getStorageItems()->removeItem(clip, used);
-			}
-			else
-			{
-				ammo = clip;
-				(*i)->setRearming(false);
-			}
-			break;
-		}
-	}
-	return ammo;
 }
 
 /**
@@ -1007,53 +795,6 @@ int Craft::getInterceptionOrder() const
 CraftId Craft::getUniqueId() const
 {
 	return std::make_pair(_rules->getType(), _id);
-}
-
-/**
- * Unloads all the craft contents to the base.
- * @param mod Pointer to mod.
- */
-void Craft::unload(const Mod *mod)
-{
-	// Remove weapons
-	for (std::vector<CraftWeapon*>::iterator w = _weapons.begin(); w != _weapons.end(); ++w)
-	{
-		if ((*w) != 0)
-		{
-			_base->getStorageItems()->addItem((*w)->getRules()->getLauncherItem());
-			_base->getStorageItems()->addItem((*w)->getRules()->getClipItem(), (*w)->getClipsLoaded(mod));
-			delete (*w);
-			(*w) = 0;
-		}
-	}
-
-	// Remove items
-	for (std::map<std::string, int>::iterator it = _items->getContents()->begin(); it != _items->getContents()->end(); ++it)
-	{
-		_base->getStorageItems()->addItem(it->first, it->second);
-	}
-
-	// Remove vehicles
-	for (std::vector<Vehicle*>::iterator v = _vehicles.begin(); v != _vehicles.end(); ++v)
-	{
-		_base->getStorageItems()->addItem((*v)->getRules()->getType());
-		if (!(*v)->getRules()->getCompatibleAmmo()->empty())
-		{
-			_base->getStorageItems()->addItem((*v)->getRules()->getCompatibleAmmo()->front(), (*v)->getAmmo());
-		}
-		delete (*v);
-		(*v) = 0;
-	}
-	_vehicles.clear();
-
-	// Remove soldiers
-	for (std::vector<Soldier*>::iterator s = _base->getSoldiers()->begin(); s != _base->getSoldiers()->end(); ++s)
-	{
-		if ((*s)->getCraft() == this)
-		{
-			(*s)->setCraft(0);
-		}
-	}
 }
 
 /**

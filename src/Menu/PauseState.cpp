@@ -117,12 +117,6 @@ PauseState::PauseState(OptionsOrigin origin) : _origin(origin)
 		applyBattlescapeTheme();
 	}
 
-	if (_game->getSavedGame()->isIronman())
-	{
-		_btnLoad->setVisible(false);
-		_btnSave->setVisible(false);
-		_btnAbandon->setText(tr("STR_SAVE_AND_ABANDON_GAME"));
-	}
 }
 
 /**

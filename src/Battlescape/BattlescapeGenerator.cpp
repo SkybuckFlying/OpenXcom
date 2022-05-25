@@ -27,8 +27,6 @@
 #include "../Savegame/SavedBattleGame.h"
 #include "../Savegame/Tile.h"
 #include "../Savegame/ItemContainer.h"
-#include "../Savegame/Base.h"
-#include "../Savegame/BaseFacility.h"
 #include "../Savegame/Soldier.h"
 #include "../Savegame/BattleUnit.h"
 #include "../Savegame/BattleItem.h"
@@ -37,7 +35,6 @@
 #include "../Savegame/Node.h"
 #include "../Savegame/Vehicle.h"
 #include "../Savegame/MissionSite.h"
-#include "../Savegame/AlienBase.h"
 #include "../Savegame/EquipmentLayoutItem.h"
 #include "../Engine/Game.h"
 #include "../Engine/FileMap.h"
@@ -57,7 +54,6 @@
 #include "../Mod/Unit.h"
 #include "../Mod/AlienRace.h"
 #include "../Mod/AlienDeployment.h"
-#include "../Mod/RuleBaseFacility.h"
 #include "../Mod/Texture.h"
 
 namespace OpenXcom
@@ -69,7 +65,7 @@ static bool _addItem(BattleItem *item, BattleUnit *unit, Mod *mod, SavedBattleGa
  * Sets up a BattlescapeGenerator.
  * @param game pointer to Game object.
  */
-BattlescapeGenerator::BattlescapeGenerator(Game *game) : _game(game), _save(game->getSavedGame()->getSavedBattle()), _mod(game->getMod()), _craft(0), _ufo(0), _base(0), _mission(0), _alienBase(0), _terrain(0), _mapsize_x(0), _mapsize_y(0), _mapsize_z(0),
+BattlescapeGenerator::BattlescapeGenerator(Game *game) : _game(game), _save(game->getSavedGame()->getSavedBattle()), _mod(game->getMod()), _craft(0), _ufo(0), _mission(0), _terrain(0), _mapsize_x(0), _mapsize_y(0), _mapsize_z(0),
 														 _worldTexture(0), _worldShade(0), _unitSequence(0), _craftInventoryTile(0), _alienItemLevel(0), _baseInventory(false), _generateFuel(true), _craftDeployed(false), _craftZ(0), _blocksToDo(0), _dummy(0)
 {
 	_allowAutoLoadout = !Options::disableAutoEquip;
@@ -164,16 +160,6 @@ void BattlescapeGenerator::setAlienRace(const std::string &alienRace)
 void BattlescapeGenerator::setAlienItemlevel(int alienItemLevel)
 {
 	_alienItemLevel = alienItemLevel;
-}
-
-/**
- * Sets the XCom base involved in the battle.
- * @param base Pointer to XCom base.
- */
-void BattlescapeGenerator::setBase(Base *base)
-{
-	_base = base;
-	_base->setInBattlescape(true);
 }
 
 /**
@@ -312,8 +298,7 @@ void BattlescapeGenerator::nextStage()
 						// any corpses or unconscious units get put in the skyranger, as well as any unresearched items
 						if (((*i)->getUnit() &&
 							((*i)->getUnit()->getOriginalFaction() != FACTION_PLAYER ||
-							(*i)->getUnit()->getStatus() == STATUS_DEAD))
-							|| !_game->getSavedGame()->isResearched((*i)->getRules()->getRequirements()))
+							(*i)->getUnit()->getStatus() == STATUS_DEAD)))
 						{
 							toContainer = takeHomeGuaranteed;
 						}
@@ -504,23 +489,6 @@ void BattlescapeGenerator::nextStage()
 	// Let's figure out what race we're up against.
 	_alienRace = ruleDeploy->getRace();
 
-	for (std::vector<MissionSite*>::iterator i = _game->getSavedGame()->getMissionSites()->begin();
-		_alienRace.empty() && i != _game->getSavedGame()->getMissionSites()->end(); ++i)
-	{
-		if ((*i)->isInBattlescape())
-		{
-			_alienRace = (*i)->getAlienRace();
-		}
-	}
-
-	for (std::vector<AlienBase*>::iterator i = _game->getSavedGame()->getAlienBases()->begin();
-		_alienRace.empty() && i != _game->getSavedGame()->getAlienBases()->end(); ++i)
-	{
-		if ((*i)->isInBattlescape())
-		{
-			_alienRace = (*i)->getAlienRace();
-		}
-	}
 
 	deployAliens(ruleDeploy);
 
@@ -646,9 +614,6 @@ void BattlescapeGenerator::deployXCOM()
 {
 	RuleInventory *ground = _game->getMod()->getInventory("STR_GROUND", true);
 
-	if (_craft != 0)
-		_base = _craft->getBase();
-
 	// add vehicles that are in the craft - a vehicle is actually an item, which you will never see as it is converted to a unit
 	// however the item itself becomes the weapon it "holds".
 	if (!_baseInventory)
@@ -661,43 +626,6 @@ void BattlescapeGenerator::deployXCOM()
 				if (unit && !_save->getSelectedUnit())
 					_save->setSelectedUnit(unit);
 			}
-		}
-		else if (_base != 0)
-		{
-			// add vehicles that are in the base inventory
-			for (std::vector<Vehicle*>::iterator i = _base->getVehicles()->begin(); i != _base->getVehicles()->end(); ++i)
-			{
-				BattleUnit *unit = addXCOMVehicle(*i);
-				if (unit && !_save->getSelectedUnit())
-					_save->setSelectedUnit(unit);
-			}
-			// we only add vehicles from the craft in new battle mode,
-			// otherwise the base's vehicle vector will already contain these
-			// due to the geoscape calling base->setupDefenses()
-			if (_game->getSavedGame()->getMonthsPassed() == -1)
-			{
-				for (std::vector<Craft*>::iterator i = _base->getCrafts()->begin(); i != _base->getCrafts()->end(); ++i)
-				{
-					for (std::vector<Vehicle*>::iterator j = (*i)->getVehicles()->begin(); j != (*i)->getVehicles()->end(); ++j)
-					{
-						BattleUnit *unit = addXCOMVehicle(*j);
-						if (unit && !_save->getSelectedUnit())
-							_save->setSelectedUnit(unit);
-					}
-				}
-			}
-		}
-	}
-
-	// add soldiers that are in the craft or base
-	for (std::vector<Soldier*>::iterator i = _base->getSoldiers()->begin(); i != _base->getSoldiers()->end(); ++i)
-	{
-		if ((_craft != 0 && (*i)->getCraft() == _craft) ||
-			(_craft == 0 && (*i)->getWoundRecovery() == 0 && ((*i)->getCraft() == 0 || (*i)->getCraft()->getStatus() != "STR_OUT")))
-		{
-			BattleUnit *unit = addXCOMUnit(new BattleUnit(*i, _save->getDepth()));
-			if (unit && !_save->getSelectedUnit())
-				_save->setSelectedUnit(unit);
 		}
 	}
 
@@ -725,46 +653,6 @@ void BattlescapeGenerator::deployXCOM()
 			for (int count = 0; count < i->second; count++)
 			{
 				_craftInventoryTile->addItem(new BattleItem(_game->getMod()->getItem(i->first, true), _save->getCurrentItemId()),	ground);
-			}
-		}
-	}
-	else
-	{
-		// only use the items in the craft in new battle mode.
-		if (_game->getSavedGame()->getMonthsPassed() != -1)
-		{
-			// add items that are in the base
-			for (std::map<std::string, int>::iterator i = _base->getStorageItems()->getContents()->begin(); i != _base->getStorageItems()->getContents()->end();)
-			{
-				// only put items in the battlescape that make sense (when the item got a sprite, it's probably ok)
-				RuleItem *rule = _game->getMod()->getItem(i->first, true);
-				if (rule->canBeEquippedBeforeBaseDefense() && rule->getBigSprite() > -1 && rule->getBattleType() != BT_NONE && rule->getBattleType() != BT_CORPSE && !rule->isFixed() && _game->getSavedGame()->isResearched(rule->getRequirements()))
-				{
-					for (int count = 0; count < i->second; count++)
-					{
-						_craftInventoryTile->addItem(new BattleItem(_game->getMod()->getItem(i->first, true), _save->getCurrentItemId()), ground);
-					}
-					std::map<std::string, int>::iterator tmp = i;
-					++i;
-					_base->getStorageItems()->removeItem(tmp->first, tmp->second);
-				}
-				else
-				{
-					++i;
-				}
-			}
-		}
-		// add items from crafts in base
-		for (std::vector<Craft*>::iterator c = _base->getCrafts()->begin(); c != _base->getCrafts()->end(); ++c)
-		{
-			if ((*c)->getStatus() == "STR_OUT")
-				continue;
-			for (std::map<std::string, int>::iterator i = (*c)->getItems()->getContents()->begin(); i != (*c)->getItems()->getContents()->end(); ++i)
-			{
-				for (int count = 0; count < i->second; count++)
-				{
-					_craftInventoryTile->addItem(new BattleItem(_game->getMod()->getItem(i->first, true), _save->getCurrentItemId()), ground);
-				}
 			}
 		}
 	}
@@ -1045,7 +933,7 @@ bool BattlescapeGenerator::canPlaceXCOMUnit(Tile *tile)
 void BattlescapeGenerator::deployAliens(AlienDeployment *deployment)
 {
 	// race defined by deployment if there is one.
-	if (!deployment->getRace().empty() && _game->getSavedGame()->getMonthsPassed() > -1)
+	if (!deployment->getRace().empty())
 	{
 		_alienRace = deployment->getRace();
 	}
@@ -1062,17 +950,8 @@ void BattlescapeGenerator::deployAliens(AlienDeployment *deployment)
 	}
 
 	int month;
-	if (_game->getSavedGame()->getMonthsPassed() != -1)
-	{
-		month =
-		((size_t) _game->getSavedGame()->getMonthsPassed()) > _game->getMod()->getAlienItemLevels().size() - 1 ?  // if
-		_game->getMod()->getAlienItemLevels().size() - 1 : // then
-		_game->getSavedGame()->getMonthsPassed() ;  // else
-	}
-	else
-	{
-		month = _alienItemLevel;
-	}
+	month = _alienItemLevel;
+
 	for (std::vector<DeploymentData>::iterator d = deployment->getDeploymentData()->begin(); d != deployment->getDeploymentData()->end(); ++d)
 	{
 		std::string alienName = race->getMember((*d).alienRank);
@@ -1846,17 +1725,9 @@ void BattlescapeGenerator::deployCivilians(int max)
 		if (number > 0)
 		{
 			int month;
-			if (_game->getSavedGame()->getMonthsPassed() != -1)
-			{
-				month =
-				((size_t) _game->getSavedGame()->getMonthsPassed()) > _game->getMod()->getAlienItemLevels().size() - 1 ?  // if
-				_game->getMod()->getAlienItemLevels().size() - 1 : // then
-				_game->getSavedGame()->getMonthsPassed() ;  // else
-			}
-			else
-			{
-				month = _alienItemLevel;
-			}
+
+			month = _alienItemLevel;
+
 			for (int i = 0; i < number; ++i)
 			{
 				size_t pick = RNG::generate(0, _terrain->getCivilianTypes().size() -1);
@@ -1894,16 +1765,6 @@ void BattlescapeGenerator::deployCivilians(int max)
 			}
 		}
 	}
-}
-
-/**
- * Sets the alien base involved in the battle.
- * @param base Pointer to alien base.
- */
-void BattlescapeGenerator::setAlienBase(AlienBase *base)
-{
-	_alienBase = base;
-	_alienBase->setInBattlescape(true);
 }
 
 /**
@@ -2034,12 +1895,6 @@ void BattlescapeGenerator::generateMap(const std::vector<MapScript*> *script)
 
 	RuleTerrain* ufoTerrain = 0;
 	// lets generate the map now and store it inside the tile objects
-
-	// this mission type is "hard-coded" in terms of map layout
-	if (_save->getMissionType() == "STR_BASE_DEFENSE")
-	{
-		generateBaseMap();
-	}
 
 	//process script
 	for (std::vector<MapScript*>::const_iterator i = script->begin(); i != script->end(); ++i)
@@ -2335,89 +2190,6 @@ void BattlescapeGenerator::generateMap(const std::vector<MapScript*> *script)
 	}
 
 	attachNodeLinks();
-}
-
-/**
- * Generates a map based on the base's layout.
- * this doesn't drill or fill with dirt, the script must do that.
- */
-void BattlescapeGenerator::generateBaseMap()
-{
-	// add modules based on the base's layout
-	for (std::vector<BaseFacility*>::const_iterator i = _base->getFacilities()->begin(); i != _base->getFacilities()->end(); ++i)
-	{
-		if ((*i)->getBuildTime() == 0)
-		{
-			int num = 0;
-			int xLimit = (*i)->getX() + (*i)->getRules()->getSize() -1;
-			int yLimit = (*i)->getY() + (*i)->getRules()->getSize() -1;
-
-			for (int y = (*i)->getY(); y <= yLimit; ++y)
-			{
-				for (int x = (*i)->getX(); x <= xLimit; ++x)
-				{
-					// lots of crazy stuff here, which is for the hangars (or other large base facilities one may create)
-					// TODO: clean this mess up, make the mapNames a vector in the base module defs
-					// also figure out how to do the terrain sets on a per-block basis.
-					std::string mapname = (*i)->getRules()->getMapName();
-					std::ostringstream newname;
-					newname << mapname.substr(0, mapname.size()-2); // strip of last 2 digits
-					int mapnum = atoi(mapname.substr(mapname.size()-2, 2).c_str()); // get number
-					mapnum += num;
-					if (mapnum < 10) newname << 0;
-					newname << mapnum;
-					addBlock(x, y, _terrain->getMapBlock(newname.str()));
-					_drillMap[x][y] = MD_NONE;
-					num++;
-					if ((*i)->getRules()->getStorage() > 0)
-					{
-						int groundLevel;
-						for (groundLevel = _mapsize_z - 1; groundLevel >= 0; --groundLevel)
-						{
-							if (!_save->getTile(Position(x * 10, y * 10, groundLevel))->hasNoFloor(0))
-								break;
-						}
-						// general stores - there is where the items are put
-						for (int k = x * 10; k != (x + 1) * 10; ++k)
-						{
-							for (int l = y * 10; l != (y + 1) * 10; ++l)
-							{
-								// we only want every other tile, giving us a "checkerboard" pattern
-								if ((k + l) % 2 == 0)
-								{
-									Tile *t = _save->getTile(Position(k, l, groundLevel));
-									Tile *tEast = _save->getTile(Position(k + 1, l, groundLevel));
-									Tile *tSouth = _save->getTile(Position(k, l + 1, groundLevel));
-									if (t && t->getMapData(O_FLOOR) && !t->getMapData(O_OBJECT) &&
-										tEast && !tEast->getMapData(O_WESTWALL) &&
-										tSouth && !tSouth->getMapData(O_NORTHWALL))
-									{
-										_save->getStorageSpace().push_back(Position(k, l, groundLevel));
-									}
-								}
-							}
-						}
-						// let's put the inventory tile on the lower floor, just to be safe.
-						if (!_craftInventoryTile)
-						{
-							_craftInventoryTile = _save->getTile(Position((x * 10) + 5, (y * 10) + 5, groundLevel - 1));
-						}
-					}
-				}
-			}
-			for (int x = (*i)->getX(); x <= xLimit; ++x)
-			{
-				_drillMap[x][yLimit] = MD_VERTICAL;
-			}
-			for (int y = (*i)->getY(); y <= yLimit; ++y)
-			{
-				_drillMap[xLimit][y] = MD_HORIZONTAL;
-			}
-			_drillMap[xLimit][yLimit] = MD_BOTH;
-		}
-	}
-	_save->calculateModuleMap();
-
 }
 
 /**

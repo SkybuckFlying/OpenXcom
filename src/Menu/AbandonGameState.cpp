@@ -106,7 +106,7 @@ void AbandonGameState::btnYesClick(Action *)
 {
 	if (_origin == OPT_BATTLESCAPE && _game->getSavedGame()->getSavedBattle()->getAmbientSound() != -1)
 		_game->getMod()->getSoundByDepth(0, _game->getSavedGame()->getSavedBattle()->getAmbientSound())->stopLoop();
-	if (!_game->getSavedGame()->isIronman())
+
 	{
 		Screen::updateScale(Options::geoscapeScale, Options::baseXGeoscape, Options::baseYGeoscape, true);
 		_game->getScreen()->resetDisplay(false);
@@ -114,10 +114,7 @@ void AbandonGameState::btnYesClick(Action *)
 		_game->setState(new MainMenuState);
 		_game->setSavedGame(0);
 	}
-	else
-	{
-		_game->pushState(new SaveGameState(OPT_GEOSCAPE, SAVE_IRONMAN_END, _palette));
-	}
+
 }
 
 /**

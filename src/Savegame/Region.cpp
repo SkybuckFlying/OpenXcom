@@ -17,7 +17,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Region.h"
-#include "../Mod/RuleRegion.h"
+
 
 namespace OpenXcom
 {
@@ -47,19 +47,6 @@ void Region::load(const YAML::Node &node)
 {
 	_activityXcom = node["activityXcom"].as< std::vector<int> >(_activityXcom);
 	_activityAlien = node["activityAlien"].as< std::vector<int> >(_activityAlien);
-}
-
-/**
- * Saves the region to a YAML file.
- * @return YAML node.
- */
-YAML::Node Region::save() const
-{
-	YAML::Node node;
-	node["type"] = _rules->getType();
-	node["activityXcom"] = _activityXcom;
-	node["activityAlien"] = _activityAlien;
-	return node;
 }
 
 /**

@@ -141,7 +141,6 @@ void NewGameState::btnOkClick(Action *)
 	}
 	SavedGame *save = _game->getMod()->newSave();
 	save->setDifficulty(diff);
-	save->setIronman(_btnIronman->getPressed());
 	_game->setSavedGame(save);
 
 }

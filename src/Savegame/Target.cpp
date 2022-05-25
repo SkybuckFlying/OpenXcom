@@ -37,11 +37,7 @@ Target::Target() : _lon(0.0), _lat(0.0), _id(0)
  */
 Target::~Target()
 {
-	std::vector<Craft*> followers = getCraftFollowers();
-	for (std::vector<Craft*>::iterator i = followers.begin(); i != followers.end(); ++i)
-	{
-		(*i)->returnToBase();
-	}
+
 }
 
 /**

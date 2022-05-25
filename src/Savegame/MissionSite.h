@@ -46,8 +46,7 @@ public:
 	~MissionSite();
 	/// Loads the mission site from YAML.
 	void load(const YAML::Node& node);
-	/// Saves the mission site to YAML.
-	YAML::Node save() const;
+
 	/// Gets the waypoint's type.
 	std::string getType() const;
 	/// Gets the mission site's ruleset.

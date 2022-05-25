@@ -57,11 +57,6 @@ void CutsceneState::init()
 
 	if (_cutsceneId == WIN_GAME || _cutsceneId == LOSE_GAME)
 	{
-		if (_game->getSavedGame()->getMonthsPassed() > -1)
-		{
-			_game->setState(new StatisticsState);
-		}
-		else
 		{
 			_game->setSavedGame(0);
 			_game->setState(new GoToMainMenuState);

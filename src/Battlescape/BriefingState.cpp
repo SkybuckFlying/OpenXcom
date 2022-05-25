@@ -27,7 +27,6 @@
 #include "InventoryState.h"
 #include "NextTurnState.h"
 #include "../Mod/Mod.h"
-#include "../Savegame/Base.h"
 #include "../Savegame/Craft.h"
 #include "../Savegame/SavedBattleGame.h"
 #include "../Savegame/SavedGame.h"
@@ -47,7 +46,7 @@ namespace OpenXcom
  * @param craft Pointer to the craft in the mission.
  * @param base Pointer to the base in the mission.
  */
-BriefingState::BriefingState(Craft *craft, Base *base)
+BriefingState::BriefingState(Craft *craft)
 {
 	Options::baseXResolution = Options::baseXGeoscape;
 	Options::baseYResolution = Options::baseYGeoscape;
@@ -132,10 +131,7 @@ BriefingState::BriefingState(Craft *craft, Base *base)
 
 		s = tr("STR_CRAFT_").arg(craft->getName(_game->getLanguage()));
 	}
-	else if (base)
-	{
-		s = tr("STR_BASE_UC_").arg(base->getName());
-	}
+
 	_txtCraft->setText(s);
 
 	_txtTitle->setText(tr(title));
@@ -143,11 +139,6 @@ BriefingState::BriefingState(Craft *craft, Base *base)
 	_txtBriefing->setWordWrap(true);
 	_txtBriefing->setText(tr(desc));
 
-	if (mission == "STR_BASE_DEFENSE")
-	{
-		// And make sure the base is unmarked.
-		base->setRetaliationTarget(false);
-	}
 }
 
 /**

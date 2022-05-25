@@ -18,7 +18,7 @@
  */
 #include "MissionSite.h"
 #include "../Engine/Language.h"
-#include "../Mod/RuleAlienMission.h"
+
 #include "../Mod/AlienDeployment.h"
 
 namespace OpenXcom
@@ -50,25 +50,6 @@ void MissionSite::load(const YAML::Node &node)
 	_race = node["race"].as<std::string>(_race);
 	_inBattlescape = node["inBattlescape"].as<bool>(_inBattlescape);
 	_detected = node["detected"].as<bool>(_detected);
-}
-
-/**
- * Saves the mission site to a YAML file.
- * @return YAML node.
- */
-YAML::Node MissionSite::save() const
-{
-	YAML::Node node = Target::save();
-	node["type"] = _rules->getType();
-	node["deployment"] = _deployment->getType();
-	node["texture"] = _texture;
-	if (_secondsRemaining)
-		node["secondsRemaining"] = _secondsRemaining;
-	node["race"] = _race;
-	if (_inBattlescape)
-		node["inBattlescape"] = _inBattlescape;
-	node["detected"] = _detected;
-	return node;
 }
 
 /**

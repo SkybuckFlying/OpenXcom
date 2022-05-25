@@ -528,7 +528,7 @@ void UnitInfoState::init()
 	_barStrength->setMax(_unit->getBaseStats()->strength);
 	_barStrength->setValue(_unit->getBaseStats()->strength);
 
-	if (_unit->getBaseStats()->psiSkill > 0 || (Options::psiStrengthEval && _game->getSavedGame()->isResearched(_game->getMod()->getPsiRequirements())))
+	if (_unit->getBaseStats()->psiSkill > 0 || (Options::psiStrengthEval))
 	{
 		ss.str("");
 		ss << _unit->getBaseStats()->psiStrength;

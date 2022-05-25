@@ -21,13 +21,11 @@
 #include <algorithm>
 #include "../fmath.h"
 #include "Craft.h"
-#include "AlienMission.h"
 #include "../Engine/Exception.h"
 #include "../Engine/Language.h"
 #include "../Mod/Mod.h"
 #include "../Mod/RuleUfo.h"
-#include "../Mod/UfoTrajectory.h"
-#include "../Mod/RuleAlienMission.h"
+
 #include "SavedGame.h"
 #include "Waypoint.h"
 
@@ -49,7 +47,7 @@ const char *Ufo::ALTITUDE_STRING[] = {
 Ufo::Ufo(const RuleUfo *rules)
   : MovingTarget(), _rules(rules), _crashId(0), _landId(0), _damage(0), _direction("STR_NORTH")
   , _altitude("STR_HIGH_UC"), _status(FLYING), _secondsRemaining(0)
-  , _inBattlescape(false), _mission(0), _trajectory(0)
+  , _inBattlescape(false),  _trajectory(0)
   , _trajectoryPoint(0), _detected(false), _hyperDetected(false), _processedIntercept(false), _shootingAt(0), _hitFrame(0)
   , _fireCountdown(0), _escapeCountdown(0)
 {
@@ -61,10 +59,6 @@ Ufo::Ufo(const RuleUfo *rules)
  */
 Ufo::~Ufo()
 {
-	if (_mission)
-	{
-		_mission->decreaseLiveUfos();
-	}
 	if (_dest)
 	{
 		Waypoint *wp = dynamic_cast<Waypoint*>(_dest);
@@ -75,20 +69,6 @@ Ufo::~Ufo()
 		}
 	}
 }
-
-/**
- * Match AlienMission based on the unique ID.
- */
-class matchMissionID: public std::unary_function<const AlienMission *, bool>
-{
-public:
-	/// Store ID for later comparisons.
-	matchMissionID(int id) : _id(id) { /* Empty by design. */ }
-	/// Match with stored ID.
-	bool operator()(const AlienMission *am) const { return am->getId() == _id; }
-private:
-	int _id;
-};
 
 /**
  * Loads the UFO from a YAML file.
@@ -141,26 +121,7 @@ void Ufo::load(const YAML::Node &node, const Mod &mod, SavedGame &game)
 			_status = FLYING;
 		}
 	}
-	if (game.getMonthsPassed() != -1)
-	{
-		int missionID = node["mission"].as<int>();
-		std::vector<AlienMission *>::const_iterator found = std::find_if (game.getAlienMissions().begin(), game.getAlienMissions().end(), matchMissionID(missionID));
-		if (found == game.getAlienMissions().end())
-		{
-			// Corrupt save file.
-			throw Exception("Unknown UFO mission, save file is corrupt.");
-		}
-		_mission = *found;
 
-		std::string tid = node["trajectory"].as<std::string>();
-		_trajectory = mod.getUfoTrajectory(tid);
-		if (_trajectory == 0)
-		{
-			// Corrupt save file.
-			throw Exception("Unknown UFO trajectory, save file is corrupt.");
-		}
-		_trajectoryPoint = node["trajectoryPoint"].as<size_t>(_trajectoryPoint);
-	}
 	_fireCountdown = node["fireCountdown"].as<int>(_fireCountdown);
 	_escapeCountdown = node["escapeCountdown"].as<int>(_escapeCountdown);
 	if (_inBattlescape)
@@ -197,8 +158,6 @@ YAML::Node Ufo::save(bool newBattle) const
 		node["inBattlescape"] = _inBattlescape;
 	if (!newBattle)
 	{
-		node["mission"] = _mission->getId();
-		node["trajectory"] = _trajectory->getID();
 		node["trajectoryPoint"] = _trajectoryPoint;
 	}
 
@@ -581,15 +540,6 @@ void Ufo::setInBattlescape(bool inbattle)
 	_inBattlescape = inbattle;
 }
 
-/**
- * Returns the alien race currently residing in the UFO.
- * @return Alien race.
- */
-const std::string &Ufo::getAlienRace() const
-{
-	return _mission->getRace();
-}
-
 void Ufo::setShotDownByCraftId(const CraftId& craft)
 {
 	_shotDownByCraftId = craft;
@@ -634,33 +584,6 @@ int Ufo::getVisibility() const
 		visibility = size - 10;
 
 	return visibility;
-}
-
-
-/**
- * Returns the Mission type of the UFO.
- * @return Mission.
- */
-const std::string &Ufo::getMissionType() const
-{
-	return _mission->getRules().getType();
-}
-
-/**
- * Sets the mission information of the UFO.
- * The UFO will start at the first point of the trajectory. The actual UFO
- * information is not changed here, this only sets the information kept on
- * behalf of the mission.
- * @param mission Pointer to the actual mission object.
- * @param trajectory Pointer to the actual mission trajectory.
- */
-void Ufo::setMissionInfo(AlienMission *mission, const UfoTrajectory *trajectory)
-{
-	assert(!_mission && mission && trajectory);
-	_mission = mission;
-	_mission->increaseLiveUfos();
-	_trajectoryPoint = 0;
-	_trajectory = trajectory;
 }
 
 /**

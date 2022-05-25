@@ -33,14 +33,14 @@
 #include "../Interface/Frame.h"
 #include "../Savegame/SavedBattleGame.h"
 #include "../Savegame/SavedGame.h"
-#include "../Savegame/Base.h"
+
 #include "../Savegame/Craft.h"
 #include "../Savegame/ItemContainer.h"
 #include "../Battlescape/BattlescapeGenerator.h"
 #include "../Battlescape/BriefingState.h"
 #include "../Savegame/Ufo.h"
 #include "../Savegame/MissionSite.h"
-#include "../Savegame/AlienBase.h"
+
 #include "../Mod/RuleCraft.h"
 #include "../Mod/RuleTerrain.h"
 #include "../Mod/AlienDeployment.h"
@@ -49,8 +49,6 @@
 #include "../Engine/Options.h"
 #include "../Engine/Logger.h"
 #include "../Engine/CrossPlatform.h"
-#include "../Mod/RuleAlienMission.h"
-#include "../Mod/RuleGlobe.h"
 
 namespace OpenXcom
 {
@@ -282,49 +280,6 @@ void NewBattleState::load(const std::string &filename)
 				const Mod *mod = _game->getMod();
 				SavedGame *save = new SavedGame();
 
-				Base *base = new Base(mod);
-				base->load(doc["base"], save, false);
-				save->getBases()->push_back(base);
-
-				// Add research
-				const std::vector<std::string> &research = mod->getResearchList();
-				for (std::vector<std::string>::const_iterator i = research.begin(); i != research.end(); ++i)
-				{
-					save->addFinishedResearchSimple(mod->getResearch(*i));
-				}
-
-				// Generate items
-				base->getStorageItems()->getContents()->clear();
-				const std::vector<std::string> &items = mod->getItemsList();
-				for (std::vector<std::string>::const_iterator i = items.begin(); i != items.end(); ++i)
-				{
-					RuleItem *rule = _game->getMod()->getItem(*i);
-					if (rule->getBattleType() != BT_CORPSE && rule->isRecoverable())
-					{
-						base->getStorageItems()->addItem(*i, 1);
-					}
-				}
-
-				// Fix invalid contents
-				if (base->getCrafts()->empty())
-				{
-					std::string craftType = _crafts[_cbxCraft->getSelected()];
-					_craft = new Craft(_game->getMod()->getCraft(craftType), base, save->getId(craftType));
-					base->getCrafts()->push_back(_craft);
-				}
-				else
-				{
-					_craft = base->getCrafts()->front();
-					for (std::map<std::string, int>::iterator i = _craft->getItems()->getContents()->begin(); i != _craft->getItems()->getContents()->end(); ++i)
-					{
-						RuleItem *rule = _game->getMod()->getItem(i->first);
-						if (!rule)
-						{
-							i->second = 0;
-						}
-					}
-				}
-
 				_game->setSavedGame(save);
 			}
 			else
@@ -363,7 +318,6 @@ void NewBattleState::save(const std::string &filename)
 	node["alienRace"] = _cbxAlienRace->getSelected();
 	node["difficulty"] = _cbxDifficulty->getSelected();
 	node["alienTech"] = _slrAlienTech->getValue();
-	node["base"] = _game->getSavedGame()->getBases()->front()->save();
 	out << node;
 
 	sav << out.c_str();
@@ -382,20 +336,6 @@ void NewBattleState::initSave()
 {
 	const Mod *mod = _game->getMod();
 	SavedGame *save = new SavedGame();
-	Base *base = new Base(mod);
-	const YAML::Node &starter = _game->getMod()->getStartingBase();
-	base->load(starter, save, true, true);
-	save->getBases()->push_back(base);
-
-	// Kill everything we don't want in this base
-	for (std::vector<Soldier*>::iterator i = base->getSoldiers()->begin(); i != base->getSoldiers()->end(); ++i) delete (*i);
-	base->getSoldiers()->clear();
-	for (std::vector<Craft*>::iterator i = base->getCrafts()->begin(); i != base->getCrafts()->end(); ++i) delete (*i);
-	base->getCrafts()->clear();
-	base->getStorageItems()->getContents()->clear();
-
-	_craft = new Craft(mod->getCraft(_crafts[_cbxCraft->getSelected()]), base, 1);
-	base->getCrafts()->push_back(_craft);
 
 	// Generate soldiers
 	for (int i = 0; i < 30; ++i)
@@ -425,31 +365,8 @@ void NewBattleState::initSave()
 		UnitStats* stats = soldier->getCurrentStats();
 		stats->bravery = (int)ceil(stats->bravery / 10.0) * 10; // keep it a multiple of 10
 
-		base->getSoldiers()->push_back(soldier);
 		if (i < _craft->getRules()->getSoldiers())
 			soldier->setCraft(_craft);
-	}
-
-	// Generate items
-	const std::vector<std::string> &items = mod->getItemsList();
-	for (std::vector<std::string>::const_iterator i = items.begin(); i != items.end(); ++i)
-	{
-		RuleItem *rule = _game->getMod()->getItem(*i);
-		if (rule->getBattleType() != BT_CORPSE && rule->isRecoverable())
-		{
-			base->getStorageItems()->addItem(*i, 1);
-			if (rule->getBattleType() != BT_NONE && !rule->isFixed() && rule->getBigSprite() > -1)
-			{
-				_craft->getItems()->addItem(*i, 1);
-			}
-		}
-	}
-
-	// Add research
-	const std::vector<std::string> &research = mod->getResearchList();
-	for (std::vector<std::string>::const_iterator i = research.begin(); i != research.end(); ++i)
-	{
-		save->addFinishedResearchSimple(mod->getResearch(*i));
 	}
 
 	_game->setSavedGame(save);
@@ -480,18 +397,8 @@ void NewBattleState::btnOkClick(Action *)
 	if (_missionTypes[_cbxMission->getSelected()] == "STR_BASE_DEFENSE")
 	{
 		base = _craft->getBase();
-		bgen.setBase(base);
+		// Skybuck: funny stuff see what happens
 		_craft = 0;
-	}
-	// alien base
-	else if (_game->getMod()->getDeployment(bgame->getMissionType())->isAlienBase())
-	{
-		AlienBase *b = new AlienBase(_game->getMod()->getDeployment(bgame->getMissionType()));
-		b->setId(1);
-		b->setAlienRace(_alienRaces[_cbxAlienRace->getSelected()]);
-		_craft->setDestination(b);
-		bgen.setAlienBase(b);
-		_game->getSavedGame()->getAlienBases()->push_back(b);
 	}
 	// ufo assault
 	else if (_craft && _game->getMod()->getUfo(_missionTypes[_cbxMission->getSelected()]))
@@ -511,20 +418,8 @@ void NewBattleState::btnOkClick(Action *)
 			u->setStatus(Ufo::CRASHED);
 			bgame->setMissionType("STR_UFO_CRASH_RECOVERY");
 		}
-		_game->getSavedGame()->getUfos()->push_back(u);
 	}
-	// mission site
-	else
-	{
-		const AlienDeployment *deployment = _game->getMod()->getDeployment(bgame->getMissionType());
-		const RuleAlienMission *mission = _game->getMod()->getAlienMission(_game->getMod()->getAlienMissionList().front()); // doesn't matter
-		MissionSite *m = new MissionSite(mission, deployment);
-		m->setId(1);
-		m->setAlienRace(_alienRaces[_cbxAlienRace->getSelected()]);
-		_craft->setDestination(m);
-		bgen.setMissionSite(m);
-		_game->getSavedGame()->getMissionSites()->push_back(m);
-	}
+
 
 	if (_craft)
 	{
@@ -543,7 +438,7 @@ void NewBattleState::btnOkClick(Action *)
 
 	_game->popState();
 	_game->popState();
-	_game->pushState(new BriefingState(_craft, base));
+	_game->pushState(new BriefingState(_craft));
 	_craft = 0;
 }
 
@@ -600,22 +495,12 @@ void NewBattleState::cbxMissionChange(Action *)
 	// Get terrains associated with this mission
 	std::vector<std::string> deployTerrains, globeTerrains;
 	deployTerrains = ruleDeploy->getTerrains();
-	if (deployTerrains.empty())
-	{
-		globeTerrains = _game->getMod()->getGlobe()->getTerrains("");
-	}
-	else
-	{
-		globeTerrains = _game->getMod()->getGlobe()->getTerrains(ruleDeploy->getType());
-	}
+
 	for (std::vector<std::string>::const_iterator i = deployTerrains.begin(); i != deployTerrains.end(); ++i)
 	{
 		terrains.insert(*i);
 	}
-	for (std::vector<std::string>::const_iterator i = globeTerrains.begin(); i != globeTerrains.end(); ++i)
-	{
-		terrains.insert(*i);
-	}
+
 	_terrainTypes.clear();
 	std::vector<std::string> terrainStrings;
 	for (std::set<std::string>::const_iterator i = terrains.begin(); i != terrains.end(); ++i)
@@ -640,20 +525,6 @@ void NewBattleState::cbxMissionChange(Action *)
  */
 void NewBattleState::cbxCraftChange(Action *)
 {
-	_craft->changeRules(_game->getMod()->getCraft(_crafts[_cbxCraft->getSelected()]));
-	int current = _craft->getNumSoldiers();
-	int max = _craft->getRules()->getSoldiers();
-	if (current > max)
-	{
-		for (std::vector<Soldier*>::reverse_iterator i = _craft->getBase()->getSoldiers()->rbegin(); i != _craft->getBase()->getSoldiers()->rend() && current > max; ++i)
-		{
-			if ((*i)->getCraft() == _craft)
-			{
-				(*i)->setCraft(0);
-				current--;
-			}
-		}
-	}
 }
 
 /**

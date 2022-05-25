@@ -18,7 +18,6 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "../Engine/State.h"
-#include "../Savegame/SaveConverter.h"
 #include "OptionsBaseState.h"
 
 namespace OpenXcom
@@ -38,11 +37,6 @@ private:
 	TextButton *_btnNew, *_btnCancel;
 	Window *_window;
 	Text *_txtTitle, *_txtName, *_txtTime, *_txtDate;
-	TextButton *_btnSlot[SaveConverter::NUM_SAVES];
-	Text *_txtSlotName[SaveConverter::NUM_SAVES];
-	Text *_txtSlotTime[SaveConverter::NUM_SAVES];
-	Text *_txtSlotDate[SaveConverter::NUM_SAVES];
-	SaveOriginal _saves[SaveConverter::NUM_SAVES];
 	OptionsOrigin _origin;
 public:
 	/// Creates the Saved Game state.

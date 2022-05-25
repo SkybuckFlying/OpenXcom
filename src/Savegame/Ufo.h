@@ -26,7 +26,6 @@ namespace OpenXcom
 {
 
 class RuleUfo;
-class AlienMission;
 class UfoTrajectory;
 class SavedGame;
 class Mod;
@@ -50,7 +49,6 @@ private:
 	size_t _secondsRemaining;
 	bool _inBattlescape;
 	CraftId _shotDownByCraftId;
-	AlienMission *_mission;
 	const UfoTrajectory *_trajectory;
 	size_t _trajectoryPoint;
 	bool _detected, _hyperDetected, _processedIntercept;
@@ -127,8 +125,7 @@ public:
 	int getVisibility() const;
 	/// Gets the UFO's Mission type.
 	const std::string &getMissionType() const;
-	/// Sets the UFO's mission information.
-	void setMissionInfo(AlienMission *mission, const UfoTrajectory *trajectory);
+
 	/// Gets the UFO's hyper detection status.
 	bool getHyperDetected() const;
 	/// Sets the UFO's hyper detection status.
@@ -139,8 +136,7 @@ public:
 	void setTrajectoryPoint(size_t np) { _trajectoryPoint = np; }
 	/// Gets the UFO's trajectory.
 	const UfoTrajectory &getTrajectory() const { return *_trajectory; }
-	/// Gets the UFO's mission object.
-	AlienMission *getMission() const { return _mission; }
+
 	/// Sets the UFO's destination.
 	void setDestination(Target *dest) override;
 	/// Get which interceptor this ufo is engaging.

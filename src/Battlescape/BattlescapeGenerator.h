@@ -38,9 +38,7 @@ class Unit;
 class AlienRace;
 class AlienDeployment;
 class Game;
-class Base;
 class MissionSite;
-class AlienBase;
 class BattleUnit;
 class Texture;
 
@@ -55,9 +53,8 @@ private:
 	Mod *_mod;
 	Craft *_craft;
 	Ufo *_ufo;
-	Base *_base;
 	MissionSite *_mission;
-	AlienBase *_alienBase;
+
 	RuleTerrain *_terrain;
 	int _mapsize_x, _mapsize_y, _mapsize_z;
 	Texture *_worldTexture;
@@ -124,8 +121,7 @@ private:
 	void attachNodeLinks();
 	/// Selects an unused position on the map of a given size.
 	bool selectPosition(const std::vector<SDL_Rect *> *rects, int &X, int &Y, int sizeX, int sizeY);
-	/// Generates a map from base modules.
-	void generateBaseMap();
+
 	/// Clears a module from the map.
 	void clearModule(int x, int y, int sizeX, int sizeY);
 	/// Drills some tunnels between map blocks.
@@ -153,12 +149,10 @@ public:
 	void setAlienRace(const std::string &alienRace);
 	/// Sets the alien item level.
 	void setAlienItemlevel(int alienItemLevel);
-	/// Sets the XCom base.
-	void setBase(Base *base);
+
 	/// Sets the mission site.
 	void setMissionSite(MissionSite* mission);
-	/// Sets the alien base
-	void setAlienBase(AlienBase* base);
+
 	/// Sets the terrain.
 	void setTerrain(RuleTerrain *terrain);
 	/// Runs the generator.
