@@ -33,6 +33,7 @@
 #include "FileMap.h"
 #include "Zoom.h"
 #include "Timer.h"
+#include "SpecialBlit.h"
 #include <SDL.h>
 
 namespace OpenXcom
@@ -101,7 +102,8 @@ void Screen::makeVideoFlags()
 		_flags |= SDL_NOFRAME;
 	}
 
-	_bpp = (use32bitScaler() || useOpenGL()) ? 32 : 8;
+//	_bpp = (use32bitScaler() || useOpenGL()) ? 32 : 8;
+	_bpp = 32;
 	_baseWidth = Options::baseXResolution;
 	_baseHeight = Options::baseYResolution;
 }
@@ -193,7 +195,12 @@ void Screen::flip()
 	}
 	else
 	{
-		SDL_BlitSurface(_surface->getSurface(), 0, _screen, 0);
+//		_surface->lock();
+//		SpecialGradientTest( _surface->getSurface() );
+//		_surface->unlock();
+
+//		SDL_BlitSurface(_surface->getSurface(), 0, _screen, 0); // works.
+		SpecialGradientTest( _screen );
 	}
 
 	// perform any requested palette update
@@ -320,7 +327,8 @@ void Screen::resetDisplay(bool resetVideo)
 		_surface->getSurface()->h != _baseHeight)) // don't reallocate _surface if not necessary, it's a waste of CPU cycles
 	{
 		if (_surface) delete _surface;
-		_surface = new Surface(_baseWidth, _baseHeight, 0, 0, Screen::use32bitScaler() ? 32 : 8); // only HQX/XBRZ needs 32bpp for this surface; the OpenGL class has its own 32bpp buffer
+//		_surface = new Surface(_baseWidth, _baseHeight, 0, 0, Screen::use32bitScaler() ? 32 : 8); // only HQX/XBRZ needs 32bpp for this surface; the OpenGL class has its own 32bpp buffer
+		_surface = new Surface(_baseWidth, _baseHeight, 0, 0, 32); // only HQX/XBRZ needs 32bpp for this surface; the OpenGL class has its own 32bpp buffer
 		if (_surface->getSurface()->format->BitsPerPixel == 8) _surface->setPalette(deferredPalette);
 	}
 	SDL_SetColorKey(_surface->getSurface(), 0, 0); // turn off color key!

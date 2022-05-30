@@ -31,6 +31,7 @@
 #include "ShaderMove.h"
 #include "Unicode.h"
 #include <stdlib.h>
+#include "SpecialBlit.h"
 #ifdef _WIN32
 #include <malloc.h>
 #endif
@@ -642,6 +643,10 @@ void Surface::draw()
  */
 void Surface::blit(Surface *surface)
 {
+	SDL_Surface *SrcSurface;
+	SDL_Surface *DstSurface;
+	SDL_Surface *ConvertedSurface;
+
 	if (_visible && !_hidden)
 	{
 		if (_redraw)
@@ -659,7 +664,24 @@ void Surface::blit(Surface *surface)
 		}
 		target.x = getX();
 		target.y = getY();
-		SDL_BlitSurface(_surface, cropper, surface->getSurface(), &target);
+
+		SrcSurface = _surface;
+		DstSurface = surface->getSurface();
+
+		if
+		(
+			(SrcSurface->format->BitsPerPixel == 8) &&
+			(DstSurface->format->BitsPerPixel == 32)
+		)
+		{
+				// do something special
+	//			SpecialBlit(_surface, cropper, surface->getSurface(), &target);
+				SpecialBlitV2(_surface, surface->getSurface(), &target);
+		} else
+		{
+			// assume 8 bits to 8 bits.
+			SDL_BlitSurface(_surface, cropper, surface->getSurface(), &target);
+		}
 	}
 }
 

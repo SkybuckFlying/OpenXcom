@@ -657,6 +657,9 @@
     <ClCompile Include="Menu\ModConfirmExtendedState.cpp">
       <Filter>Menu</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\SpecialBlit.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -1350,6 +1353,9 @@
     </ClInclude>
     <ClInclude Include="Menu\ModConfirmExtendedState.h">
       <Filter>Menu</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\SpecialBlit.h">
+      <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

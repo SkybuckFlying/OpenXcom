@@ -302,6 +302,7 @@
     <ClCompile Include="Engine\Screen.cpp" />
     <ClCompile Include="Engine\Sound.cpp" />
     <ClCompile Include="Engine\SoundSet.cpp" />
+    <ClCompile Include="Engine\SpecialBlit.cpp" />
     <ClCompile Include="Engine\State.cpp" />
     <ClCompile Include="Engine\Surface.cpp" />
     <ClCompile Include="Engine\SurfaceSet.cpp" />
@@ -532,6 +533,7 @@
     <ClInclude Include="Engine\ShaderRepeat.h" />
     <ClInclude Include="Engine\Sound.h" />
     <ClInclude Include="Engine\SoundSet.h" />
+    <ClInclude Include="Engine\SpecialBlit.h" />
     <ClInclude Include="Engine\State.h" />
     <ClInclude Include="Engine\Surface.h" />
     <ClInclude Include="Engine\SurfaceSet.h" />
