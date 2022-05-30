@@ -19,9 +19,11 @@
  */
 #include <string>
 #include <vector>
-#include <SDL.h>
+#include "..\Engine\IntegerTypes.h"
+
 #include <yaml-cpp/yaml.h>
 #include "../Mod/MCDPatch.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {

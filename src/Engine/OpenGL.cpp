@@ -11,12 +11,13 @@
 #ifndef __NO_OPENGL
 
 #include "OpenGL.h"
-#include <SDL.h>
+
 #include <yaml-cpp/yaml.h>
 #include <fstream>
 
 #include "Logger.h"
 #include "Surface.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {

@@ -19,9 +19,13 @@
  */
 #include <vector>
 #include <string>
-#include <SDL.h>
+
 #include "../Savegame/Soldier.h"
 #include "LocalizedText.h"
+
+#include "..\Engine\IntegerTypes.h"
+#include "..\Engine\Color.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {
@@ -53,7 +57,7 @@ protected:
 	RuleInterface *_ruleInterface;
 	RuleInterface *_ruleInterfaceParent;
 
-	SDL_Color _palette[256];
+	Color _palette[256];
 	Uint8 _cursorColor;
 public:
 	/// Creates a new state linked to a game.
@@ -103,11 +107,11 @@ public:
 	/// Sets a modal surface.
 	void setModal(InteractiveSurface *surface);
 	/// Changes a set of colors on the state's 8bpp palette.
-	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256, bool immediately = true);
+	void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256, bool immediately = true);
 	/// Changes the state's 8bpp palette with certain resources.
 	void setPalette(const std::string &palette, int backpals = -1);
 	/// Gets the state's 8bpp palette.
-	SDL_Color *getPalette();
+	Color *getPalette();
 	/// Let the state know the window has been resized.
 	virtual void resize(int &dX, int &dY);
 	/// Re-orients all the surfaces in the state.

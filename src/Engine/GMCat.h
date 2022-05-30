@@ -18,6 +18,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "CatFile.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {

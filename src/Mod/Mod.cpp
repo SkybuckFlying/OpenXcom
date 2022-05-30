@@ -601,7 +601,7 @@ Palette *Mod::getPalette(const std::string &name, bool error) const
  * @param firstcolor Offset of the first color to replace.
  * @param ncolors Amount of colors to replace.
  */
-void Mod::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+void Mod::setPalette(Color *colors, int firstcolor, int ncolors)
 {
 	_statePalette = colors;
 	for (std::map<std::string, Font*>::iterator i = _fonts.begin(); i != _fonts.end(); ++i)
@@ -1057,7 +1057,7 @@ void Mod::loadResourceConfigFile(const std::string &filename)
 					{
 						throw Exception("transparencyLUTs mod limit reach");
 					}
-					SDL_Color color;
+					Color color;
 					color.r = (*j)[0].as<int>(0);
 					color.g = (*j)[1].as<int>(0);
 					color.b = (*j)[2].as<int>(0);
@@ -2608,7 +2608,7 @@ const std::map<std::string, SoundDefinition *> *Mod::getSoundDefinitions() const
 	return &_soundDefs;
 }
 
-const std::vector<SDL_Color> *Mod::getTransparencies() const
+const std::vector<Color> *Mod::getTransparencies() const
 {
 	return &_transparencies;
 }
@@ -2791,7 +2791,7 @@ void Mod::loadVanillaResources()
 		_palettes[s2]->loadDat(FileMap::getFilePath(s1), 256, Palette::palOffset(4));
 
 		// Last 16 colors are a greyish gradient
-		SDL_Color gradient[] = { { 140, 152, 148, 255 },
+		Color gradient[] = { { 140, 152, 148, 255 },
 		{ 132, 136, 140, 255 },
 		{ 116, 124, 132, 255 },
 		{ 108, 116, 124, 255 },
@@ -2809,7 +2809,7 @@ void Mod::loadVanillaResources()
 		{ 3, 3, 6, 255 } };
 		for (size_t i = 0; i < ARRAYLEN(gradient); ++i)
 		{
-			SDL_Color *color = _palettes[s2]->getColors(Palette::backPos + 16 + i);
+			Color *color = _palettes[s2]->getColors(Palette::backPos + 16 + i);
 			*color = gradient[i];
 		}
 	}
@@ -3104,7 +3104,7 @@ void Mod::loadBattlescapeResources()
 		"PAL_BATTLESCAPE_2",
 		"PAL_BATTLESCAPE_3" };
 
-	SDL_Color backPal[] = { { 0, 5, 4, 255 },
+	Color backPal[] = { { 0, 5, 4, 255 },
 	{ 0, 10, 34, 255 },
 	{ 2, 9, 24, 255 },
 	{ 2, 0, 24, 255 } };
@@ -3125,7 +3125,7 @@ void Mod::loadBattlescapeResources()
 		Surface *tempSurface = new Surface(1, 1);
 		tempSurface->loadImage(FileMap::getFilePath("UFOGRAPH/" + lbms[i]));
 		_palettes[pals[i]] = new Palette();
-		SDL_Color *colors = tempSurface->getPalette();
+		Color *colors = tempSurface->getPalette();
 		colors[255] = backPal[i];
 		_palettes[pals[i]]->setColors(colors, 256);
 		createTransparencyLUT(_palettes[pals[i]]);
@@ -3651,11 +3651,11 @@ Music *Mod::loadMusic(MusicFormat fmt, const std::string &file, int track, float
 void Mod::createTransparencyLUT(Palette *pal)
 {
 	const int opacityMax = 4;
-	const SDL_Color* palColors = pal->getColors(0);
+	const Color* palColors = pal->getColors(0);
 	std::vector<Uint8> lookUpTable;
 	// start with the color sets
 	lookUpTable.reserve(_transparencies.size() * 256 * opacityMax);
-	for (std::vector<SDL_Color>::const_iterator tint = _transparencies.begin(); tint != _transparencies.end(); ++tint)
+	for (std::vector<Color>::const_iterator tint = _transparencies.begin(); tint != _transparencies.end(); ++tint)
 	{
 		// then the opacity levels, using the alpha channel as the step
 		for (int opacity = 1; opacity <= opacityMax; ++opacity)
@@ -3670,7 +3670,7 @@ void Mod::createTransparencyLUT(Palette *pal)
 			// then the palette itself
 			for (int currentColor = 0; currentColor < 256; ++currentColor)
 			{
-				SDL_Color desiredColor;
+				Color desiredColor;
 
 				desiredColor.r = std::min(255, (int)Round((palColors[currentColor].r * co) + (tint->r * to)));
 				desiredColor.g = std::min(255, (int)Round((palColors[currentColor].g * co) + (tint->g * to)));

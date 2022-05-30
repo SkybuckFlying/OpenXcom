@@ -17,7 +17,11 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "OptionsControlsState.h"
-#include <SDL.h>
+
+#include "..\Engine\IntegerTypes.h"
+#include "..\Engine\BasicTypes.h"
+
+
 #include "../Engine/Options.h"
 #include "../Engine/LocalizedText.h"
 #include "../Interface/Window.h"
@@ -144,7 +148,7 @@ void OptionsControlsState::addControls(const std::vector<OptionInfo> &keys)
 	for (std::vector<OptionInfo>::const_iterator i = keys.begin(); i != keys.end(); ++i)
 	{
 		std::string name = tr(i->description());
-		SDLKey *key = i->asKey();
+		ControlKey *key = i->asKey();
 		std::string keyName = ucWords(SDL_GetKeyName(*key));
 		if (*key == SDLK_UNKNOWN)
 			keyName = "";
@@ -230,7 +234,7 @@ void OptionsControlsState::lstControlsKeyPress(Action *action)
 {
 	if (_selected != -1)
 	{
-		SDLKey key = action->getDetails()->key.keysym.sym;
+		ControlKey key = action->getDetails()->key.keysym.sym;
 		if (key != 0)
 		{
 			*_selKey->asKey() = key;

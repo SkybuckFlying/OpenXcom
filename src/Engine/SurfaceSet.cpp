@@ -302,7 +302,7 @@ size_t SurfaceSet::getTotalFrames() const
  * @param firstcolor Offset of the first color to replace.
  * @param ncolors Amount of colors to replace.
  */
-void SurfaceSet::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+void SurfaceSet::setPalette(Color *colors, int firstcolor, int ncolors)
 {
 	for (std::map<int, Surface*>::iterator i = _frames.begin(); i != _frames.end(); ++i)
 	{

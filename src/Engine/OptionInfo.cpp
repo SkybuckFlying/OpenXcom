@@ -19,6 +19,7 @@
 #include "OptionInfo.h"
 #include <algorithm>
 #include "Exception.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {
@@ -59,7 +60,7 @@ OptionInfo::OptionInfo(const std::string &id, int *option, int def, const std::s
  * @param desc Language ID for the option description (if any).
  * @param cat Language ID for the option category (if any).
  */
-OptionInfo::OptionInfo(const std::string &id, SDLKey *option, SDLKey def, const std::string &desc, const std::string &cat) : _id(id), _desc(desc), _cat(cat), _type(OPTION_KEY)
+OptionInfo::OptionInfo(const std::string &id, ControlKey *option, ControlKey def, const std::string &desc, const std::string &cat) : _id(id), _desc(desc), _cat(cat), _type(OPTION_KEY)
 {
 	_ref.k = option;
 	_def.k = def;
@@ -94,7 +95,7 @@ void OptionInfo::load(const YAML::Node &node) const
 		*(_ref.i) = node[_id].as<int>(_def.i);
 		break;
 	case OPTION_KEY:
-		*(_ref.k) = (SDLKey)node[_id].as<int>(_def.k);
+		*(_ref.k) = (ControlKey)node[_id].as<int>(_def.k);
 		break;
 	case OPTION_STRING:
 		*(_ref.s) = node[_id].as<std::string>(_def.s);
@@ -133,7 +134,7 @@ void OptionInfo::load(const std::map<std::string, std::string> &map) const
 		case OPTION_KEY:
 			ss << std::dec << value;
 			ss >> std::dec >> i;
-			*(_ref.k) = (SDLKey)i;
+			*(_ref.k) = (ControlKey)i;
 			break;
 		case OPTION_STRING:
 			*(_ref.s) = value;
@@ -249,7 +250,7 @@ int *OptionInfo::asInt() const
  * or throws an exception if it's not a key.
  * @return Pointer to the option.
  */
-SDLKey *OptionInfo::asKey() const
+ControlKey *OptionInfo::asKey() const
 {
 	if (_type != OPTION_KEY)
 	{

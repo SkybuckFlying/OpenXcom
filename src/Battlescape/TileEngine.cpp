@@ -16,11 +16,11 @@
  * You should have received a copy of the GNU General Public License
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "..\Engine\IntegerTypes.h"
 #include <assert.h>
 #include <climits>
 #include <set>
 #include "TileEngine.h"
-#include <SDL.h>
 #include "AIModule.h"
 #include "Map.h"
 #include "Camera.h"

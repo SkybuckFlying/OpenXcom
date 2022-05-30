@@ -25,7 +25,7 @@
 #include "../Interface/Window.h"
 #include "../Interface/Text.h"
 #include "../Engine/Options.h"
-
+#include "..\Engine\BasicTypes.h"
 namespace OpenXcom
 {
 
@@ -38,7 +38,7 @@ namespace OpenXcom
  * @param bg Background image.
  * @param bgColor Background color (-1 for Battlescape).
  */
-ErrorMessageState::ErrorMessageState(const std::string &msg, SDL_Color *palette, Uint8 color, const std::string &bg, int bgColor)
+ErrorMessageState::ErrorMessageState(const std::string &msg, Color *palette, Uint8 color, const std::string &bg, int bgColor)
 {
 	create(msg, palette, color, bg, bgColor);
 }
@@ -59,7 +59,7 @@ ErrorMessageState::~ErrorMessageState()
  * @param bg Background image.
  * @param bgColor Background color (-1 for Battlescape).
  */
-void ErrorMessageState::create(const std::string &str, SDL_Color *palette, Uint8 color, const std::string &bg, int bgColor)
+void ErrorMessageState::create(const std::string &str, Color *palette, Uint8 color, const std::string &bg, int bgColor)
 {
 	_screen = false;
 

@@ -33,6 +33,7 @@
 #include "../Mod/RuleVideo.h"
 #include "CutsceneState.h"
 #include "../Interface/Cursor.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {
@@ -508,9 +509,9 @@ void VideoState::init()
 
 	if (fade)
 	{
-		SDL_Color pal[256];
-		SDL_Color pal2[256];
-		memcpy(pal, _game->getScreen()->getPalette(), sizeof(SDL_Color) * 256);
+		Color pal[256];
+		Color pal2[256];
+		memcpy(pal, _game->getScreen()->getPalette(), sizeof(Color) * 256);
 		for (int i = FADE_STEPS; i > 0; --i)
 		{
 			SDL_Event event;

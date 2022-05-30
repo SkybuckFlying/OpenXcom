@@ -19,7 +19,10 @@
  */
 #include <list>
 #include <string>
-#include <SDL.h>
+
+#include "..\Engine\IntegerTypes.h"
+#include "..\Engine\BasicTypes.h"
+
 
 namespace OpenXcom
 {

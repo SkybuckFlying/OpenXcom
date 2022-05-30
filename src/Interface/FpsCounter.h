@@ -18,7 +18,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "../Engine/Surface.h"
-
+#include "..\Engine\BasicTypes.h"
 namespace OpenXcom
 {
 
@@ -42,7 +42,7 @@ public:
 	/// Cleans up all the FPS counter resources.
 	~FpsCounter();
 	/// Sets the FPS counter's palette.
-	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256);
 	/// Sets the FpsCounter's color.
 	void setColor(Uint8 color);
 	/// Handles keyboard events.

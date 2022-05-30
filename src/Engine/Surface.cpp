@@ -322,11 +322,11 @@ void Surface::loadImage(const std::string &filename)
 					if (_surface)
 					{
 						loadRaw(image);
-						setPalette((SDL_Color*)color->palette, 0, color->palettesize);
+						setPalette((Color*)color->palette, 0, color->palettesize);
 						int transparent = 0;
 						for (int c = 0; c < _surface->format->palette->ncolors; ++c)
 						{
-							SDL_Color *palColor = _surface->format->palette->colors + c;
+							Color *palColor = _surface->format->palette->colors + c;
 							if (palColor->unused == 0)
 							{
 								transparent = c;
@@ -854,7 +854,7 @@ SDL_Rect *Surface::getCrop()
  * @param firstcolor Offset of the first color to replace.
  * @param ncolors Amount of colors to replace.
  */
-void Surface::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+void Surface::setPalette(Color *colors, int firstcolor, int ncolors)
 {
 	if (_surface->format->BitsPerPixel == 8)
 		SDL_SetColors(_surface, colors, firstcolor, ncolors);

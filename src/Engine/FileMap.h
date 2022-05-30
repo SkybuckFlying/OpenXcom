@@ -20,6 +20,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {

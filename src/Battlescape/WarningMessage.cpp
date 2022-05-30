@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "..\Engine\IntegerTypes.h"
 #include "WarningMessage.h"
-#include <SDL.h>
 #include <string>
 #include "../Engine/Timer.h"
 #include "../Interface/Text.h"
@@ -93,7 +93,7 @@ void WarningMessage::initText(Font *big, Font *small, Language *lang)
  * @param firstcolor Offset of the first color to replace.
  * @param ncolors Amount of colors to replace.
  */
-void WarningMessage::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+void WarningMessage::setPalette(Color *colors, int firstcolor, int ncolors)
 {
 	Surface::setPalette(colors, firstcolor, ncolors);
 	_text->setPalette(colors, firstcolor, ncolors);

@@ -87,7 +87,7 @@ public:
 	/// Draws the surface.
 	void draw();
 	/// Sets the palette.
-	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256);
 	/// Special handling for mouse press.
 	void mousePress(Action *action, State *state);
 	/// Special handling for mouse release.

@@ -22,7 +22,10 @@
 /*
  * Based on http://www.libsdl.org/projects/flxplay/
  */
-#include <SDL.h>
+
+#include "..\Engine\IntegerTypes.h"
+#include "..\Engine\BasicTypes.h"
+
 
 namespace OpenXcom
 {
@@ -60,7 +63,7 @@ private:
 
 	SDL_Surface *_mainScreen;
 	Screen *_realScreen;
-	SDL_Color _colors[256];
+	Color _colors[256];
 	int _screenWidth;
 	int _screenHeight;
 	int _screenDepth;

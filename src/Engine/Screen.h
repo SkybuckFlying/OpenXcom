@@ -17,9 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <SDL.h>
+
 #include <string>
 #include "OpenGL.h"
+
+#include "..\Engine\IntegerTypes.h"
+#include "..\Engine\BasicTypes.h"
+
 
 namespace OpenXcom
 {
@@ -44,7 +48,7 @@ private:
 	double _scaleX, _scaleY;
 	int _topBlackBand, _bottomBlackBand, _leftBlackBand, _rightBlackBand, _cursorTopBlackBand, _cursorLeftBlackBand;
 	Uint32 _flags;
-	SDL_Color deferredPalette[256];
+	Color deferredPalette[256];
 	int _numColors, _firstColor;
 	bool _pushPalette;
 	OpenGL glOutput;
@@ -73,9 +77,9 @@ public:
 	/// Clears the screen.
 	void clear();
 	/// Sets the screen's 8bpp palette.
-	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256, bool immediately = false);
+	void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256, bool immediately = false);
 	/// Gets the screen's 8bpp palette.
-	SDL_Color *getPalette() const;
+	Color *getPalette() const;
 	/// Gets the screen's width.
 	int getWidth() const;
 	/// Gets the screen's height.

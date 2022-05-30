@@ -83,7 +83,7 @@ void Font::loadTerminal()
 	SDL_Surface *s = SDL_LoadBMP_RW(rw, 0);
 	SDL_FreeRW(rw);
 	image.surface = new Surface(s->w, s->h);
-	SDL_Color terminal[2] = {{0, 0, 0, 0}, {185, 185, 185, 255}};
+	Color terminal[2] = {{0, 0, 0, 0}, {185, 185, 185, 255}};
 	image.surface->setPalette(terminal, 0, 2);
 	SDL_BlitSurface(s, 0, image.surface->getSurface(), 0);
 	SDL_FreeSurface(s);
@@ -245,7 +245,7 @@ SDL_Rect Font::getCharSize(UCode c)
  * Returns the font's 8bpp palette.
  * @return Pointer to the palette's colors.
  */
-SDL_Color *Font::getPalette() const
+Color *Font::getPalette() const
 {
 	return _images[0].surface->getPalette();
 }
@@ -256,7 +256,7 @@ SDL_Color *Font::getPalette() const
  * @param firstcolor Offset of the first color to replace.
  * @param ncolors Amount of colors to replace.
  */
-void Font::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+void Font::setPalette(Color *colors, int firstcolor, int ncolors)
 {
 	for (std::vector<FontImage>::iterator i = _images.begin(); i != _images.end(); ++i)
 	{

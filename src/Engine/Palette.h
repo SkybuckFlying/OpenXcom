@@ -18,20 +18,23 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <string>
-#include <SDL.h>
+
+#include "..\Engine\IntegerTypes.h"
+#include "..\Engine\BasicTypes.h"
+
 
 namespace OpenXcom
 {
 
 /**
  * Container for palettes (sets of 8bpp colors).
- * Works as an encapsulation for SDL's SDL_Color struct and
+ * Works as an encapsulation for SDL's Color struct and
  * provides shortcuts for common tasks to make code more readable.
  */
 class Palette
 {
 private:
-	SDL_Color *_colors;
+	Color *_colors;
 	int _count;
 public:
 	/// Creates a blank palette.
@@ -41,12 +44,12 @@ public:
 	/// Loads the colors from an X-Com palette.
 	void loadDat(const std::string &filename, int ncolors, int offset = 0);
 	// Gets a certain color from the palette.
-	SDL_Color *getColors(int offset = 0) const;
+	Color *getColors(int offset = 0) const;
 
 	void savePal(const std::string &file) const;
-	void setColors(SDL_Color* pal, int ncolors);
+	void setColors(Color* pal, int ncolors);
 	/// Converts a given color into a RGBA color value.
-	static Uint32 getRGBA(SDL_Color* pal, Uint8 color);
+	static Uint32 getRGBA(Color* pal, Uint8 color);
 	/// Gets the position of a given palette.
 	/**
 	 * Returns the position of a palette inside an X-Com palette file (each is a 768-byte chunks).

@@ -16,6 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "..\Engine\IntegerTypes.h"
+
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_WARNINGS
 #endif
@@ -74,7 +77,7 @@
 #include <dlfcn.h>
 #include "Unicode.h"
 #endif
-#include <SDL.h>
+
 #include <SDL_syswm.h>
 #ifdef __HAIKU__
 #include <FindDirectory.h>

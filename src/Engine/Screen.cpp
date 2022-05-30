@@ -33,7 +33,6 @@
 #include "FileMap.h"
 #include "Zoom.h"
 #include "Timer.h"
-#include <SDL.h>
 
 namespace OpenXcom
 {
@@ -114,7 +113,7 @@ void Screen::makeVideoFlags()
 Screen::Screen() : _baseWidth(ORIGINAL_WIDTH), _baseHeight(ORIGINAL_HEIGHT), _scaleX(1.0), _scaleY(1.0), _flags(0), _numColors(0), _firstColor(0), _pushPalette(false), _surface(0)
 {
 	resetDisplay();
-	memset(deferredPalette, 0, 256*sizeof(SDL_Color));
+	memset(deferredPalette, 0, 256*sizeof(Color));
 }
 
 /**
@@ -232,18 +231,18 @@ void Screen::clear()
  * @param ncolors Amount of colors to replace.
  * @param immediately Apply palette changes immediately, otherwise wait for next blit.
  */
-void Screen::setPalette(SDL_Color* colors, int firstcolor, int ncolors, bool immediately)
+void Screen::setPalette(Color* colors, int firstcolor, int ncolors, bool immediately)
 {
 	if (_numColors && (_numColors != ncolors) && (_firstColor != firstcolor))
 	{
 		// an initial palette setup has not been committed to the screen yet
 		// just update it with whatever colors are being sent now
-		memmove(&(deferredPalette[firstcolor]), colors, sizeof(SDL_Color)*ncolors);
+		memmove(&(deferredPalette[firstcolor]), colors, sizeof(Color)*ncolors);
 		_numColors = 256; // all the use cases are just a full palette with 16-color follow-ups
 		_firstColor = 0;
 	} else
 	{
-		memmove(&(deferredPalette[firstcolor]), colors, sizeof(SDL_Color) * ncolors);
+		memmove(&(deferredPalette[firstcolor]), colors, sizeof(Color) * ncolors);
 		_numColors = ncolors;
 		_firstColor = firstcolor;
 	}
@@ -258,7 +257,7 @@ void Screen::setPalette(SDL_Color* colors, int firstcolor, int ncolors, bool imm
 
 	// Sanity check
 	/*
-	SDL_Color *newcolors = _screen->format->palette->colors;
+	Color *newcolors = _screen->format->palette->colors;
 	for (int i = firstcolor, j = 0; i < firstcolor + ncolors; i++, j++)
 	{
 		Log(LOG_DEBUG) << (int)newcolors[i].r << " - " << (int)newcolors[i].g << " - " << (int)newcolors[i].b;
@@ -278,9 +277,9 @@ void Screen::setPalette(SDL_Color* colors, int firstcolor, int ncolors, bool imm
  * Returns the screen's 8bpp palette.
  * @return Pointer to the palette's colors.
  */
-SDL_Color *Screen::getPalette() const
+Color *Screen::getPalette() const
 {
-	return (SDL_Color*)deferredPalette;
+	return (Color*)deferredPalette;
 }
 
 /**

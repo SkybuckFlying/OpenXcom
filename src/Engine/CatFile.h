@@ -18,6 +18,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <fstream>
+#include "BasicTypes.h"
 
 namespace OpenXcom
 {

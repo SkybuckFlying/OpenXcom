@@ -21,7 +21,8 @@
 #include <vector>
 #include <utility>
 #include <string>
-#include <SDL.h>
+#include "..\Engine\BasicTypes.h"
+
 #include <yaml-cpp/yaml.h>
 #include "Unicode.h"
 
@@ -72,9 +73,9 @@ public:
 	/// Gets the size of a particular character;
 	SDL_Rect getCharSize(UCode c);
 	/// Gets the font's palette.
-	SDL_Color *getPalette() const;
+	Color *getPalette() const;
 	/// Sets the font's palette.
-	void setPalette(SDL_Color *colors, int firstcolor, int ncolors);
+	void setPalette(Color *colors, int firstcolor, int ncolors);
 };
 
 }

@@ -22,6 +22,7 @@
 #include "../Engine/Game.h"
 #include "../Mod/Mod.h"
 #include "../Mod/RuleInterface.h"
+#include "../Engine/Color.h"
 
 namespace OpenXcom
 {
@@ -121,7 +122,7 @@ int ActionMenuItem::getTUs() const
  * @param firstcolor Offset of the first color to replace.
  * @param ncolors Amount of colors to replace.
  */
-void ActionMenuItem::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+void ActionMenuItem::setPalette(Color *colors, int firstcolor, int ncolors)
 {
 	Surface::setPalette(colors, firstcolor, ncolors);
 	_frame->setPalette(colors, firstcolor, ncolors);

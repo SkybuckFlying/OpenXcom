@@ -52,8 +52,8 @@ void Palette::loadDat(const std::string &filename, int ncolors, int offset)
 	if (_colors != 0)
 		throw Exception("loadDat can be run only once");
 	_count = ncolors;
-	_colors = new SDL_Color[_count];
-	memset(_colors, 0, sizeof(SDL_Color) * _count);
+	_colors = new Color[_count];
+	memset(_colors, 0, sizeof(Color) * _count);
 
 	// Load file and put colors in palette
 	std::ifstream palFile (filename.c_str(), std::ios::in | std::ios::binary);
@@ -83,21 +83,21 @@ void Palette::loadDat(const std::string &filename, int ncolors, int offset)
 /**
  * Provides access to colors contained in the palette.
  * @param offset Offset to a specific color.
- * @return Pointer to the requested SDL_Color.
+ * @return Pointer to the requested Color.
  */
-SDL_Color *Palette::getColors(int offset) const
+Color *Palette::getColors(int offset) const
 {
 	return _colors + offset;
 }
 
 /**
- * Converts an SDL_Color struct into an hexadecimal RGBA color value.
+ * Converts an Color struct into an hexadecimal RGBA color value.
  * Mostly used for operations with SDL_gfx that require colors in this format.
  * @param pal Requested palette.
  * @param color Requested color in the palette.
  * @return Hexadecimal RGBA value.
  */
-Uint32 Palette::getRGBA(SDL_Color* pal, Uint8 color)
+Uint32 Palette::getRGBA(Color* pal, Uint8 color)
 {
 	return ((Uint32) pal[color].r << 24) | ((Uint32) pal[color].g << 16) | ((Uint32) pal[color].b << 8) | (Uint32) 0xFF;
 }
@@ -122,7 +122,7 @@ void Palette::savePal(const std::string &file) const
 	out.write((char*) &count, sizeof(count));
 
 	// Colors
-	SDL_Color *color = getColors();
+	Color *color = getColors();
 	for (short i = 0; i < count; ++i)
 	{
 		char c = 0;
@@ -135,13 +135,13 @@ void Palette::savePal(const std::string &file) const
 	out.close();
 }
 
-void Palette::setColors(SDL_Color* pal, int ncolors)
+void Palette::setColors(Color* pal, int ncolors)
 {
 	if (_colors != 0)
 		throw Exception("setColors can be run only once");
 	_count = ncolors;
-	_colors = new SDL_Color[_count];
-	memset(_colors, 0, sizeof(SDL_Color) * _count);
+	_colors = new Color[_count];
+	memset(_colors, 0, sizeof(Color) * _count);
 
 	for (int i = 0; i < _count; ++i)
 	{

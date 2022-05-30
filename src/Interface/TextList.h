@@ -21,6 +21,7 @@
 #include <map>
 #include "../Engine/InteractiveSurface.h"
 #include "Text.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {
@@ -106,7 +107,7 @@ public:
 	/// Sets the columns in the text list.
 	void setColumns(int cols, ...);
 	/// Sets the palette of the text list.
-	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256);
 	/// Initializes the resources for the text list.
 	void initText(Font *big, Font *small, Language *lang);
 	/// Sets the height of the surface.

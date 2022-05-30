@@ -17,12 +17,14 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Window.h"
-#include <SDL.h>
-#include <SDL_mixer.h>
+
 #include "../fmath.h"
 #include "../Engine/Timer.h"
 #include "../Engine/Sound.h"
 #include "../Engine/RNG.h"
+
+#include "..\Engine\IntegerTypes.h"
+
 
 namespace OpenXcom
 {

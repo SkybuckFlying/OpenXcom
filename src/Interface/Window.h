@@ -18,6 +18,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "../Engine/Surface.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {

@@ -76,7 +76,7 @@ public:
 	/// Sets the text button's group.
 	void setGroup(TextButton **group);
 	/// Sets the text button's palette.
-	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256);
 	/// Draws the text button.
 	void draw();
 	/// Special handling for mouse presses.

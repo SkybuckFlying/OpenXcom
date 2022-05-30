@@ -19,7 +19,8 @@
 #include "TestState.h"
 #include <iostream>
 #include <fstream>
-#include <SDL.h>
+#include "..\Engine\IntegerTypes.h"
+
 #include "../Engine/Game.h"
 #include "../Mod/Mod.h"
 #include "../Engine/LocalizedText.h"
@@ -35,7 +36,7 @@
 #include "../Interface/NumberText.h"
 #include "../Interface/Slider.h"
 #include "../Interface/ComboBox.h"
-
+#include "..\Engine\BasicTypes.h"
 namespace OpenXcom
 {
 

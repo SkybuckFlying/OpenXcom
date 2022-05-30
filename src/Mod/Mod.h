@@ -20,12 +20,18 @@
 #include <map>
 #include <vector>
 #include <string>
-#include <SDL.h>
+
 #include <yaml-cpp/yaml.h>
 #include "../Engine/Options.h"
 #include "../Savegame/GameTime.h"
 #include "Unit.h"
 #include "RuleAlienMission.h"
+
+#include "..\Engine\IntegerTypes.h"
+#include "..\Engine\Color.h"
+#include "..\Engine\BasicTypes.h"
+
+
 
 namespace OpenXcom
 {
@@ -163,11 +169,11 @@ private:
 	std::vector<std::string> _soldiersIndex, _aliensIndex, _deploymentsIndex, _armorsIndex, _ufopaediaIndex, _ufopaediaCatIndex, _researchIndex, _manufactureIndex;
 	std::vector<std::string> _alienMissionsIndex, _terrainIndex, _missionScriptIndex;
 	std::vector<std::vector<int> > _alienItemLevels;
-	std::vector<SDL_Color> _transparencies;
+	std::vector<Color> _transparencies;
 	int _facilityListOrder, _craftListOrder, _itemListOrder, _researchListOrder,  _manufactureListOrder, _ufopaediaListOrder, _invListOrder;
 	std::vector<ModData> _modData;
 	ModData* _modCurrent;
-	SDL_Color *_statePalette;
+	Color *_statePalette;
 	std::vector<std::string> _psiRequirements; // it's a cache for psiStrengthEval
 
 	/// Loads a ruleset from a YAML file that have basic resources configuration.
@@ -263,7 +269,7 @@ public:
 	/// Gets a particular palette.
 	Palette *getPalette(const std::string &name, bool error = true) const;
 	/// Sets a new palette.
-	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256);
 	/// Gets list of voxel data.
 	std::vector<Uint16> *getVoxelData();
 	/// Returns a specific sound from either the land or underwater sound set.
@@ -423,7 +429,7 @@ public:
 	/// Gets the list of selective files for insertion into our cat files.
 	const std::map<std::string, SoundDefinition *> *getSoundDefinitions() const;
 	/// Gets the list of transparency colors,
-	const std::vector<SDL_Color> *getTransparencies() const;
+	const std::vector<Color> *getTransparencies() const;
 	const std::vector<MapScript*> *getMapScript(const std::string& id) const;
 	/// Gets a video for intro/outro etc.
 	RuleVideo *getVideo(const std::string &id, bool error = false) const;

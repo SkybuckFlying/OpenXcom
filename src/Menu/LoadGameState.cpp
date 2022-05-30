@@ -45,7 +45,7 @@ namespace OpenXcom
  * @param filename Name of the save file without extension.
  * @param palette Parent state palette.
  */
-LoadGameState::LoadGameState(OptionsOrigin origin, const std::string &filename, SDL_Color *palette) : _firstRun(0), _origin(origin), _filename(filename)
+LoadGameState::LoadGameState(OptionsOrigin origin, const std::string &filename, Color *palette) : _firstRun(0), _origin(origin), _filename(filename)
 {
 	buildUi(palette);
 }
@@ -57,7 +57,7 @@ LoadGameState::LoadGameState(OptionsOrigin origin, const std::string &filename, 
  * @param type Type of auto-load being used.
  * @param palette Parent state palette.
  */
-LoadGameState::LoadGameState(OptionsOrigin origin, SaveType type, SDL_Color *palette) : _firstRun(0), _origin(origin)
+LoadGameState::LoadGameState(OptionsOrigin origin, SaveType type, Color *palette) : _firstRun(0), _origin(origin)
 {
 	switch (type)
 	{
@@ -90,7 +90,7 @@ LoadGameState::~LoadGameState()
  * Builds the interface.
  * @param palette Parent state palette.
  */
-void LoadGameState::buildUi(SDL_Color *palette)
+void LoadGameState::buildUi(Color *palette)
 {
 	_screen = false;
 

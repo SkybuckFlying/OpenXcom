@@ -18,8 +18,10 @@
  */
 #include "Cursor.h"
 #include <cmath>
-#include <SDL.h>
+#include "..\Engine\IntegerTypes.h"
+
 #include "../Engine/Action.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {

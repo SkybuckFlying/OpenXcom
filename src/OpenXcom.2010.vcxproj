@@ -494,7 +494,10 @@
     <ClInclude Include="Engine\AdlibMusic.h" />
     <ClInclude Include="Engine\Adlib\adlplayer.h" />
     <ClInclude Include="Engine\Adlib\fmopl.h" />
+    <ClInclude Include="Engine\BasicTypes.h" />
     <ClInclude Include="Engine\CatFile.h" />
+    <ClInclude Include="Engine\Color.h" />
+    <ClInclude Include="Engine\ControlKey.h" />
     <ClInclude Include="Engine\CrossPlatform.h" />
     <ClInclude Include="Engine\DosFont.h" />
     <ClInclude Include="Engine\Exception.h" />
@@ -505,6 +508,7 @@
     <ClInclude Include="Engine\Game.h" />
     <ClInclude Include="Engine\GMCat.h" />
     <ClInclude Include="Engine\GraphSubset.h" />
+    <ClInclude Include="Engine\IntegerTypes.h" />
     <ClInclude Include="Engine\InteractiveSurface.h" />
     <ClInclude Include="Engine\Language.h" />
     <ClInclude Include="Engine\LanguagePlurality.h" />

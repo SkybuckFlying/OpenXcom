@@ -18,10 +18,12 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "../Engine/State.h"
-#include <SDL.h>
+#include "..\Engine\IntegerTypes.h"
+
 #include <string>
 #include "OptionsBaseState.h"
 #include "../Savegame/SavedGame.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {
@@ -41,13 +43,13 @@ private:
 	SaveType _type;
 public:
 	/// Creates the Save Game state.
-	SaveGameState(OptionsOrigin origin, const std::string &filename, SDL_Color *palette);
+	SaveGameState(OptionsOrigin origin, const std::string &filename, Color *palette);
 	/// Creates the Load Game state.
-	SaveGameState(OptionsOrigin origin, SaveType type, SDL_Color *palette);
+	SaveGameState(OptionsOrigin origin, SaveType type, Color *palette);
 	/// Cleans up the Save Game state.
 	~SaveGameState();
 	/// Creates the interface.
-	void buildUi(SDL_Color *palette);
+	void buildUi(Color *palette);
 	/// Saves the game.
 	void think();
 	/// Shows an error message.

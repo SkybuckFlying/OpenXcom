@@ -63,7 +63,7 @@ public:
 	/// Sets the background for the track.
 	void setBackground(Surface *bg);
 	/// Sets the scrollbar's palette.
-	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256);
 	/// Blits the scrollbar onto another surface.
 	void blit(Surface *surface);
 	/// Moves the scrollbar.

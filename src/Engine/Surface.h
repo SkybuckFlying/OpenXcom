@@ -17,10 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <SDL.h>
+
 #include <string>
 #include <vector>
 #include "GraphSubset.h"
+#include "..\Engine\IntegerTypes.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {
@@ -102,12 +104,12 @@ public:
 	/// Draws a string on the surface.
 	void drawString(Sint16 x, Sint16 y, const char *s, Uint8 color);
 	/// Sets the surface's palette.
-	virtual void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	virtual void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256);
 	/**
 	 * Returns the surface's 8bpp palette.
 	 * @return Pointer to the palette's colors.
 	 */
-	SDL_Color *getPalette() const
+	Color *getPalette() const
 	{
 		return _surface->format->palette->colors;
 	}

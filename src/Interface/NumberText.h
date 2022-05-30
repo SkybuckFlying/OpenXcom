@@ -18,6 +18,7 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "../Engine/Surface.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {
@@ -48,7 +49,7 @@ public:
 	/// Gets the number text's color.
 	Uint8 getColor() const;
 	/// Sets the number text's palette.
-	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256);
 	/// Draws the number text.
 	void draw();
 	/// sets this numbertext to have a border or not

@@ -1351,6 +1351,18 @@
     <ClInclude Include="Menu\ModConfirmExtendedState.h">
       <Filter>Menu</Filter>
     </ClInclude>
+    <ClInclude Include="Engine\IntegerTypes.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\ControlKey.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Color.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\BasicTypes.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">

@@ -23,6 +23,10 @@
 #include "../Savegame/SavedGame.h"
 #include "../Engine/Options.h"
 
+#include "..\Engine\IntegerTypes.h"
+#include "..\Engine\BasicTypes.h"
+
+
 namespace OpenXcom
 {
 

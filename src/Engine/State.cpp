@@ -464,11 +464,11 @@ void State::setModal(InteractiveSurface *surface)
  * @param ncolors Amount of colors to replace.
  * @param immediately Apply changes immediately, otherwise wait in case of multiple setPalettes.
  */
-void State::setPalette(SDL_Color *colors, int firstcolor, int ncolors, bool immediately)
+void State::setPalette(Color *colors, int firstcolor, int ncolors, bool immediately)
 {
 	if (colors)
 	{
-		memcpy(_palette + firstcolor, colors, ncolors * sizeof(SDL_Color));
+		memcpy(_palette + firstcolor, colors, ncolors * sizeof(Color));
 	}
 	if (immediately)
 	{
@@ -520,7 +520,7 @@ void State::setPalette(const std::string &palette, int backpals)
  * Returns the state's 8bpp palette.
  * @return Pointer to the palette's colors.
  */
-SDL_Color *State::getPalette()
+Color *State::getPalette()
 {
 	return _palette;
 }

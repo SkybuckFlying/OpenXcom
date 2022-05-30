@@ -52,7 +52,7 @@ public:
 	/// Initializes the Battlescape message's resources.
 	void initText(Font *big, Font *small, Language *lang);
 	/// Sets the Battlescape message's palette.
-	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	void setPalette(Color *colors, int firstcolor = 0, int ncolors = 256);
 	/// Blits the warning message.
 	void blit(Surface *surface);
 	/// Special handling for setting the height of the battlescape message.

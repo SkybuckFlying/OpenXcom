@@ -27,6 +27,7 @@
 #include "../Engine/Action.h"
 #include "../Engine/Options.h"
 #include "../Engine/Screen.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {
@@ -129,7 +130,7 @@ void ComboBox::setY(int y)
  * @param firstcolor Offset of the first color to replace.
  * @param ncolors Amount of colors to replace.
  */
-void ComboBox::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+void ComboBox::setPalette(Color *colors, int firstcolor, int ncolors)
 {
 	Surface::setPalette(colors, firstcolor, ncolors);
 	_button->setPalette(colors, firstcolor, ncolors);

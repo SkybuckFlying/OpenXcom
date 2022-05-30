@@ -17,10 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <SDL.h>
 #include <map>
 #include "Surface.h"
 #include "State.h"
+#include "ControlKey.h"
+#include "..\Engine\BasicTypes.h"
 
 namespace OpenXcom
 {
@@ -38,12 +39,12 @@ class InteractiveSurface : public Surface
 {
 private:
 	static const int NUM_BUTTONS = 7;
-	static const SDLKey SDLK_ANY;
+	static const ControlKey SDLK_ANY;
 	Uint8 _buttonsPressed;
 protected:
 	std::map<Uint8, ActionHandler> _click, _press, _release;
 	ActionHandler _in, _over, _out;
-	std::map<SDLKey, ActionHandler> _keyPress, _keyRelease;
+	std::map<ControlKey, ActionHandler> _keyPress, _keyRelease;
 	bool _isHovered, _isFocused, _listButton;
 
 	/// Is this mouse button pressed?
@@ -80,9 +81,9 @@ public:
 	/// Hooks an action handler to moving the mouse out of the surface.
 	void onMouseOut(ActionHandler handler);
 	/// Hooks an action handler to pressing a key when the surface is focused.
-	void onKeyboardPress(ActionHandler handler, SDLKey key = SDLK_ANY);
+	void onKeyboardPress(ActionHandler handler, ControlKey key = SDLK_ANY);
 	/// Hooks an action handler to releasing a key when the surface is focused.
-	void onKeyboardRelease(ActionHandler handler, SDLKey key = SDLK_ANY);
+	void onKeyboardRelease(ActionHandler handler, ControlKey key = SDLK_ANY);
 	/// Processes a mouse button press event.
 	virtual void mousePress(Action *action, State *state);
 	/// Processes a mouse button release event.

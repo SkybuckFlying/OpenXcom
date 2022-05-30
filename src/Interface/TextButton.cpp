@@ -17,12 +17,14 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "TextButton.h"
-#include <SDL.h>
-#include <SDL_mixer.h>
+
 #include "Text.h"
 #include "../Engine/Sound.h"
 #include "../Engine/Action.h"
 #include "ComboBox.h"
+
+#include "..\Engine\IntegerTypes.h"
+
 
 namespace OpenXcom
 {
@@ -186,7 +188,7 @@ void TextButton::setGroup(TextButton **group)
  * @param firstcolor Offset of the first color to replace.
  * @param ncolors Amount of colors to replace.
  */
-void TextButton::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+void TextButton::setPalette(Color *colors, int firstcolor, int ncolors)
 {
 	Surface::setPalette(colors, firstcolor, ncolors);
 	_text->setPalette(colors, firstcolor, ncolors);
