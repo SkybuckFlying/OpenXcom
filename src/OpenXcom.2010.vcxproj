@@ -316,7 +316,6 @@
     <ClCompile Include="Interface\TextList.cpp" />
     <ClCompile Include="Interface\ToggleTextButton.cpp" />
     <ClCompile Include="Interface\Window.cpp" />
-    <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Menu\AbandonGameState.cpp" />
     <ClCompile Include="Menu\ConfirmLoadState.cpp" />
@@ -539,7 +538,6 @@
     <ClInclude Include="Interface\TextList.h" />
     <ClInclude Include="Interface\ToggleTextButton.h" />
     <ClInclude Include="Interface\Window.h" />
-    <ClInclude Include="lodepng.h" />
     <ClInclude Include="Menu\AbandonGameState.h" />
     <ClInclude Include="Menu\ConfirmLoadState.h" />
     <ClInclude Include="Menu\CutsceneState.h" />
