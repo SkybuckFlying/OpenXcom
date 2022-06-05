@@ -348,29 +348,8 @@
     <ClCompile Include="Engine\Zoom.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\Scalers\hq2x.cpp">
-      <Filter>Engine\Scalers</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Scalers\hq3x.cpp">
-      <Filter>Engine\Scalers</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Scalers\hq4x.cpp">
-      <Filter>Engine\Scalers</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Scalers\init.cpp">
-      <Filter>Engine\Scalers</Filter>
-    </ClCompile>
     <ClCompile Include="Engine\Zoom.cpp">
       <Filter>Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Scalers\scale2x.cpp">
-      <Filter>Engine\Scalers</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Scalers\scale3x.cpp">
-      <Filter>Engine\Scalers</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Scalers\scalebit.cpp">
-      <Filter>Engine\Scalers</Filter>
     </ClCompile>
     <ClCompile Include="Engine\OpenGL.cpp">
       <Filter>Engine</Filter>
@@ -476,9 +455,6 @@
     </ClCompile>
     <ClCompile Include="Interface\BattlescapeButton.cpp">
       <Filter>Interface</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Scalers\xbrz.cpp">
-      <Filter>Engine\Scalers</Filter>
     </ClCompile>
     <ClCompile Include="Battlescape\Particle.cpp">
       <Filter>Battlescape</Filter>
@@ -1016,21 +992,6 @@
     <ClInclude Include="Engine\Zoom.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\Scalers\scalebit.h">
-      <Filter>Engine\Scalers</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Scalers\scale2x.h">
-      <Filter>Engine\Scalers</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Scalers\scale3x.h">
-      <Filter>Engine\Scalers</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Scalers\common.h">
-      <Filter>Engine\Scalers</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Scalers\hqx.h">
-      <Filter>Engine\Scalers</Filter>
-    </ClInclude>
     <ClInclude Include="Engine\Zoom.h">
       <Filter>Engine</Filter>
     </ClInclude>
@@ -1161,12 +1122,6 @@
     </ClInclude>
     <ClInclude Include="Interface\BattlescapeButton.h">
       <Filter>Interface</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Scalers\xbrz.h">
-      <Filter>Engine\Scalers</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Scalers\config.h">
-      <Filter>Engine\Scalers</Filter>
     </ClInclude>
     <ClInclude Include="Battlescape\Particle.h">
       <Filter>Battlescape</Filter>
@@ -1367,9 +1322,6 @@
     </Filter>
     <Filter Include="Menu">
       <UniqueIdentifier>{4218da2f-b393-45b2-a55f-da7fa4d91fe4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\Scalers">
-      <UniqueIdentifier>{fef61e76-5d44-4389-a40c-12da6e590e2c}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\Adlib">
       <UniqueIdentifier>{09464f19-4bce-449f-a27c-5cd7b9850dbe}</UniqueIdentifier>
