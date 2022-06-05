@@ -465,9 +465,6 @@
     <ClCompile Include="Menu\ListLoadOriginalState.cpp">
       <Filter>Menu</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\FlcPlayer.cpp">
-      <Filter>Engine</Filter>
-    </ClCompile>
     <ClCompile Include="Savegame\MissionSite.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
@@ -1131,9 +1128,6 @@
     </ClInclude>
     <ClInclude Include="Menu\ListLoadOriginalState.h">
       <Filter>Menu</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\FlcPlayer.h">
-      <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="Savegame\MissionSite.h">
       <Filter>Savegame</Filter>
