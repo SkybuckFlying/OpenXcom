@@ -23,7 +23,6 @@
 #include "../Engine/Logger.h"
 #include "../Engine/Game.h"
 #include "../Engine/Options.h"
-#include "../Engine/FlcPlayer.h"
 #include "../Engine/CrossPlatform.h"
 #include "../Engine/FileMap.h"
 #include "../Engine/Screen.h"
@@ -321,67 +320,12 @@ static struct AudioSequence
 	Music *m;
 	Sound *s;
 	int trackPosition;
-	FlcPlayer *_flcPlayer;
 
-	AudioSequence(Mod *_mod, FlcPlayer *flcPlayer) : mod(_mod), m(0), s(0), trackPosition(0), _flcPlayer(flcPlayer)
+	AudioSequence(Mod *_mod) : mod(_mod), m(0), s(0), trackPosition(0)
 	{ }
 
 	void operator()()
 	{
-		while (_flcPlayer->getFrameCount() >= introSoundTrack[trackPosition].frameNumber)
-		{
-			int command = introSoundTrack[trackPosition].sound;
-
-			if (command & 0x200)
-			{
-#ifndef __NO_MUSIC
-				switch(command)
-				{
-				case 0x200:
-					Log(LOG_DEBUG) << "Playing gmintro1";
-					m = mod->getMusic("GMINTRO1");
-					m->play(1);
-					break;
-				case 0x201:
-					Log(LOG_DEBUG) << "Playing gmintro2";
-					m = mod->getMusic("GMINTRO2");
-					m->play(1);
-					break;
-				case 0x202:
-					Log(LOG_DEBUG) << "Playing gmintro3";
-					m = mod->getMusic("GMINTRO3");
-					m->play(1);
-					//Mix_HookMusicFinished(_FlcPlayer::stop);
-					break;
-				}
-#endif
-			}
-			else if (command & 0x400)
-			{
-				int newSpeed = (command & 0xff);
-				_flcPlayer->setHeaderSpeed(newSpeed);
-				Log(LOG_DEBUG) << "Frame delay now: " << newSpeed;
-			}
-			else if (command <= 0x19)
-			{
-				for (soundInFile **sounds = introSounds; *sounds; ++sounds) // try hybrid sound set, then intro.cat or sample3.cat alone
-				{
-					soundInFile *sf = (*sounds) + command;
-					int channel = trackPosition % 4; // use at most four channels to play sound effects
-					double ratio = (double)Options::soundVolume / MIX_MAX_VOLUME;
-					Log(LOG_DEBUG) << "playing: " << sf->catFile << ":" << sf->sound << " for index " << command;
-					s = mod->getSound(sf->catFile, sf->sound, false);
-					if (s)
-					{
-						s->play(channel);
-						Mix_Volume(channel, sf->volume * ratio);
-						break;
-					}
-					else Log(LOG_DEBUG) << "Couldn't play " << sf->catFile << ":" << sf->sound;
-				}
-			}
-			++trackPosition;
-		}
 
 	}
 } *audioSequence = NULL;
@@ -430,7 +374,6 @@ void VideoState::init()
 	const int FADE_DELAY = 45;
 	const int FADE_STEPS = 20;
 
-	FlcPlayer *flcPlayer = NULL;
 	size_t audioCounter = 0;
 	for (std::vector<std::string>::const_iterator it = _videos->begin(); it != _videos->end(); ++it)
 	{
@@ -448,38 +391,19 @@ void VideoState::init()
 			continue;
 		}
 
-		if (!flcPlayer)
+		if (_useUfoAudioSequence)
 		{
-			flcPlayer = new FlcPlayer();
+			audioSequence = new AudioSequence(_game->getMod());
 		}
 
 		if (_useUfoAudioSequence)
 		{
-			audioSequence = new AudioSequence(_game->getMod(), flcPlayer);
-		}
-
-		flcPlayer->init(videoFileName.c_str(),
-			 _useUfoAudioSequence ? &audioHandler : NULL,
-			 _game, useInternalAudio, dx, dy);
-		flcPlayer->play(_useUfoAudioSequence);
-		if (_useUfoAudioSequence)
-		{
-			flcPlayer->delay(10000);
 			delete audioSequence;
 			audioSequence = NULL;
 		}
-		flcPlayer->deInit();
 
-		if (flcPlayer->wasSkipped())
-		{
-			fade = false;
-			break;
-		}
-	}
-
-	if (flcPlayer)
-	{
-		delete flcPlayer;
+		fade = false;
+		break;
 	}
 
 #ifndef __NO_MUSIC
