@@ -308,7 +308,6 @@
     <ClCompile Include="Savegame\Vehicle.cpp">
       <Filter>Savegame</Filter>
     </ClCompile>
-    <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="Battlescape\CannotReequipState.cpp">
       <Filter>Battlescape</Filter>
     </ClCompile>
@@ -973,7 +972,6 @@
     <ClInclude Include="Savegame\Vehicle.h">
       <Filter>Savegame</Filter>
     </ClInclude>
-    <ClInclude Include="lodepng.h" />
     <ClInclude Include="Battlescape\CannotReequipState.h">
       <Filter>Battlescape</Filter>
     </ClInclude>
