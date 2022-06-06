@@ -194,6 +194,7 @@ void Mod::resetGlobalStatics()
 Mod::Mod() : _costEngineer(0), _costScientist(0), _timePersonnel(0), _initialFunding(0), _turnAIUseGrenade(3), _turnAIUseBlaster(3), _defeatScore(0), _defeatFunds(0), _difficultyDemigod(false), _startingTime(6, 1, 1, 1999, 12, 0, 0),
 			 _facilityListOrder(0), _craftListOrder(0), _itemListOrder(0), _researchListOrder(0),  _manufactureListOrder(0), _ufopaediaListOrder(0), _invListOrder(0), _modCurrent(0), _statePalette(0)
 {
+	_advancedPalette = new AdvancedPalette8bit();
 	_muteMusic = new Music();
 	_muteSound = new Sound();
 	_globe = new RuleGlobe();
@@ -212,6 +213,7 @@ Mod::Mod() : _costEngineer(0), _costScientist(0), _timePersonnel(0), _initialFun
  */
 Mod::~Mod()
 {
+	delete _advancedPalette;
 	delete _muteMusic;
 	delete _muteSound;
 	delete _globe;
@@ -2781,6 +2783,12 @@ void Mod::loadVanillaResources()
 		std::string s2 = "BACKPALS.DAT";
 		_palettes[s2] = new Palette();
 		_palettes[s2]->loadDat(FileMap::getFilePath(s1), 128);
+	}
+
+	// load advanced palette (for battlescape/tactical)
+	{
+		std::string s = "GEODATA/AdvancedPaletteV1.SKYPAL";
+		_advancedPalette->LoadFromFile( FileMap::getFilePath(s) );
 	}
 
 	// Correct Battlescape palette

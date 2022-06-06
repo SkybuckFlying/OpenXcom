@@ -26,6 +26,7 @@
 #include "../Savegame/GameTime.h"
 #include "Unit.h"
 #include "RuleAlienMission.h"
+#include "../Engine/AdvancedPalette.h"
 
 namespace OpenXcom
 {
@@ -107,6 +108,7 @@ private:
 	Sound *_muteSound;
 	std::string _playingMusic;
 
+	struct AdvancedPalette8bit* _advancedPalette;
 	std::map<std::string, Palette*> _palettes;
 	std::map<std::string, Font*> _fonts;
 	std::map<std::string, Surface*> _surfaces;

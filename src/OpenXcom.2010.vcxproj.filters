@@ -629,6 +629,9 @@
     <ClCompile Include="Menu\ModConfirmExtendedState.cpp">
       <Filter>Menu</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\AdvancedPalette.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -1297,6 +1300,15 @@
     </ClInclude>
     <ClInclude Include="Menu\ModConfirmExtendedState.h">
       <Filter>Menu</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\AdvancedColor.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\AdvancedPalette.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\SkybucksAdvancedPaletteFileFormat_version_001.h">
+      <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
