@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 #include "GraphSubset.h"
+#include "..\Engine\AdvancedPalette.h"
 
 namespace OpenXcom
 {
@@ -39,10 +40,15 @@ class Surface
 {
 protected:
 	SDL_Surface *_surface;
+	SDL_Surface *_surface_32_bit;
+
+	AdvancedPalette8bit *_advancedPalette;
+
 	int _x, _y;
 	SDL_Rect _crop, _clear;
 	bool _visible, _hidden, _redraw, _tftdMode;
 	void *_alignedBuffer;
+	void *_alignedBuffer_32_bit;
 	std::string _tooltip;
 
 	/// Copies raw pixels.
@@ -103,6 +109,12 @@ public:
 	void drawString(Sint16 x, Sint16 y, const char *s, Uint8 color);
 	/// Sets the surface's palette.
 	virtual void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+
+	/// Sets the surface's advanced palette.
+	virtual void setAdvancedPalette( AdvancedPalette8bit *ParaAdvancedPalette );
+
+
+
 	/**
 	 * Returns the surface's 8bpp palette.
 	 * @return Pointer to the palette's colors.
@@ -111,6 +123,10 @@ public:
 	{
 		return _surface->format->palette->colors;
 	}
+
+	// return pointer to advanced palette
+	AdvancedPalette8bit *getAdvancedPalette();
+
 	/// Sets the X position of the surface.
 	virtual void setX(int x);
 	/**
@@ -154,6 +170,15 @@ public:
 		}
 		*getRaw(x, y) = pixel;
 	}
+
+	void setPixel_32_bit(int x, int y, Uint32 pixel)
+	{
+		if (x < 0 || x >= getWidth() || y < 0 || y >= getHeight())
+		{
+			return;
+		}
+		*getRaw_32_bit(x, y) = pixel;
+	}
 	/**
 	 * Changes the color of a pixel in the surface and returns the
 	 * next pixel position. Useful when changing a lot of pixels in
@@ -172,6 +197,18 @@ public:
 			*x = 0;
 		}
 	}
+
+	void setPixelIterative_32_bit(int *x, int *y, Uint32 pixel)
+	{
+		setPixel_32_bit(*x, *y, pixel);
+		(*x)++;
+		if (*x == getWidth())
+		{
+			(*y)++;
+			*x = 0;
+		}
+	}
+
 	/**
 	 * Returns the color of a specified pixel in the surface.
 	 * @param x X position of the pixel.
@@ -186,6 +223,16 @@ public:
 		}
 		return *getRaw(x, y);
 	}
+
+	Uint32 getPixel_32_bit(int x, int y) const
+	{
+		if (x < 0 || x >= getWidth() || y < 0 || y >= getHeight())
+		{
+			return 0;
+		}
+		return *getRaw_32_bit(x, y);
+	}
+
 	/**
 	 * Returns the pointer to a specified pixel in the surface.
 	 * @param x X position of the pixel.
@@ -196,6 +243,13 @@ public:
 	{
 		return (Uint8 *)_surface->pixels + (y * _surface->pitch + x * _surface->format->BytesPerPixel);
 	}
+
+	Uint8 *getRaw_32_bit(int x, int y) const
+	{
+		return (Uint8 *)_surface_32_bit->pixels + (y * _surface_32_bit->pitch + x * _surface_32_bit->format->BytesPerPixel);
+	}
+
+
 	/**
 	 * Returns the internal SDL_Surface for SDL calls.
 	 * @return Pointer to the surface.
@@ -204,6 +258,17 @@ public:
 	{
 		return _surface;
 	}
+
+	/**
+	 * Returns the internal SDL_Surface for SDL calls.
+	 * @return Pointer to the surface.
+	 */
+	SDL_Surface *getSurface_32_bit() const
+	{
+		return _surface_32_bit;
+	}
+
+
 	/**
 	 * Returns the width of the surface.
 	 * @return Width in pixels.

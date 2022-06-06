@@ -103,3 +103,16 @@ bool AdvancedPalette8bit::LoadFromFile( std::string ParaFilename )
 
 	return vResult;
 }
+
+AdvancedColor8bit AdvancedPalette8bit::ConvertToAdvancedColor( int ParaOriginalColor )
+{
+	int vAdvancedIndex;
+	AdvancedColor8bit vAdvancedColor;
+
+	vAdvancedIndex = ParaOriginalColor << mShift;
+	vAdvancedColor = mEntry[vAdvancedIndex];
+
+	return vAdvancedColor;
+
+}
+

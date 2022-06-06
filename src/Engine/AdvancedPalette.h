@@ -32,6 +32,8 @@ struct AdvancedPalette8bit
 
 	bool SanityCheckPaletteInfo();
 	bool LoadFromFile( std::string ParaFilename );
+
+	AdvancedColor8bit ConvertToAdvancedColor( int ParaOriginalColor ); 
 };
 
 // extern struct AdvancedPalette8bit GlobalAdvancedPalette8bit;

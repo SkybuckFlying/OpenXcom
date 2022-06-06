@@ -5,6 +5,8 @@ struct AdvancedColor8bit
 	unsigned char mRed;
 	unsigned char mGreen;
 	unsigned char mBlue;
+
+	unsigned int ConvertToUint32();
 };
 
 struct AdvancedColor16bit
@@ -13,3 +15,6 @@ struct AdvancedColor16bit
 	unsigned short mGreen;
 	unsigned short mBlue;
 };
+
+
+

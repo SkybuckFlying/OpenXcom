@@ -137,10 +137,19 @@ inline void DeleteAligned(void* buffer)
  */
 Surface::Surface(int width, int height, int x, int y, int bpp) : _x(x), _y(y), _visible(true), _hidden(false), _redraw(false), _tftdMode(false), _alignedBuffer(0)
 {
-	_alignedBuffer = NewAligned(bpp, width, height);
-	_surface = SDL_CreateRGBSurfaceFrom(_alignedBuffer, width, height, bpp, GetPitch(bpp, width), 0, 0, 0, 0);
+	_advancedPalette = 0;
 
+	_alignedBuffer = NewAligned(bpp, width, height);
+	_alignedBuffer_32_bit = NewAligned(32, width, height);
+
+	_surface = SDL_CreateRGBSurfaceFrom(_alignedBuffer, width, height, bpp, GetPitch(bpp, width), 0, 0, 0, 0);
 	if (_surface == 0)
+	{
+		throw Exception(SDL_GetError());
+	}
+
+	_surface_32_bit = SDL_CreateRGBSurfaceFrom(_alignedBuffer_32_bit, width, height, 32, GetPitch(32, width), 0, 0, 0, 0);
+	if (_surface_32_bit == 0)
 	{
 		throw Exception(SDL_GetError());
 	}
@@ -187,6 +196,28 @@ Surface::Surface(const Surface& other)
 	{
 		throw Exception(SDL_GetError());
 	}
+
+	//if is native OpenXcom aligned surface
+	if (other._alignedBuffer_32_bit)
+	{
+		int width = other.getWidth();
+		int height = other.getHeight();
+		int pitch_32_bit = GetPitch(32, width);
+		_alignedBuffer_32_bit = NewAligned(32, width, height);
+		_surface_32_bit = SDL_CreateRGBSurfaceFrom(_alignedBuffer_32_bit, width, height, 32, pitch_32_bit, 0, 0, 0, 0);
+		memcpy(_alignedBuffer_32_bit, other._alignedBuffer_32_bit, height*pitch_32_bit);
+	}
+	else
+	{
+		_surface_32_bit = SDL_ConvertSurface(other._surface_32_bit, other._surface_32_bit->format, other._surface_32_bit->flags);
+		_alignedBuffer_32_bit = 0;
+	}
+
+	if (_surface_32_bit == 0)
+	{
+		throw Exception(SDL_GetError());
+	}
+
 	_x = other._x;
 	_y = other._y;
 	_crop.w = other._crop.w;
@@ -201,6 +232,9 @@ Surface::Surface(const Surface& other)
 	_hidden = other._hidden;
 	_redraw = other._redraw;
 	_tftdMode = other._tftdMode;
+	
+	// Skybuck: copy the pointer to the advanced palette ? ;)
+	_advancedPalette = other._advancedPalette; 
 }
 
 /**
@@ -209,7 +243,9 @@ Surface::Surface(const Surface& other)
 Surface::~Surface()
 {
 	DeleteAligned(_alignedBuffer);
+	DeleteAligned(_alignedBuffer_32_bit);
 	SDL_FreeSurface(_surface);
+	SDL_FreeSurface(_surface_32_bit);
 }
 
 /**
@@ -235,6 +271,47 @@ void Surface::rawCopy(const std::vector<T> &src)
 			if (begin >= src.size())
 				break;
 			std::copy(src.begin() + begin, src.begin() + end, (T*)getRaw(0, y));
+		}
+	}
+
+/*
+	// Copy whole thing
+	if (_surface_32_bit->pitch == _surface_32_bit->w)
+	{
+		size_t end = std::min(size_t(_surface_32_bit->w * _surface_32_bit->h * _surface_32_bit->format->BytesPerPixel), src.size());
+		std::copy(src.begin(), src.begin() + end, (T*)_surface_32_bit->pixels);
+	}
+	// Copy row by row
+	else
+	{
+		for (int y = 0; y < _surface_32_bit->h; ++y)
+		{
+			size_t begin = y * _surface_32_bit->w;
+			size_t end = std::min(begin + _surface_32_bit->w, src.size());
+			if (begin >= src.size())
+				break;
+			std::copy(src.begin() + begin, src.begin() + end, (T*)getRaw(0, y));
+		}
+	}
+*/
+
+	if (_advancedPalette)
+	{
+
+		// more consistent to copy the 8 bit surface to the 32 bit surface... otherwise it might miss loads which uses this function to load.
+		// easier to just convert the 8 bit surface to a 32 bit surface.
+		for (int y=0; y<getHeight(); y++)
+		{
+			for (int x=0; x<getWidth(); x++)
+			{
+				Uint8 pixel_8_bit = *getRaw(x, y);
+
+				AdvancedColor8bit vAdvancedColor;
+				vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( pixel_8_bit );
+				Uint32 pixel_32_bit = vAdvancedColor.ConvertToUint32();
+
+				*getRaw_32_bit(x,y) = pixel_32_bit; 
+			}
 		}
 	}
 }
@@ -292,9 +369,13 @@ void Surface::loadImage(const std::string &filename)
 {
 	// Destroy current surface (will be replaced)
 	DeleteAligned(_alignedBuffer);
+	DeleteAligned(_alignedBuffer_32_bit);
 	SDL_FreeSurface(_surface);
+	SDL_FreeSurface(_surface_32_bit);
 	_alignedBuffer = 0;
+	_alignedBuffer_32_bit = 0;
 	_surface = 0;
+	_surface_32_bit = 0;
 
 	Log(LOG_VERBOSE) << "Loading image: " << filename;
 
@@ -306,6 +387,19 @@ void Surface::loadImage(const std::string &filename)
 	}
 
 	if (!_surface)
+	{
+		std::string err = filename + ":" + IMG_GetError();
+		throw Exception(err);
+	}
+
+	// Otherwise default to SDL_Image
+	if (!_surface_32_bit)
+	{
+		std::string utf8 = Unicode::convPathToUtf8(filename);
+		_surface_32_bit = IMG_Load(utf8.c_str());
+	}
+
+	if (!_surface_32_bit)
 	{
 		std::string err = filename + ":" + IMG_GetError();
 		throw Exception(err);
@@ -361,6 +455,24 @@ void Surface::loadSpk(const std::string &filename)
 			{
 				imgFile.read((char*)&value, 1);
 				setPixelIterative(&x, &y, value);
+			}
+		}
+	}
+
+	if (_advancedPalette)
+	{
+		// easier to just convert the 8 bit surface to a 32 bit surface.
+		for (int y=0; y<getHeight(); y++)
+		{
+			for (int x=0; x<getWidth(); x++)
+			{
+				Uint8 pixel_8_bit = *getRaw(x, y);
+
+				AdvancedColor8bit vAdvancedColor;
+				vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( pixel_8_bit );
+				Uint32 pixel_32_bit = vAdvancedColor.ConvertToUint32();
+
+				*getRaw_32_bit(x,y) = pixel_32_bit; 
 			}
 		}
 	}
@@ -422,6 +534,24 @@ void Surface::loadBdy(const std::string &filename)
 		}
 	}
 
+	if (_advancedPalette)
+	{
+		// easier to just convert the 8 bit surface to a 32 bit surface.
+		for (int y=0; y<getHeight(); y++)
+		{
+			for (int x=0; x<getWidth(); x++)
+			{
+				Uint8 pixel_8_bit = *getRaw(x, y);
+
+				AdvancedColor8bit vAdvancedColor;
+				vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( pixel_8_bit );
+				Uint32 pixel_32_bit = vAdvancedColor.ConvertToUint32();
+
+				*getRaw_32_bit(x,y) = pixel_32_bit; 
+			}
+		}
+	}
+
 	// Unlock the surface
 	unlock();
 
@@ -437,6 +567,10 @@ void Surface::clear(Uint32 color)
 {
 	if (_surface->flags & SDL_SWSURFACE) memset(_surface->pixels, color, _surface->h*_surface->pitch);
 	else SDL_FillRect(_surface, &_clear, color);
+
+	if (_surface_32_bit->flags & SDL_SWSURFACE) memset(_surface_32_bit->pixels, color, _surface_32_bit->h*_surface_32_bit->pitch);
+	else SDL_FillRect(_surface_32_bit, &_clear, color);
+
 }
 
 /**
@@ -484,6 +618,24 @@ void Surface::offset(int off, int min, int max, int mul)
 		else
 		{
 			setPixelIterative(&x, &y, 0);
+		}
+	}
+
+	if (_advancedPalette)
+	{
+		// easier to just convert the 8 bit surface to a 32 bit surface.
+		for (int y=0; y<getHeight(); y++)
+		{
+			for (int x=0; x<getWidth(); x++)
+			{
+				Uint8 pixel_8_bit = *getRaw(x, y);
+
+				AdvancedColor8bit vAdvancedColor;
+				vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( pixel_8_bit );
+				Uint32 pixel_32_bit = vAdvancedColor.ConvertToUint32();
+
+				*getRaw_32_bit(x,y) = pixel_32_bit; 
+			}
 		}
 	}
 
@@ -539,6 +691,24 @@ void Surface::offsetBlock(int off, int blk, int mul)
 		}
 	}
 
+	if (_advancedPalette)
+	{
+		// easier to just convert the 8 bit surface to a 32 bit surface.
+		for (int y=0; y<getHeight(); y++)
+		{
+			for (int x=0; x<getWidth(); x++)
+			{
+				Uint8 pixel_8_bit = *getRaw(x, y);
+
+				AdvancedColor8bit vAdvancedColor;
+				vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( pixel_8_bit );
+				Uint32 pixel_32_bit = vAdvancedColor.ConvertToUint32();
+
+				*getRaw_32_bit(x,y) = pixel_32_bit; 
+			}
+		}
+	}
+
 	// Unlock the surface
 	unlock();
 }
@@ -565,6 +735,46 @@ void Surface::invert(Uint8 mid)
 			setPixelIterative(&x, &y, 0);
 		}
 	}
+
+	if (_advancedPalette)
+	{
+		// easier to just copy 8 bit surface to 32 bit surface for now ! ;)
+		for (int y=0; y<getHeight(); y++)
+		{
+			for (int x=0; x<getWidth(); x++)
+			{
+				Uint8 pixel_8_bit = *getRaw(x, y);
+
+				AdvancedColor8bit vAdvancedColor;
+				vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( pixel_8_bit );
+				Uint32 pixel_32_bit = vAdvancedColor.ConvertToUint32();
+
+				*getRaw_32_bit(x,y) = pixel_32_bit; 
+			}
+		}
+	}
+
+/*
+	for (int x = 0, y = 0; x < getWidth() && y < getHeight();)
+	{
+		Uint32 pixel = getPixel_32_bit(x, y);
+		if (pixel > 0)
+		{
+			AdvancedColor8bit vAdvancedColor;
+			vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( mid );
+			int vAdvancedMid = vAdvancedColor.ConvertToUint32();
+
+			// Skybuck: I don't quite understand this "invert mid" thing.
+			// investigate later, perhaps set it to some other safe value, but neh.. not yet... let's see if it crashes first
+			// probably not, the colors will be a bit strange but at least we can see button was pressed or something ;)
+			setPixelIterative_32_bit(&x, &y, pixel + 2 * ((int)vAdvancedMid - (int)pixel));
+		}
+		else
+		{
+			setPixelIterative_32_bit(&x, &y, 0);
+		}
+	}
+*/
 
 	// Unlock the surface
 	unlock();
@@ -618,6 +828,8 @@ void Surface::blit(Surface *surface)
 		target.x = getX();
 		target.y = getY();
 		SDL_BlitSurface(_surface, cropper, surface->getSurface(), &target);
+
+		SDL_BlitSurface(_surface_32_bit, cropper, surface->getSurface_32_bit(), &target);
 	}
 }
 
@@ -654,6 +866,11 @@ void Surface::copy(Surface *surface)
 		setPixelIterative(&x, &y, pixel);
 	}
 
+	for (int x = 0, y = 0; x < getWidth() && y < getHeight();)
+	{
+		Uint32 pixel = surface->getPixel_32_bit(from_x + x, from_y + y);
+		setPixelIterative_32_bit(&x, &y, pixel);
+	}
 	unlock();
 }
 
@@ -665,6 +882,13 @@ void Surface::copy(Surface *surface)
 void Surface::drawRect(SDL_Rect *rect, Uint8 color)
 {
 	SDL_FillRect(_surface, rect, color);
+
+	if (_advancedPalette)
+	{
+		AdvancedColor8bit vAdvancedColor;
+		vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( color );
+		SDL_FillRect(_surface_32_bit, rect, vAdvancedColor.ConvertToUint32());
+	}
 }
 
 /**
@@ -683,6 +907,13 @@ void Surface::drawRect(Sint16 x, Sint16 y, Sint16 w, Sint16 h, Uint8 color)
 	rect.x = x;
 	rect.y = y;
 	SDL_FillRect(_surface, &rect, color);
+
+	if (_advancedPalette)
+	{
+		AdvancedColor8bit vAdvancedColor;
+		vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( color );
+		SDL_FillRect(_surface_32_bit, &rect, vAdvancedColor.ConvertToUint32());
+	}
 }
 
 /**
@@ -696,6 +927,14 @@ void Surface::drawRect(Sint16 x, Sint16 y, Sint16 w, Sint16 h, Uint8 color)
 void Surface::drawLine(Sint16 x1, Sint16 y1, Sint16 x2, Sint16 y2, Uint8 color)
 {
 	lineColor(_surface, x1, y1, x2, y2, Palette::getRGBA(getPalette(), color));
+
+	// Skybuck: fix null problem the cheesy way for now... later load paletts for geoscape and such as well... no advanced palette available for now for geoscape :P**********
+	if (_advancedPalette)
+	{
+		AdvancedColor8bit vAdvancedColor;
+		vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( color );
+		lineColor(_surface_32_bit, x1, y1, x2, y2, vAdvancedColor.ConvertToUint32());
+	}
 }
 
 /**
@@ -708,6 +947,13 @@ void Surface::drawLine(Sint16 x1, Sint16 y1, Sint16 x2, Sint16 y2, Uint8 color)
 void Surface::drawCircle(Sint16 x, Sint16 y, Sint16 r, Uint8 color)
 {
 	filledCircleColor(_surface, x, y, r, Palette::getRGBA(getPalette(), color));
+
+	if (_advancedPalette)
+	{
+		AdvancedColor8bit vAdvancedColor;
+		vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( color );
+		filledCircleColor(_surface_32_bit, x, y, r, vAdvancedColor.ConvertToUint32() );
+	}
 }
 
 /**
@@ -720,6 +966,13 @@ void Surface::drawCircle(Sint16 x, Sint16 y, Sint16 r, Uint8 color)
 void Surface::drawPolygon(Sint16 *x, Sint16 *y, int n, Uint8 color)
 {
 	filledPolygonColor(_surface, x, y, n, Palette::getRGBA(getPalette(), color));
+
+	if (_advancedPalette)
+	{
+		AdvancedColor8bit vAdvancedColor;
+		vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( color );
+		filledPolygonColor(_surface_32_bit, x, y, n, vAdvancedColor.ConvertToUint32());
+	}
 }
 
 /**
@@ -734,6 +987,7 @@ void Surface::drawPolygon(Sint16 *x, Sint16 *y, int n, Uint8 color)
 void Surface::drawTexturedPolygon(Sint16 *x, Sint16 *y, int n, Surface *texture, int dx, int dy)
 {
 	texturedPolygon(_surface, x, y, n, texture->getSurface(), dx, dy);
+	texturedPolygon(_surface_32_bit, x, y, n, texture->getSurface_32_bit(), dx, dy);
 }
 
 /**
@@ -746,6 +1000,13 @@ void Surface::drawTexturedPolygon(Sint16 *x, Sint16 *y, int n, Surface *texture,
 void Surface::drawString(Sint16 x, Sint16 y, const char *s, Uint8 color)
 {
 	stringColor(_surface, x, y, s, Palette::getRGBA(getPalette(), color));
+
+	if (_advancedPalette)
+	{
+		AdvancedColor8bit vAdvancedColor;
+		vAdvancedColor = _advancedPalette->ConvertToAdvancedColor( color );
+		stringColor(_surface_32_bit, x, y, s, vAdvancedColor.ConvertToUint32() );
+	}
 }
 
 /**
@@ -818,6 +1079,12 @@ void Surface::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
 		SDL_SetColors(_surface, colors, firstcolor, ncolors);
 }
 
+void Surface::setAdvancedPalette( AdvancedPalette8bit *ParaAdvancedPalette )
+{
+	if (_surface_32_bit->format->BitsPerPixel == 32)
+		_advancedPalette = ParaAdvancedPalette;
+}
+
 /**
  * This is a separate visibility setting intended
  * for temporary effects like window popups,
@@ -839,6 +1106,7 @@ void Surface::setHidden(bool hidden)
 void Surface::lock()
 {
 	SDL_LockSurface(_surface);
+	SDL_LockSurface(_surface_32_bit);
 }
 
 /**
@@ -849,6 +1117,7 @@ void Surface::lock()
 void Surface::unlock()
 {
 	SDL_UnlockSurface(_surface);
+	SDL_UnlockSurface(_surface_32_bit);
 }
 
 /**
@@ -1000,10 +1269,18 @@ void Surface::resize(int width, int height)
 	// Set up new surface
 	Uint8 bpp = _surface->format->BitsPerPixel;
 	int pitch = GetPitch(bpp, width);
+	int pitch_32_bit = GetPitch(32, width);
 	void *alignedBuffer = NewAligned(bpp, width, height);
-	SDL_Surface *surface = SDL_CreateRGBSurfaceFrom(alignedBuffer, width, height, bpp, pitch, 0, 0, 0, 0);
+	void *alignedBuffer_32_bit = NewAligned(32, width, height);
 
+	SDL_Surface *surface = SDL_CreateRGBSurfaceFrom(alignedBuffer, width, height, bpp, pitch, 0, 0, 0, 0);
 	if (surface == 0)
+	{
+		throw Exception(SDL_GetError());
+	}
+
+	SDL_Surface *surface_32_bit = SDL_CreateRGBSurfaceFrom(alignedBuffer_32_bit, width, height, 32, pitch_32_bit, 0, 0, 0, 0);
+	if (surface_32_bit == 0)
 	{
 		throw Exception(SDL_GetError());
 	}
@@ -1011,13 +1288,22 @@ void Surface::resize(int width, int height)
 	// Copy old contents
 	SDL_SetColorKey(surface, SDL_SRCCOLORKEY, 0);
 	SDL_SetColors(surface, getPalette(), 0, 256);
+
 	SDL_BlitSurface(_surface, 0, surface, 0);
+	SDL_BlitSurface(_surface_32_bit, 0, surface_32_bit, 0);
 
 	// Delete old surface
 	DeleteAligned(_alignedBuffer);
+	DeleteAligned(_alignedBuffer_32_bit);
+
 	SDL_FreeSurface(_surface);
+	SDL_FreeSurface(_surface_32_bit);
+
 	_alignedBuffer = alignedBuffer;
+	_alignedBuffer_32_bit = alignedBuffer_32_bit;
+
 	_surface = surface;
+	_surface_32_bit = surface_32_bit;
 
 	_clear.w = getWidth();
 	_clear.h = getHeight();
@@ -1063,6 +1349,11 @@ void Surface::setTFTDMode(bool mode)
 bool Surface::isTFTDMode() const
 {
 	return _tftdMode;
+}
+
+AdvancedPalette8bit* Surface::getAdvancedPalette()
+{
+	return _advancedPalette;
 }
 
 }
