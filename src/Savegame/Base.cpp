@@ -1110,7 +1110,7 @@ int Base::getMonthlyMaintenace() const
  * Returns the list of all base's ResearchProject
  * @return list of base's ResearchProject
  */
-const std::vector<ResearchProject *> & Base::getResearch() const
+const std::vector<ResearchProject *> &Base::getResearch() const
 {
 	return _research;
 }

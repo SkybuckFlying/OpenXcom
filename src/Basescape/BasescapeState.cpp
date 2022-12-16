@@ -31,6 +31,7 @@
 #include "../Savegame/Base.h"
 #include "../Savegame/BaseFacility.h"
 #include "../Mod/RuleBaseFacility.h"
+#include "../Mod/RuleResearch.h"
 #include "../Savegame/Region.h"
 #include "../Mod/RuleRegion.h"
 #include "../Menu/ErrorMessageState.h"
@@ -201,6 +202,50 @@ void BasescapeState::init()
 	_txtFunds->setText(tr("STR_FUNDS").arg(Unicode::formatFunding(_game->getSavedGame()->getFunds())));
 
 	_btnNewBase->setVisible(_game->getSavedGame()->getBases()->size() < MiniBaseView::MAX_BASES);
+
+	if ((_base->getAvailableEngineers() > 0) && (_base->getFreeWorkshops() > 0))
+	{
+		_btnManufacture->setColor(_game->getMod()->getInterface("basescape")->getElement("text2")->color);
+	} else {
+		_btnManufacture->setColor(_game->getMod()->getInterface("basescape")->getElement("button")->color);
+	}
+
+	bool canResearch = false;
+
+	std::vector<RuleResearch *> _projects;
+	_projects.clear();
+	_game->getSavedGame()->getAvailableResearchProjects(_projects, _game->getMod(), _base, true);
+	std::vector<RuleResearch *>::iterator it = _projects.begin();
+	while (it != _projects.end())
+	{
+		if ((*it)->getRequirements().empty())
+		{
+			canResearch = true;
+			++it;
+		}
+		else
+		{
+			it = _projects.erase(it);
+		}
+	}
+
+	if ((_base->getAvailableScientists() > 0) && (_base->getFreeLaboratories() > 0) && (canResearch))
+	{
+		_btnResearch->setColor(_game->getMod()->getInterface("basescape")->getElement("text2")->color);
+	}
+	else
+	{
+		_btnResearch->setColor(_game->getMod()->getInterface("basescape")->getElement("button")->color);
+	}
+
+	if ((_base->getAvailableStores() < _base->getUsedStores()))
+	{
+		_btnSell->setColor(_game->getMod()->getInterface("basescape")->getElement("text2")->color);
+	}
+	else
+	{
+		_btnSell->setColor(_game->getMod()->getInterface("basescape")->getElement("button")->color);
+	}
 }
 
 /**

@@ -41,7 +41,8 @@ namespace OpenXcom
 		RuleItem *item = _game->getMod()->getItem(defs->id, true);
 
 		// add screen elements
-		_txtTitle = new Text(148, 32, 5, 24);
+		_txtTitle = new Text(148, 32, 5, 23);
+		_txtWeight = new Text(148, 17, 5, 54);
 
 		// Set palette
 		setPalette("PAL_BATTLEPEDIA");
@@ -50,8 +51,11 @@ namespace OpenXcom
 
 		// add other elements
 		add(_txtTitle);
+		add(_txtWeight);
 
 		// Set up objects
+		std::ostringstream ss;
+
 		_game->getMod()->getSurface("BACK08.SCR")->blit(_bg);
 		_btnOk->setColor(Palette::blockOffset(9));
 		_btnPrev->setColor(Palette::blockOffset(9));
@@ -61,6 +65,11 @@ namespace OpenXcom
 		_txtTitle->setBig();
 		_txtTitle->setWordWrap(true);
 		_txtTitle->setText(tr(defs->title));
+
+		_txtWeight->setColor(Palette::blockOffset(14) + 15);
+		_txtWeight->setWordWrap(true);
+		_txtWeight->setText(std::to_string( item->getWeight()) + " kg");
+
 
 		// IMAGE
 		_image = new Surface(32, 48, 157, 5);
@@ -106,8 +115,15 @@ namespace OpenXcom
 				{
 					tu.erase(tu.end() - 1);
 				}
+
+				ss.str("");ss.clear();
+				ss << std::string(tr("STR_SHOT_TYPE_AUTO"));
+				ss << " (";
+				ss << std::to_string(item->getAutoShots());
+				ss << "x)";
+
 				_lstInfo->addRow(3,
-								 tr("STR_SHOT_TYPE_AUTO").c_str(),
+								 std::string(ss.str()).c_str(),
 								 Unicode::formatPercentage(item->getAccuracyAuto()).c_str(),
 								 tu.c_str());
 				_lstInfo->setCellColor(current_row, 0, Palette::blockOffset(14)+15);
@@ -162,14 +178,12 @@ namespace OpenXcom
 
 
 		// AMMO column
-		std::ostringstream ss;
-
 		for (int i = 0; i<3; ++i)
 		{
 			_txtAmmoType[i] = new Text(82, 16, 194, 20 + i*49);
 			add(_txtAmmoType[i]);
 			_txtAmmoType[i]->setColor(Palette::blockOffset(14)+15);
-			_txtAmmoType[i]->setAlign(ALIGN_CENTER);
+			_txtAmmoType[i]->setAlign(ALIGN_LEFT);
 			_txtAmmoType[i]->setVerticalAlign(ALIGN_MIDDLE);
 			_txtAmmoType[i]->setWordWrap(true);
 
@@ -218,7 +232,19 @@ namespace OpenXcom
 						if (Ufopaedia::isArticleAvailable(_game->getSavedGame(), ammo_article))
 						{
 							RuleItem *ammo_rule = _game->getMod()->getItem((*ammo_data)[i], true);
-							_txtAmmoType[i]->setText(tr(getDamageTypeText(ammo_rule->getDamageType())));
+							ss.str("");
+							ss.clear();
+							ss << tr(getDamageTypeText(ammo_rule->getDamageType()));
+							if (ammo_rule->getClipSize() > 1)
+							{
+								ss << "\n(Clip: " + std::to_string(ammo_rule->getClipSize()) + " / ";
+							}
+							else
+							{
+								ss << "\n(";
+							};
+							ss << std::to_string(ammo_rule->getWeight()) + " kg)";
+							_txtAmmoType[i]->setText(ss.str());
 
 							ss.str("");ss.clear();
 							ss << ammo_rule->getPower();
@@ -243,7 +269,15 @@ namespace OpenXcom
 				_txtDamage->setAlign(ALIGN_CENTER);
 				_txtDamage->setText(tr("STR_DAMAGE_UC"));
 
-				_txtAmmoType[0]->setText(tr(getDamageTypeText(item->getDamageType())));
+				ss.str("");
+				ss.clear();
+				ss << tr(getDamageTypeText(item->getDamageType()));
+				if (item->getClipSize() > 1)
+				{
+					ss << "\n(Clip: " + std::to_string(item->getClipSize()) + ")";
+				};
+				_txtAmmoType[0]->setText(ss.str());
+
 
 				ss.str("");ss.clear();
 				ss << item->getPower();

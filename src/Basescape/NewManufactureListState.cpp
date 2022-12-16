@@ -28,6 +28,7 @@
 #include "../Mod/Mod.h"
 #include "../Mod/RuleManufacture.h"
 #include "../Savegame/SavedGame.h"
+#include "../Savegame/ItemContainer.h"
 #include "../Savegame/Base.h"
 #include "ManufactureStartState.h"
 
@@ -41,15 +42,21 @@ namespace OpenXcom
  */
 NewManufactureListState::NewManufactureListState(Base *base) : _base(base)
 {
+
+	const int ITEM_WIDTH     = 160;
+	const int CATEGORY_WIDTH = 76;
+	const int STOCK_WIDTH = 32;
+
 	_screen = false;
 
 	_window = new Window(this, 320, 156, 0, 22, POPUP_BOTH);
 	_btnOk = new TextButton(304, 16, 8, 154);
 	_txtTitle = new Text(320, 17, 0, 30);
-	_txtItem = new Text(156, 9, 10, 62);
-	_txtCategory = new Text(130, 9, 166, 62);
-	_lstManufacture = new TextList(288, 80, 8, 70);
 	_cbxCategory = new ComboBox(this, 146, 16, 166, 46);
+	_txtItem = new Text(ITEM_WIDTH, 9, 10, 62);
+	_txtCategory = new Text(CATEGORY_WIDTH, 9, 10 + ITEM_WIDTH, 62);
+	_txtStock = new Text(STOCK_WIDTH, 9, 10 + ITEM_WIDTH + CATEGORY_WIDTH, 62);
+	_lstManufacture = new TextList(280, 80, 8, 70);
 
 	// Set palette
 	setInterface("selectNewManufacture");
@@ -59,6 +66,7 @@ NewManufactureListState::NewManufactureListState(Base *base) : _base(base)
 	add(_txtTitle, "text", "selectNewManufacture");
 	add(_txtItem, "text", "selectNewManufacture");
 	add(_txtCategory, "text", "selectNewManufacture");
+	add(_txtStock, "text", "selectNewManufacture");
 	add(_lstManufacture, "list", "selectNewManufacture");
 	add(_cbxCategory, "catBox", "selectNewManufacture");
 
@@ -71,10 +79,10 @@ NewManufactureListState::NewManufactureListState(Base *base) : _base(base)
 	_txtTitle->setAlign(ALIGN_CENTER);
 
 	_txtItem->setText(tr("STR_ITEM"));
-
 	_txtCategory->setText(tr("STR_CATEGORY"));
+	_txtStock->setText(tr("STR_STOCK"));
 
-	_lstManufacture->setColumns(2, 156, 130);
+	_lstManufacture->setColumns(3, ITEM_WIDTH, CATEGORY_WIDTH, STOCK_WIDTH);
 	_lstManufacture->setSelectable(true);
 	_lstManufacture->setBackground(_window);
 	_lstManufacture->setMargin(2);
@@ -155,6 +163,34 @@ void NewManufactureListState::cbxCategoryChange(Action *)
 	fillProductionList();
 }
 
+
+bool NewManufactureListState::productionPossible(RuleManufacture * item)
+{
+	const std::map<std::string, int> &requiredItems(item->getRequiredItems());
+	int availableWorkSpace = _base->getFreeWorkshops();
+	bool productionPossible = item->haveEnoughMoneyForOneMoreUnit(_game->getSavedGame()->getFunds());
+	productionPossible &= (availableWorkSpace > 0);
+	for (std::map<std::string, int>::const_iterator iter = requiredItems.begin();
+		 iter != requiredItems.end();
+		 ++iter)
+	{
+		std::ostringstream s1, s2;
+		s1 << iter->second;
+		if (_game->getMod()->getItem(iter->first) != 0)
+		{
+			s2 << _base->getStorageItems()->getItem(iter->first);
+			productionPossible &= (_base->getStorageItems()->getItem(iter->first) >= iter->second);
+		}
+		else if (_game->getMod()->getCraft(iter->first) != 0)
+		{
+			s2 << _base->getCraftCount(iter->first);
+			productionPossible &= (_base->getCraftCount(iter->first) >= iter->second);
+		}
+	}
+
+	return productionPossible;
+};
+
 /**
  * Fills the list of possible productions.
  */
@@ -169,7 +205,15 @@ void NewManufactureListState::fillProductionList()
 	{
 		if (((*it)->getCategory() == _catStrings[_cbxCategory->getSelected()]) || (_catStrings[_cbxCategory->getSelected()] == "STR_ALL_ITEMS"))
 		{
-			_lstManufacture->addRow(2, tr((*it)->getName()).c_str(), tr((*it)->getCategory()).c_str());
+			_lstManufacture->addRow(3,
+									tr((*it)->getName()).c_str(),
+									tr((*it)->getCategory()).c_str(),
+									std::to_string(_base->getStorageItems()->getItem((*it)->getName())));
+			if (!productionPossible(*it))
+			{
+				_lstManufacture->setRowColor(_lstManufacture->getRows() - 1, _lstManufacture->getSecondaryColor());
+			}
+
 			_displayedStrings.push_back((*it)->getName());
 		}
 	}

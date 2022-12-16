@@ -17,93 +17,94 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "GeoscapeState.h"
-#include <sstream>
-#include <iomanip>
 #include <algorithm>
 #include <functional>
-#include "../Engine/RNG.h"
-#include "../Engine/Game.h"
-#include "../Engine/Action.h"
-#include "../Mod/Mod.h"
-#include "../Engine/LocalizedText.h"
-#include "../Engine/Screen.h"
-#include "../Engine/Surface.h"
-#include "../Engine/Options.h"
-#include "../Engine/Unicode.h"
-#include "Globe.h"
-#include "../Interface/Text.h"
-#include "../Interface/TextButton.h"
-#include "../Engine/Timer.h"
-#include "../Savegame/GameTime.h"
-#include "../Savegame/SavedGame.h"
-#include "../Savegame/Base.h"
-#include "../Savegame/BaseFacility.h"
-#include "../Mod/RuleBaseFacility.h"
-#include "../Savegame/Craft.h"
-#include "../Mod/RuleCraft.h"
-#include "../Savegame/Ufo.h"
-#include "../Mod/RuleUfo.h"
-#include "../Mod/RuleMissionScript.h"
-#include "../Savegame/Waypoint.h"
-#include "../Savegame/Transfer.h"
-#include "../Savegame/Soldier.h"
-#include "../Savegame/SoldierDiary.h"
-#include "../Menu/PauseState.h"
-#include "InterceptState.h"
-#include "../Basescape/BasescapeState.h"
-#include "../Basescape/SellState.h"
-#include "../Menu/CutsceneState.h"
-#include "../Menu/ErrorMessageState.h"
-#include "GraphsState.h"
-#include "FundingState.h"
-#include "MonthlyReportState.h"
-#include "ProductionCompleteState.h"
-#include "UfoDetectedState.h"
-#include "GeoscapeCraftState.h"
-#include "DogfightState.h"
-#include "UfoLostState.h"
-#include "CraftPatrolState.h"
-#include "LowFuelState.h"
-#include "MultipleTargetsState.h"
-#include "ConfirmLandingState.h"
-#include "ItemsArrivingState.h"
-#include "CraftErrorState.h"
-#include "DogfightErrorState.h"
-#include "../Ufopaedia/Ufopaedia.h"
-#include "../Savegame/ResearchProject.h"
-#include "ResearchCompleteState.h"
-#include "../Mod/RuleResearch.h"
-#include "ResearchRequiredState.h"
-#include "NewPossibleResearchState.h"
-#include "NewPossibleManufactureState.h"
-#include "../Savegame/Production.h"
-#include "../Mod/RuleManufacture.h"
-#include "../Savegame/ItemContainer.h"
-#include "../Savegame/MissionSite.h"
-#include "../Savegame/AlienBase.h"
-#include "../Mod/RuleRegion.h"
-#include "MissionDetectedState.h"
+#include <iomanip>
+#include <sstream>
 #include "AlienBaseState.h"
-#include "../Savegame/Region.h"
-#include "../Savegame/Country.h"
-#include "../Mod/RuleCountry.h"
-#include "../Mod/RuleAlienMission.h"
-#include "../Savegame/AlienStrategy.h"
-#include "../Savegame/AlienMission.h"
-#include "../Savegame/SavedBattleGame.h"
-#include "../Battlescape/BattlescapeGenerator.h"
-#include "../Battlescape/BriefingState.h"
-#include "../Mod/UfoTrajectory.h"
-#include "../Mod/Armor.h"
 #include "BaseDefenseState.h"
 #include "BaseDestroyedState.h"
-#include "../Menu/LoadGameState.h"
-#include "../Menu/SaveGameState.h"
-#include "../Menu/ListSaveState.h"
-#include "../Mod/RuleGlobe.h"
+#include "ConfirmLandingState.h"
+#include "CraftErrorState.h"
+#include "CraftPatrolState.h"
+#include "DogfightErrorState.h"
+#include "DogfightState.h"
+#include "FundingState.h"
+#include "GeoscapeCraftState.h"
+#include "Globe.h"
+#include "GraphsState.h"
+#include "HealedSoldiersState.h"
+#include "InterceptState.h"
+#include "ItemsArrivingState.h"
+#include "LowFuelState.h"
+#include "MissionDetectedState.h"
+#include "MonthlyReportState.h"
+#include "MultipleTargetsState.h"
+#include "NewPossibleManufactureState.h"
+#include "NewPossibleResearchState.h"
+#include "ProductionCompleteState.h"
+#include "ResearchCompleteState.h"
+#include "ResearchRequiredState.h"
+#include "UfoDetectedState.h"
+#include "UfoLostState.h"
+#include "../Basescape/BasescapeState.h"
+#include "../Basescape/SellState.h"
+#include "../Battlescape/BattlescapeGenerator.h"
+#include "../Battlescape/BriefingState.h"
+#include "../Engine/Action.h"
 #include "../Engine/Exception.h"
+#include "../Engine/Game.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Options.h"
+#include "../Engine/RNG.h"
+#include "../Engine/Screen.h"
+#include "../Engine/Surface.h"
+#include "../Engine/Timer.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+#include "../Menu/CutsceneState.h"
+#include "../Menu/ErrorMessageState.h"
+#include "../Menu/ListSaveState.h"
+#include "../Menu/LoadGameState.h"
+#include "../Menu/PauseState.h"
+#include "../Menu/SaveGameState.h"
 #include "../Mod/AlienDeployment.h"
+#include "../Mod/Armor.h"
+#include "../Mod/Mod.h"
+#include "../Mod/RuleAlienMission.h"
+#include "../Mod/RuleBaseFacility.h"
+#include "../Mod/RuleCountry.h"
+#include "../Mod/RuleCraft.h"
+#include "../Mod/RuleGlobe.h"
 #include "../Mod/RuleInterface.h"
+#include "../Mod/RuleManufacture.h"
+#include "../Mod/RuleMissionScript.h"
+#include "../Mod/RuleRegion.h"
+#include "../Mod/RuleResearch.h"
+#include "../Mod/RuleUfo.h"
+#include "../Mod/UfoTrajectory.h"
+#include "../Savegame/AlienBase.h"
+#include "../Savegame/AlienMission.h"
+#include "../Savegame/AlienStrategy.h"
+#include "../Savegame/Base.h"
+#include "../Savegame/BaseFacility.h"
+#include "../Savegame/Country.h"
+#include "../Savegame/Craft.h"
+#include "../Savegame/GameTime.h"
+#include "../Savegame/ItemContainer.h"
+#include "../Savegame/MissionSite.h"
+#include "../Savegame/Production.h"
+#include "../Savegame/Region.h"
+#include "../Savegame/ResearchProject.h"
+#include "../Savegame/SavedBattleGame.h"
+#include "../Savegame/SavedGame.h"
+#include "../Savegame/Soldier.h"
+#include "../Savegame/SoldierDiary.h"
+#include "../Savegame/Transfer.h"
+#include "../Savegame/Ufo.h"
+#include "../Savegame/Waypoint.h"
+#include "../Ufopaedia/Ufopaedia.h"
 #include "../fmath.h"
 
 namespace OpenXcom
@@ -1519,17 +1520,19 @@ void GenerateSupplyMission::operator()(const AlienBase *base) const
  */
 void GeoscapeState::time1Day()
 {
-	for (std::vector<Base*>::iterator i = _game->getSavedGame()->getBases()->begin(); i != _game->getSavedGame()->getBases()->end(); ++i)
+	std::vector<SoldierAtBase> healedSoldiers;
+
+	for (std::vector<Base*>::iterator base = _game->getSavedGame()->getBases()->begin(); base != _game->getSavedGame()->getBases()->end(); ++base)
 	{
 		// Handle facility construction
-		for (std::vector<BaseFacility*>::iterator j = (*i)->getFacilities()->begin(); j != (*i)->getFacilities()->end(); ++j)
+		for (std::vector<BaseFacility*>::iterator facility = (*base)->getFacilities()->begin(); facility != (*base)->getFacilities()->end(); ++facility)
 		{
-			if ((*j)->getBuildTime() > 0)
+			if ((*facility)->getBuildTime() > 0)
 			{
-				(*j)->build();
-				if ((*j)->getBuildTime() == 0)
+				(*facility)->build();
+				if ((*facility)->getBuildTime() == 0)
 				{
-					popup(new ProductionCompleteState((*i),  tr((*j)->getRules()->getType()), this, PROGRESS_CONSTRUCTION));
+					popup(new ProductionCompleteState((*base),  tr((*facility)->getRules()->getType()), this, PROGRESS_CONSTRUCTION));
 				}
 			}
 		}
@@ -1537,33 +1540,33 @@ void GeoscapeState::time1Day()
 		// Handle science project
 		// 1. gather finished research
 		std::vector<ResearchProject*> finished;
-		for (std::vector<ResearchProject*>::const_iterator iter = (*i)->getResearch().begin(); iter != (*i)->getResearch().end(); ++iter)
+		for (std::vector<ResearchProject*>::const_iterator researchProject = (*base)->getResearch().begin(); researchProject != (*base)->getResearch().end(); ++researchProject)
 		{
-			if ((*iter)->step())
+			if ((*researchProject)->step())
 			{
-				finished.push_back(*iter);
+				finished.push_back(*researchProject);
 			}
 		}
 		// 2. remember available research before adding new finished research
 		std::vector<RuleResearch *> before;
 		if (!finished.empty())
 		{
-			_game->getSavedGame()->getAvailableResearchProjects(before, _game->getMod(), *i);
+			_game->getSavedGame()->getAvailableResearchProjects(before, _game->getMod(), *base);
 		}
 		// 3. add finished research, including lookups and getonefrees (up to 4x)
-		for (std::vector<ResearchProject*>::iterator iter = finished.begin(); iter != finished.end(); ++iter)
+		for (std::vector<ResearchProject*>::iterator researchProject = finished.begin(); researchProject != finished.end(); ++researchProject)
 		{
 			const RuleResearch *bonus = 0;
-			const RuleResearch *research = (*iter)->getRules();
+			const RuleResearch *research = (*researchProject)->getRules();
 
 			// 3a. remove finished research from the base where it was researched
-			(*i)->removeResearch(*iter);
-			(*iter) = 0;
+			(*base)->removeResearch(*researchProject);
+			(*researchProject) = 0;
 
 			// 3b. handle interrogation
 			if (Options::retainCorpses && research->destroyItem() && _game->getMod()->getUnit(research->getName()))
 			{
-				(*i)->getStorageItems()->addItem(_game->getMod()->getArmor(_game->getMod()->getUnit(research->getName())->getArmor(), true)->getCorpseGeoscape());
+				(*base)->getStorageItems()->addItem(_game->getMod()->getArmor(_game->getMod()->getUnit(research->getName())->getArmor(), true)->getCorpseGeoscape());
 			}
 			// 3c. handle getonefrees (topic+lookup)
 			if (!research->getGetOneFree().empty())
@@ -1581,10 +1584,10 @@ void GeoscapeState::time1Day()
 					size_t pick = RNG::generate(0, possibilities.size()-1);
 					std::string sel = possibilities.at(pick);
 					bonus = _game->getMod()->getResearch(sel, true);
-					_game->getSavedGame()->addFinishedResearch(bonus, _game->getMod(), (*i));
+					_game->getSavedGame()->addFinishedResearch(bonus, _game->getMod(), (*base));
 					if (!bonus->getLookup().empty())
 					{
-						_game->getSavedGame()->addFinishedResearch(_game->getMod()->getResearch(bonus->getLookup(), true), _game->getMod(), (*i));
+						_game->getSavedGame()->addFinishedResearch(_game->getMod()->getResearch(bonus->getLookup(), true), _game->getMod(), (*base));
 					}
 				}
 			}
@@ -1597,10 +1600,10 @@ void GeoscapeState::time1Day()
 				newResearch = 0;
 			}
 			// 3e. handle core research (topic+lookup)
-			_game->getSavedGame()->addFinishedResearch(research, _game->getMod(), (*i));
+			_game->getSavedGame()->addFinishedResearch(research, _game->getMod(), (*base));
 			if (!research->getLookup().empty())
 			{
-				_game->getSavedGame()->addFinishedResearch(_game->getMod()->getResearch(research->getLookup(), true), _game->getMod(), (*i));
+				_game->getSavedGame()->addFinishedResearch(_game->getMod()->getResearch(research->getLookup(), true), _game->getMod(), (*base));
 			}
 			// 3e. handle cutscenes
 			if (!research->getCutscene().empty())
@@ -1635,21 +1638,21 @@ void GeoscapeState::time1Day()
 			}
 			// 3h. inform about new possible research
 			std::vector<RuleResearch *> after;
-			_game->getSavedGame()->getAvailableResearchProjects(after, _game->getMod(), *i);
+			_game->getSavedGame()->getAvailableResearchProjects(after, _game->getMod(), *base);
 			std::vector<RuleResearch *> newPossibleResearch;
 			_game->getSavedGame()->getNewlyAvailableResearchProjects(before, after, newPossibleResearch);
-			popup(new NewPossibleResearchState(*i, newPossibleResearch));
+			popup(new NewPossibleResearchState(*base, newPossibleResearch));
 			// 3i. inform about new possible manufacture
 			std::vector<RuleManufacture *> newPossibleManufacture;
-			_game->getSavedGame()->getDependableManufacture(newPossibleManufacture, research, _game->getMod(), *i);
+			_game->getSavedGame()->getDependableManufacture(newPossibleManufacture, research, _game->getMod(), *base);
 			if (!newPossibleManufacture.empty())
 			{
-				popup(new NewPossibleManufactureState(*i, newPossibleManufacture));
+				popup(new NewPossibleManufactureState(*base, newPossibleManufacture));
 			}
 			// 3j. now iterate through all the bases and remove this project from their labs (unless it can still yield more stuff!)
-			for (std::vector<Base*>::iterator j = _game->getSavedGame()->getBases()->begin(); j != _game->getSavedGame()->getBases()->end(); ++j)
+			for (std::vector<Base*>::iterator baseForRemoval = _game->getSavedGame()->getBases()->begin(); baseForRemoval != _game->getSavedGame()->getBases()->end(); ++baseForRemoval)
 			{
-				for (std::vector<ResearchProject*>::const_iterator iter2 = (*j)->getResearch().begin(); iter2 != (*j)->getResearch().end(); ++iter2)
+				for (std::vector<ResearchProject*>::const_iterator iter2 = (*baseForRemoval)->getResearch().begin(); iter2 != (*baseForRemoval)->getResearch().end(); ++iter2)
 				{
 					if (research->getName() == (*iter2)->getRules()->getName())
 					{
@@ -1664,7 +1667,7 @@ void GeoscapeState::time1Day()
 						else
 						{
 							// This topic can't give you anything else anymore, remove it!
-							(*j)->removeResearch(*iter2);
+							(*baseForRemoval)->removeResearch(*iter2);
 							break;
 						}
 					}
@@ -1673,23 +1676,43 @@ void GeoscapeState::time1Day()
 		}
 
 		// Handle soldier wounds
-		for (std::vector<Soldier*>::iterator j = (*i)->getSoldiers()->begin(); j != (*i)->getSoldiers()->end(); ++j)
+		for (std::vector<Soldier*>::iterator soldier = (*base)->getSoldiers()->begin(); soldier != (*base)->getSoldiers()->end(); ++soldier)
 		{
-			if ((*j)->getWoundRecovery() > 0)
+			if ((*soldier)->getWoundRecovery() > 0)
 			{
-				(*j)->heal();
+				(*soldier)->heal();
+				if ((*soldier)->getWoundRecovery() == 0)
+				{
+					SoldierAtBase sab = SoldierAtBase();
+					sab.soldier = *soldier;
+					sab.base = *base;
+					healedSoldiers.push_back(sab);
+				}
 			}
 		}
+
+
 		// Handle psionic training
-		if ((*i)->getAvailablePsiLabs() > 0 && Options::anytimePsiTraining)
+		if ((*base)->getAvailablePsiLabs() > 0 && Options::anytimePsiTraining)
 		{
-			for (std::vector<Soldier*>::const_iterator s = (*i)->getSoldiers()->begin(); s != (*i)->getSoldiers()->end(); ++s)
+			for (std::vector<Soldier*>::const_iterator s = (*base)->getSoldiers()->begin(); s != (*base)->getSoldiers()->end(); ++s)
 			{
 				(*s)->trainPsi1Day();
 				(*s)->calcStatString(_game->getMod()->getStatStrings(), (Options::psiStrengthEval && _game->getSavedGame()->isResearched(_game->getMod()->getPsiRequirements())));
 			}
 		}
 	}
+
+	// Display healed soldiers popup if soldiers have been healed
+	if (healedSoldiers.size() > 0)
+	{
+		//std::sort(healedSoldiers.begin(), healedSoldiers.end());
+		popup(new HealedSoldiersState(healedSoldiers));
+		// Set time speed to 5 sec (is there no more elegant way?)
+		_timeSpeed = _btn5Secs;
+	}
+
+
 	// handle regional and country points for alien bases
 	for (std::vector<AlienBase*>::const_iterator b = _game->getSavedGame()->getAlienBases()->begin(); b != _game->getSavedGame()->getAlienBases()->end(); ++b)
 	{

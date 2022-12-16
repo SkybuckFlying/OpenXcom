@@ -949,6 +949,7 @@ interfaces: #done
         color: 1   # pink
       - id: list
         color: 239   # white
+        color2: 2   # grey
         border: 1  # pink
       - id: button
         color: 1   # blue

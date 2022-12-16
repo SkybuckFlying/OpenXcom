@@ -36,6 +36,49 @@
 namespace OpenXcom
 {
 
+struct compareProductionTimes
+{
+
+	bool operator()(Production *a, Production *b) const
+	{
+		if (a->getInfiniteAmount() && !b->getInfiniteAmount())
+		{
+			return true;
+		}
+		else if (!a->getInfiniteAmount() && b->getInfiniteAmount())
+		{
+			return false;
+		}
+		else if (a->getInfiniteAmount() && b->getInfiniteAmount())
+		{
+			return Unicode::naturalCompare(a->getRules()->getName(), b->getRules()->getName());
+		}
+		else
+		{
+			int timeLeftA = 9999999999;
+			if (a->getAssignedEngineers() != 0)
+			{
+				timeLeftA = ((a->getAmountTotal() * a->getRules()->getManufactureTime() - a->getTimeSpent()) + a->getAssignedEngineers() - 1) / a->getAssignedEngineers();
+			}
+			
+			int timeLeftB = 9999999999;
+
+			if (b->getAssignedEngineers() != 0)
+			{
+				timeLeftB = ((b->getAmountTotal() * b->getRules()->getManufactureTime() - b->getTimeSpent()) + b->getAssignedEngineers() - 1) / b->getAssignedEngineers();
+			}
+		
+			if (timeLeftA == timeLeftB)
+			{
+				return Unicode::naturalCompare(a->getRules()->getName(), b->getRules()->getName());
+			}
+			else
+			{
+				return (timeLeftA > timeLeftB);
+			}
+		}
+	}
+};
 /**
  * Initializes all the elements in the Manufacture screen.
  * @param game Pointer to the core game.
@@ -161,7 +204,10 @@ void ManufactureState::btnNewProductionClick(Action *)
  */
 void ManufactureState::fillProductionList()
 {
-	const std::vector<Production *> productions(_base->getProductions());
+	std::vector<Production *> productions(_base->getProductions());
+	std::sort(productions.begin(), productions.end(), compareProductionTimes());
+
+
 	_lstManufacture->clearList();
 	for (std::vector<Production *>::const_iterator iter = productions.begin(); iter != productions.end(); ++iter)
 	{
@@ -207,7 +253,8 @@ void ManufactureState::fillProductionList()
  */
 void ManufactureState::lstManufactureClick(Action *)
 {
-	const std::vector<Production*> productions(_base->getProductions());
+	std::vector<Production*> productions(_base->getProductions());
+	std::sort(productions.begin(), productions.end(), compareProductionTimes());
 	_game->pushState(new ManufactureInfoState(_base, productions[_lstManufacture->getSelectedRow()]));
 }
 
