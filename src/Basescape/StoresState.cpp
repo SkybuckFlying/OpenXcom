@@ -18,6 +18,7 @@
  */
 #include "StoresState.h"
 #include <sstream>
+#include <iomanip>
 #include "../Engine/Game.h"
 #include "../Mod/Mod.h"
 #include "../Engine/LocalizedText.h"
@@ -30,8 +31,27 @@
 #include "../Mod/RuleItem.h"
 #include "../Savegame/ItemContainer.h"
 
+
 namespace OpenXcom
 {
+
+
+struct compareSpace
+{
+
+	bool operator()(const StoredItem &a, const StoredItem &b) const
+	{
+		if (a.storageSize == b.storageSize)
+		{
+			return Unicode::naturalCompare(a.displayName, b.displayName);
+		}
+		else
+		{
+			return (a.storageSize > b.storageSize);
+		}
+	}
+};
+
 
 /**
  * Initializes all the elements in the Stores window.
@@ -44,9 +64,9 @@ StoresState::StoresState(Base *base) : _base(base)
 	_window = new Window(this, 320, 200, 0, 0);
 	_btnOk = new TextButton(300, 16, 10, 176);
 	_txtTitle = new Text(310, 17, 5, 8);
-	_txtItem = new Text(142, 9, 10, 32);
-	_txtQuantity = new Text(88, 9, 152, 32);
-	_txtSpaceUsed = new Text(74, 9, 240, 32);
+	_txtItem = new Text(162, 9, 10, 32);
+	_txtQuantity = new Text(57, 9, 172, 32);
+	_txtSpaceUsed = new Text(57, 9, 229, 32);
 	_lstStores = new TextList(288, 128, 8, 40);
 
 	// Set palette
@@ -76,27 +96,43 @@ StoresState::StoresState(Base *base) : _base(base)
 
 	_txtItem->setText(tr("STR_ITEM"));
 
+	_txtQuantity->setAlign(ALIGN_RIGHT);
 	_txtQuantity->setText(tr("STR_QUANTITY_UC"));
 
+	_txtSpaceUsed->setAlign(ALIGN_RIGHT);
 	_txtSpaceUsed->setText(tr("STR_SPACE_USED_UC"));
 
-	_lstStores->setColumns(3, 162, 92, 32);
+	_lstStores->setColumns(3, 162, 57, 57);
+	_lstStores->setAlign(ALIGN_RIGHT, 1);
+	_lstStores->setAlign(ALIGN_RIGHT, 2);
 	_lstStores->setSelectable(true);
 	_lstStores->setBackground(_window);
 	_lstStores->setMargin(2);
 
 	const std::vector<std::string> &items = _game->getMod()->getItemsList();
-	for (std::vector<std::string>::const_iterator i = items.begin(); i != items.end(); ++i)
+	std::vector<StoredItem> storedItems;
+	for (std::vector<std::string>::const_iterator item = items.begin(); item != items.end(); ++item)
 	{
-		int qty = _base->getStorageItems()->getItem(*i);
+		int qty = _base->getStorageItems()->getItem(*item);
 		if (qty > 0)
 		{
-			RuleItem *rule = _game->getMod()->getItem(*i, true);
-			std::ostringstream ss, ss2;
-			ss << qty;
-			ss2 << qty * rule->getSize();
-			_lstStores->addRow(3, tr(*i).c_str(), ss.str().c_str(), ss2.str().c_str());
+			RuleItem *rule = _game->getMod()->getItem(*item, true);
+			storedItems.push_back(StoredItem());
+			storedItems[storedItems.size() - 1].item = *item;
+			storedItems[storedItems.size() - 1].displayName = tr(*item);
+			storedItems[storedItems.size() - 1].qty = qty;
+			storedItems[storedItems.size() - 1].storageSize = qty * rule->getSize();
+
 		}
+	}
+	std::sort(storedItems.begin(), storedItems.end(), compareSpace());
+
+	for (std::vector<StoredItem>::const_iterator storedItem = storedItems.begin(); storedItem != storedItems.end(); ++storedItem)
+	{
+		std::ostringstream quantity, storageSize;
+		quantity << (*storedItem).qty;
+		storageSize << std::fixed << std::setprecision(1) << (*storedItem).storageSize;
+		_lstStores->addRow(3, (*storedItem).displayName.c_str(), quantity.str().c_str(), storageSize.str().c_str());
 	}
 }
 

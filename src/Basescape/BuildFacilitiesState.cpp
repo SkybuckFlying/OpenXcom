@@ -93,7 +93,8 @@ BuildFacilitiesState::~BuildFacilitiesState()
  */
 void BuildFacilitiesState::PopulateBuildList()
 {
-	const std::vector<std::string> &facilities = _game->getMod()->getBaseFacilitiesList();
+	std::vector<std::string> facilities = _game->getMod()->getBaseFacilitiesList();
+	std::sort(facilities.begin(), facilities.end());
 	for (std::vector<std::string>::const_iterator i = facilities.begin(); i != facilities.end(); ++i)
 	{
 		RuleBaseFacility *rule = _game->getMod()->getBaseFacility(*i);

@@ -18,45 +18,46 @@
  * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "../Engine/State.h"
+#include "../Savegame/Base.h"
+#include "../Savegame/Soldier.h"
 
 namespace OpenXcom
 {
 
-struct StoredItem
+	struct SoldierAtBase
 {
-	std::string item;
-	std::string displayName;
-	int qty;
-	double storageSize;
+	Soldier * soldier;
+	Base * base;
 };
 
-class Base;
 class TextButton;
 class Window;
 class Text;
 class TextList;
 
 /**
- * Stores window that displays all
- * the items currently stored in a base.
+ * Soldiers screen that lets the player
+ * manage all the soldiers in a base.
  */
-class StoresState : public State
+class HealedSoldiersState : public State
 {
-  private:
-	Base *_base;
-
+private:
 	TextButton *_btnOk;
 	Window *_window;
-	Text *_txtTitle, *_txtItem, *_txtQuantity, *_txtSpaceUsed;
-	TextList *_lstStores;
-
+	Text *_txtTitle, *_txtName, *_txtRank, *_txtCraft;
+	TextList *_lstSoldiers;
+	std::vector<SoldierAtBase> _healedSoldiers;
   public:
-	/// Creates the Stores state.
-	StoresState(Base *base);
-	/// Cleans up the Stores state.
-	~StoresState();
+	/// Creates the Soldiers state.
+	HealedSoldiersState(std::vector<SoldierAtBase> healedSoldiers);
+	/// Cleans up the Soldiers state.
+	~HealedSoldiersState();
+	/// Updates the soldier names.
+	void init();
 	/// Handler for clicking the OK button.
 	void btnOkClick(Action *action);
+	/// Handler for clicking the Soldiers list.
+	void lstSoldiersClick(Action *action);
 };
 
 }

@@ -40,14 +40,14 @@ private:
 	Base *_base;
 	TextButton *_btnOk;
 	Window *_window;
-	Text *_txtTitle, *_txtItem, *_txtCategory;
+	Text *_txtTitle, *_txtItem, *_txtCategory, *_txtStock;
 	TextList *_lstManufacture;
 	ComboBox *_cbxCategory;
 	std::vector<RuleManufacture *> _possibleProductions;
 	std::vector<std::string> _catStrings;
 	std::vector<std::string> _displayedStrings;
-
-public:
+	bool productionPossible(RuleManufacture * item);
+  public:
 	/// Creates the state.
 	NewManufactureListState(Base *base);
 	/// Initializes state.

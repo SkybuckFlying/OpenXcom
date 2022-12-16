@@ -45,11 +45,11 @@ struct SortFunctor : public std::binary_function<Soldier *, Soldier *, bool>
 {
 	Game *_game;
 	getStatFn_t _getStatFn;
-	SortFunctor(Game *game, getStatFn_t getStatFn)
+ 	SortFunctor(Game *game, getStatFn_t getStatFn)
 		: _game(game), _getStatFn(getStatFn) { }
 	bool operator()(Soldier *a, Soldier *b)
 	{
-		bool ret = _getStatFn(_game, a) < _getStatFn(_game, b);
+		bool ret = _getStatFn(_game, a) > _getStatFn(_game, b);
 		return ret;
 	}
 };
@@ -80,6 +80,30 @@ int psiSkillStat(Game *, Soldier *s)
 	// protect against negative psiSkill (possible when Options::anytimePsiTraining
 	// is enabled)
 	return (s->getCurrentStats()->psiSkill > 0) ? s->getCurrentStats()->psiSkill : 0;
+}
+int weightedStat(Game *game, Soldier *s)
+{
+	int weightedStrength = s->getCurrentStats()->strength;
+	if (weightedStrength < 26)
+	{
+		weightedStrength -= 20;
+	};
+
+	int weightedFiring = s->getCurrentStats()->firing;
+	if (weightedFiring < 55)
+	{
+		weightedFiring -= 40;
+	};
+
+	return (s->getCurrentStats()->tu * 3) +
+		(s->getCurrentStats()->stamina * 2) +
+		(s->getCurrentStats()->health * 2) +
+		(s->getCurrentStats()->reactions * 4) +
+		(weightedFiring * 5) +
+		(s->getCurrentStats()->throwing * 1) +
+		(weightedStrength * 3) +
+		(psiStrengthStat(game, s) * 4) +
+		(psiSkillStat(game, s) * 5);
 }
 GET_ATTRIB_STAT_FN(melee)
 #undef GET_ATTRIB_STAT_FN
@@ -160,6 +184,7 @@ CraftSoldiersState::CraftSoldiersState(Base *base, size_t craft)
 	PUSH_IN("STR_MISSIONS2", missionsStat);
 	PUSH_IN("STR_KILLS2", killsStat);
 	PUSH_IN("STR_WOUND_RECOVERY2", woundRecoveryStat);
+	PUSH_IN("STR_SORT_WEIGHTED", weightedStat);
 	PUSH_IN("STR_TIME_UNITS", tuStat);
 	PUSH_IN("STR_STAMINA", staminaStat);
 	PUSH_IN("STR_HEALTH", healthStat);
