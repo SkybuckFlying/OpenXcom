@@ -1,0 +1,2263 @@
+unit GeoscapeState;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.Math,
+  Engine.State, Engine.Game, Engine.Action, Engine.Mod,
+  Engine.LocalizedText, Engine.Screen, Engine.Surface,
+  Engine.Options, Engine.Unicode, Engine.Timer,
+  Engine.RNG, Engine.Exception,
+  Geoscape.Globe, Interface.Text, Interface.TextButton,
+  Savegame.GameTime, Savegame.SavedGame, Savegame.Base,
+  Savegame.BaseFacility, Mod.RuleBaseFacility, Savegame.Craft,
+  Mod.RuleCraft, Savegame.Ufo, Mod.RuleUfo,
+  Mod.RuleMissionScript, Savegame.Waypoint, Savegame.Transfer,
+  Savegame.Soldier, Savegame.SoldierDiary, Menu.PauseState,
+  Geoscape.InterceptState, Basescape.BasescapeState,
+  Basescape.SellState, Menu.CutsceneState, Menu.ErrorMessageState,
+  Geoscape.GraphsState, Geoscape.FundingState,
+  Geoscape.MonthlyReportState, Geoscape.ProductionCompleteState,
+  Geoscape.UfoDetectedState, Geoscape.GeoscapeCraftState,
+  Geoscape.DogfightState, Geoscape.UfoLostState,
+  Geoscape.CraftPatrolState, Geoscape.LowFuelState,
+  Geoscape.MultipleTargetsState, Geoscape.ConfirmLandingState,
+  Geoscape.ItemsArrivingState, Geoscape.CraftErrorState,
+  Geoscape.DogfightErrorState, Ufopaedia.Ufopaedia,
+  Savegame.ResearchProject, Geoscape.ResearchCompleteState,
+  Mod.RuleResearch, Geoscape.ResearchRequiredState,
+  Geoscape.NewPossibleResearchState,
+  Geoscape.NewPossibleManufactureState,
+  Savegame.Production, Mod.RuleManufacture,
+  Savegame.ItemContainer, Savegame.MissionSite,
+  Savegame.AlienBase, Mod.RuleRegion, Geoscape.MissionDetectedState,
+  Geoscape.AlienBaseState, Savegame.Region, Savegame.Country,
+  Mod.RuleCountry, Mod.RuleAlienMission, Savegame.AlienStrategy,
+  Savegame.AlienMission, Savegame.SavedBattleGame,
+  Battlescape.BattlescapeGenerator, Battlescape.BriefingState,
+  Mod.UfoTrajectory, Mod.Armor, Geoscape.BaseDefenseState,
+  Geoscape.BaseDestroyedState, Menu.LoadGameState,
+  Menu.SaveGameState, Menu.ListSaveState, Mod.RuleGlobe;
+
+type
+  TGeoscapeState = class(TState)
+  private
+    FPause: Boolean;
+    FZoomInEffectDone, FZoomOutEffectDone: Boolean;
+    FMinimizedDogfights: Integer;
+    FBg, FSideLine, FSidebar: TSurface;
+    FGlobe: TGlobe;
+    FBtnIntercept, FBtnBases, FBtnGraphs, FBtnUfopaedia, FBtnOptions, FBtnFunding: TTextButton;
+    FBtn5Secs, FBtn1Min, FBtn5Mins, FBtn30Mins, FBtn1Hour, FBtn1Day: TTextButton;
+    FTimeSpeed: TTextButton;
+    FSideTop, FSideBottom: TTextButton;
+    FBtnRotateLeft, FBtnRotateRight, FBtnRotateUp, FBtnRotateDown: TInteractiveSurface;
+    FBtnZoomIn, FBtnZoomOut: TInteractiveSurface;
+    FTxtFunds, FTxtHour, FTxtHourSep, FTxtMin, FTxtMinSep, FTxtSec: TText;
+    FTxtWeekday, FTxtDay, FTxtMonth, FTxtYear: TText;
+    FTxtDebug: TText;
+    FGameTimer, FZoomInEffectTimer, FZoomOutEffectTimer, FDogfightStartTimer, FDogfightTimer: TTimer;
+    FPopups: TList;
+    FDogfights: TList;
+    FDogfightsToBeStarted: TList;
+    procedure TimeAdvance;
+    procedure Time5Seconds;
+    procedure Time10Minutes;
+    procedure Time30Minutes;
+    procedure Time1Hour;
+    procedure Time1Day;
+    procedure Time1Month;
+    procedure ZoomInEffect;
+    procedure ZoomOutEffect;
+    procedure StartDogfight;
+    procedure HandleDogfights;
+    function MinimizedDogfightsCount: Integer;
+    function GetFirstFreeDogfightSlot: Integer;
+    procedure DetermineAlienMissions;
+    function ProcessCommand(Command: TRuleMissionScript): Boolean;
+    function ProcessMissionSite(Site: TMissionSite): Boolean;
+    procedure GlobeClick(AAction: TAction);
+    procedure BtnInterceptClick(AAction: TAction);
+    procedure BtnBasesClick(AAction: TAction);
+    procedure BtnGraphsClick(AAction: TAction);
+    procedure BtnUfopaediaClick(AAction: TAction);
+    procedure BtnOptionsClick(AAction: TAction);
+    procedure BtnFundingClick(AAction: TAction);
+    procedure BtnTimerClick(AAction: TAction);
+    procedure BtnRotateLeftPress(AAction: TAction);
+    procedure BtnRotateLeftRelease(AAction: TAction);
+    procedure BtnRotateRightPress(AAction: TAction);
+    procedure BtnRotateRightRelease(AAction: TAction);
+    procedure BtnRotateUpPress(AAction: TAction);
+    procedure BtnRotateUpRelease(AAction: TAction);
+    procedure BtnRotateDownPress(AAction: TAction);
+    procedure BtnRotateDownRelease(AAction: TAction);
+    procedure BtnZoomInLeftClick(AAction: TAction);
+    procedure BtnZoomInRightClick(AAction: TAction);
+    procedure BtnZoomOutLeftClick(AAction: TAction);
+    procedure BtnZoomOutRightClick(AAction: TAction);
+    function ButtonsDisabled: Boolean;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure Think; override;
+    procedure Handle(AAction: TAction); override;
+    procedure Blit; override;
+    procedure Resize(var dX, dY: Integer); override;
+    procedure TimeDisplay;
+    procedure TimerReset;
+    procedure Popup(AState: TState);
+    function GetGlobe: TGlobe;
+    procedure HandleBaseDefense(ABase: TBase; AUfo: TUfo);
+  end;
+
+implementation
+
+{ TGeoscapeState }
+
+constructor TGeoscapeState.Create;
+var
+  screenWidth, screenHeight: Integer;
+  hd: TSurface;
+  height: Integer;
+begin
+  inherited Create(nil);
+  FPause := False;
+  FZoomInEffectDone := False;
+  FZoomOutEffectDone := False;
+  FMinimizedDogfights := 0;
+
+  screenWidth := Options.BaseXGeoscape;
+  screenHeight := Options.BaseYGeoscape;
+
+  hd := Game.Mod.GetSurface('ALTGEOBORD.SCR');
+  FBg := TSurface.Create(hd.Width, hd.Height, 0, 0);
+  FSideLine := TSurface.Create(64, screenHeight, screenWidth - 64, 0);
+  FSidebar := TSurface.Create(64, 200, screenWidth - 64, screenHeight div 2 - 100);
+
+  FGlobe := TGlobe.Create(Game, (screenWidth-64) div 2, screenHeight div 2,
+                           screenWidth-64, screenHeight, 0, 0);
+  FBg.X := (FGlobe.Width - FBg.Width) div 2;
+  FBg.Y := (FGlobe.Height - FBg.Height) div 2;
+
+  FBtnIntercept := TTextButton.Create(63, 11, screenWidth-63, screenHeight div 2 - 100);
+  FBtnBases := TTextButton.Create(63, 11, screenWidth-63, screenHeight div 2 - 88);
+  FBtnGraphs := TTextButton.Create(63, 11, screenWidth-63, screenHeight div 2 - 76);
+  FBtnUfopaedia := TTextButton.Create(63, 11, screenWidth-63, screenHeight div 2 - 64);
+  FBtnOptions := TTextButton.Create(63, 11, screenWidth-63, screenHeight div 2 - 52);
+  FBtnFunding := TTextButton.Create(63, 11, screenWidth-63, screenHeight div 2 - 40);
+
+  FBtn5Secs := TTextButton.Create(31, 13, screenWidth-63, screenHeight div 2 + 12);
+  FBtn1Min := TTextButton.Create(31, 13, screenWidth-31, screenHeight div 2 + 12);
+  FBtn5Mins := TTextButton.Create(31, 13, screenWidth-63, screenHeight div 2 + 26);
+  FBtn30Mins := TTextButton.Create(31, 13, screenWidth-31, screenHeight div 2 + 26);
+  FBtn1Hour := TTextButton.Create(31, 13, screenWidth-63, screenHeight div 2 + 40);
+  FBtn1Day := TTextButton.Create(31, 13, screenWidth-31, screenHeight div 2 + 40);
+
+  FBtnRotateLeft := TInteractiveSurface.Create(12, 10, screenWidth-61, screenHeight div 2 + 76);
+  FBtnRotateRight := TInteractiveSurface.Create(12, 10, screenWidth-37, screenHeight div 2 + 76);
+  FBtnRotateUp := TInteractiveSurface.Create(13, 12, screenWidth-49, screenHeight div 2 + 62);
+  FBtnRotateDown := TInteractiveSurface.Create(13, 12, screenWidth-49, screenHeight div 2 + 87);
+  FBtnZoomIn := TInteractiveSurface.Create(23, 23, screenWidth-25, screenHeight div 2 + 56);
+  FBtnZoomOut := TInteractiveSurface.Create(13, 17, screenWidth-20, screenHeight div 2 + 82);
+
+  height := (screenHeight - Screen.ORIGINAL_HEIGHT) div 2 + 10;
+  FSideTop := TTextButton.Create(63, height, screenWidth-63, FSidebar.Y - height - 1);
+  FSideBottom := TTextButton.Create(63, height, screenWidth-63, FSidebar.Y + FSidebar.Height + 1);
+
+  FTxtHour := TText.Create(20, 16, screenWidth-61, screenHeight div 2 - 26);
+  FTxtHourSep := TText.Create(4, 16, screenWidth-41, screenHeight div 2 - 26);
+  FTxtMin := TText.Create(20, 16, screenWidth-37, screenHeight div 2 - 26);
+  FTxtMinSep := TText.Create(4, 16, screenWidth-17, screenHeight div 2 - 26);
+  FTxtSec := TText.Create(11, 8, screenWidth-13, screenHeight div 2 - 20);
+  FTxtWeekday := TText.Create(59, 8, screenWidth-61, screenHeight div 2 - 13);
+  FTxtDay := TText.Create(29, 8, screenWidth-61, screenHeight div 2 - 6);
+  FTxtMonth := TText.Create(29, 8, screenWidth-32, screenHeight div 2 - 6);
+  FTxtYear := TText.Create(59, 8, screenWidth-61, screenHeight div 2 + 1);
+  FTxtFunds := TText.Create(59, 8, screenWidth-61, screenHeight div 2 - 27);
+
+  FTxtDebug := TText.Create(200, 32, 0, 0);
+
+  FTimeSpeed := FBtn5Secs;
+  FGameTimer := TTimer.Create(Options.GeoClockSpeed);
+  FZoomInEffectTimer := TTimer.Create(Options.DogfightSpeed);
+  FZoomOutEffectTimer := TTimer.Create(Options.DogfightSpeed);
+  FDogfightStartTimer := TTimer.Create(Options.DogfightSpeed);
+  FDogfightTimer := TTimer.Create(Options.DogfightSpeed);
+
+  SetInterface('geoscape');
+
+  Add(FBg);
+  Add(FSideLine);
+  Add(FSidebar);
+  Add(FGlobe);
+
+  Add(FBtnIntercept, 'button', 'geoscape');
+  Add(FBtnBases, 'button', 'geoscape');
+  Add(FBtnGraphs, 'button', 'geoscape');
+  Add(FBtnUfopaedia, 'button', 'geoscape');
+  Add(FBtnOptions, 'button', 'geoscape');
+  Add(FBtnFunding, 'button', 'geoscape');
+
+  Add(FBtn5Secs, 'button', 'geoscape');
+  Add(FBtn1Min, 'button', 'geoscape');
+  Add(FBtn5Mins, 'button', 'geoscape');
+  Add(FBtn30Mins, 'button', 'geoscape');
+  Add(FBtn1Hour, 'button', 'geoscape');
+  Add(FBtn1Day, 'button', 'geoscape');
+
+  Add(FBtnRotateLeft);
+  Add(FBtnRotateRight);
+  Add(FBtnRotateUp);
+  Add(FBtnRotateDown);
+  Add(FBtnZoomIn);
+  Add(FBtnZoomOut);
+
+  Add(FSideTop, 'button', 'geoscape');
+  Add(FSideBottom, 'button', 'geoscape');
+
+  Add(FTxtFunds, 'text', 'geoscape');
+  Add(FTxtHour, 'text', 'geoscape');
+  Add(FTxtHourSep, 'text', 'geoscape');
+  Add(FTxtMin, 'text', 'geoscape');
+  Add(FTxtMinSep, 'text', 'geoscape');
+  Add(FTxtSec, 'text', 'geoscape');
+  Add(FTxtWeekday, 'text', 'geoscape');
+  Add(FTxtDay, 'text', 'geoscape');
+  Add(FTxtMonth, 'text', 'geoscape');
+  Add(FTxtYear, 'text', 'geoscape');
+  Add(FTxtDebug, 'text', 'geoscape');
+
+  // Setup objects
+  var geobord := Game.Mod.GetSurface('GEOBORD.SCR');
+  geobord.X := FSidebar.X - geobord.Width + FSidebar.Width;
+  geobord.Y := FSidebar.Y;
+  FSidebar.Copy(geobord);
+  Game.Mod.GetSurface('ALTGEOBORD.SCR').Blit(FBg);
+
+  FSideLine.DrawRect(0, 0, FSideLine.Width, FSideLine.Height, 15);
+
+  FBtnIntercept.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtnIntercept.Text := Tr('STR_INTERCEPT');
+  FBtnIntercept.OnMouseClick := BtnInterceptClick;
+  FBtnIntercept.OnKeyboardPress(Options.KeyGeoIntercept, BtnInterceptClick);
+  FBtnIntercept.GeoscapeButton := True;
+
+  FBtnBases.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtnBases.Text := Tr('STR_BASES');
+  FBtnBases.OnMouseClick := BtnBasesClick;
+  FBtnBases.OnKeyboardPress(Options.KeyGeoBases, BtnBasesClick);
+  FBtnBases.GeoscapeButton := True;
+
+  FBtnGraphs.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtnGraphs.Text := Tr('STR_GRAPHS');
+  FBtnGraphs.OnMouseClick := BtnGraphsClick;
+  FBtnGraphs.OnKeyboardPress(Options.KeyGeoGraphs, BtnGraphsClick);
+  FBtnGraphs.GeoscapeButton := True;
+
+  FBtnUfopaedia.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtnUfopaedia.Text := Tr('STR_UFOPAEDIA_UC');
+  FBtnUfopaedia.OnMouseClick := BtnUfopaediaClick;
+  FBtnUfopaedia.OnKeyboardPress(Options.KeyGeoUfopedia, BtnUfopaediaClick);
+  FBtnUfopaedia.GeoscapeButton := True;
+
+  FBtnOptions.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtnOptions.Text := Tr('STR_OPTIONS_UC');
+  FBtnOptions.OnMouseClick := BtnOptionsClick;
+  FBtnOptions.OnKeyboardPress(Options.KeyGeoOptions, BtnOptionsClick);
+  FBtnOptions.GeoscapeButton := True;
+
+  FBtnFunding.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtnFunding.Text := Tr('STR_FUNDING_UC');
+  FBtnFunding.OnMouseClick := BtnFundingClick;
+  FBtnFunding.OnKeyboardPress(Options.KeyGeoFunding, BtnFundingClick);
+  FBtnFunding.GeoscapeButton := True;
+
+  FBtn5Secs.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtn5Secs.Big := True;
+  FBtn5Secs.Text := Tr('STR_5_SECONDS');
+  FBtn5Secs.Group := FTimeSpeed;
+  FBtn5Secs.OnKeyboardPress(Options.KeyGeoSpeed1, BtnTimerClick);
+  FBtn5Secs.GeoscapeButton := True;
+
+  FBtn1Min.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtn1Min.Big := True;
+  FBtn1Min.Text := Tr('STR_1_MINUTE');
+  FBtn1Min.Group := FTimeSpeed;
+  FBtn1Min.OnKeyboardPress(Options.KeyGeoSpeed2, BtnTimerClick);
+  FBtn1Min.GeoscapeButton := True;
+
+  FBtn5Mins.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtn5Mins.Big := True;
+  FBtn5Mins.Text := Tr('STR_5_MINUTES');
+  FBtn5Mins.Group := FTimeSpeed;
+  FBtn5Mins.OnKeyboardPress(Options.KeyGeoSpeed3, BtnTimerClick);
+  FBtn5Mins.GeoscapeButton := True;
+
+  FBtn30Mins.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtn30Mins.Big := True;
+  FBtn30Mins.Text := Tr('STR_30_MINUTES');
+  FBtn30Mins.Group := FTimeSpeed;
+  FBtn30Mins.OnKeyboardPress(Options.KeyGeoSpeed4, BtnTimerClick);
+  FBtn30Mins.GeoscapeButton := True;
+
+  FBtn1Hour.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtn1Hour.Big := True;
+  FBtn1Hour.Text := Tr('STR_1_HOUR');
+  FBtn1Hour.Group := FTimeSpeed;
+  FBtn1Hour.OnKeyboardPress(Options.KeyGeoSpeed5, BtnTimerClick);
+  FBtn1Hour.GeoscapeButton := True;
+
+  FBtn1Day.InitText(Game.Mod.Font('FONT_GEO_BIG'), Game.Mod.Font('FONT_GEO_SMALL'), Game.Language);
+  FBtn1Day.Big := True;
+  FBtn1Day.Text := Tr('STR_1_DAY');
+  FBtn1Day.Group := FTimeSpeed;
+  FBtn1Day.OnKeyboardPress(Options.KeyGeoSpeed6, BtnTimerClick);
+  FBtn1Day.GeoscapeButton := True;
+
+  FSideBottom.GeoscapeButton := True;
+  FSideTop.GeoscapeButton := True;
+
+  FBtnRotateLeft.OnMousePress := BtnRotateLeftPress;
+  FBtnRotateLeft.OnMouseRelease := BtnRotateLeftRelease;
+  FBtnRotateLeft.OnKeyboardPress(Options.KeyGeoLeft, BtnRotateLeftPress);
+  FBtnRotateLeft.OnKeyboardRelease(Options.KeyGeoLeft, BtnRotateLeftRelease);
+
+  FBtnRotateRight.OnMousePress := BtnRotateRightPress;
+  FBtnRotateRight.OnMouseRelease := BtnRotateRightRelease;
+  FBtnRotateRight.OnKeyboardPress(Options.KeyGeoRight, BtnRotateRightPress);
+  FBtnRotateRight.OnKeyboardRelease(Options.KeyGeoRight, BtnRotateRightRelease);
+
+  FBtnRotateUp.OnMousePress := BtnRotateUpPress;
+  FBtnRotateUp.OnMouseRelease := BtnRotateUpRelease;
+  FBtnRotateUp.OnKeyboardPress(Options.KeyGeoUp, BtnRotateUpPress);
+  FBtnRotateUp.OnKeyboardRelease(Options.KeyGeoUp, BtnRotateUpRelease);
+
+  FBtnRotateDown.OnMousePress := BtnRotateDownPress;
+  FBtnRotateDown.OnMouseRelease := BtnRotateDownRelease;
+  FBtnRotateDown.OnKeyboardPress(Options.KeyGeoDown, BtnRotateDownPress);
+  FBtnRotateDown.OnKeyboardRelease(Options.KeyGeoDown, BtnRotateDownRelease);
+
+  FBtnZoomIn.OnMouseClick(BtnZoomInLeftClick, SDL_BUTTON_LEFT);
+  FBtnZoomIn.OnMouseClick(BtnZoomInRightClick, SDL_BUTTON_RIGHT);
+  FBtnZoomIn.OnKeyboardPress(Options.KeyGeoZoomIn, BtnZoomInLeftClick);
+
+  FBtnZoomOut.OnMouseClick(BtnZoomOutLeftClick, SDL_BUTTON_LEFT);
+  FBtnZoomOut.OnMouseClick(BtnZoomOutRightClick, SDL_BUTTON_RIGHT);
+  FBtnZoomOut.OnKeyboardPress(Options.KeyGeoZoomOut, BtnZoomOutLeftClick);
+
+  FTxtFunds.Align := ALIGN_CENTER;
+  FTxtFunds.Visible := Options.ShowFundsOnGeoscape;
+
+  FTxtHour.Big := True;
+  FTxtHour.Align := ALIGN_RIGHT;
+  FTxtHourSep.Big := True;
+  FTxtHourSep.Text := ':';
+  FTxtMin.Big := True;
+  FTxtMinSep.Big := True;
+  FTxtMinSep.Text := ':';
+  FTxtWeekday.Align := ALIGN_CENTER;
+  FTxtDay.Align := ALIGN_CENTER;
+  FTxtMonth.Align := ALIGN_CENTER;
+  FTxtYear.Align := ALIGN_CENTER;
+
+  if Options.ShowFundsOnGeoscape then
+  begin
+    FTxtHour.Y := FTxtHour.Y + 6;
+    FTxtHour.Small := True;
+    FTxtHourSep.Y := FTxtHourSep.Y + 6;
+    FTxtHourSep.Small := True;
+    FTxtMin.Y := FTxtMin.Y + 6;
+    FTxtMin.Small := True;
+    FTxtMinSep.X := FTxtMinSep.X - 10;
+    FTxtMinSep.Y := FTxtMinSep.Y + 6;
+    FTxtMinSep.Small := True;
+    FTxtSec.X := FTxtSec.X - 10;
+  end;
+
+  FGameTimer.OnTimer := TimeAdvance;
+  FGameTimer.Start;
+
+  FZoomInEffectTimer.OnTimer := ZoomInEffect;
+  FZoomOutEffectTimer.OnTimer := ZoomOutEffect;
+  FDogfightStartTimer.OnTimer := StartDogfight;
+  FDogfightTimer.OnTimer := HandleDogfights;
+
+  TimeDisplay;
+
+  FPopups := TList.Create;
+  FDogfights := TList.Create;
+  FDogfightsToBeStarted := TList.Create;
+end;
+
+destructor TGeoscapeState.Destroy;
+var
+  i: Integer;
+begin
+  FGameTimer.Free;
+  FZoomInEffectTimer.Free;
+  FZoomOutEffectTimer.Free;
+  FDogfightStartTimer.Free;
+  FDogfightTimer.Free;
+
+  for i := 0 to FDogfights.Count - 1 do
+    TDogfightState(FDogfights[i]).Free;
+  FDogfights.Free;
+
+  for i := 0 to FDogfightsToBeStarted.Count - 1 do
+    TDogfightState(FDogfightsToBeStarted[i]).Free;
+  FDogfightsToBeStarted.Free;
+
+  FPopups.Free;
+
+  inherited;
+end;
+
+procedure TGeoscapeState.Blit;
+var
+  i: Integer;
+begin
+  inherited;
+  for i := 0 to FDogfights.Count - 1 do
+    TDogfightState(FDogfights[i]).Blit;
+end;
+
+procedure TGeoscapeState.Handle(AAction: TAction);
+var
+  i: Integer;
+  d: TDogfightState;
+begin
+  if FDogfights.Count = FMinimizedDogfights then
+    inherited Handle(AAction);
+
+  if AAction.Details.Type = SDL_KEYDOWN then
+  begin
+    // Debug mode toggle
+    if Options.Debug and (AAction.Details.Key.keysym.sym = SDLK_d) and
+       ((SDL_GetModState and KMOD_CTRL) <> 0) then
+    begin
+      Game.SavedGame.DebugMode := not Game.SavedGame.DebugMode;
+      if Game.SavedGame.DebugMode then
+        FTxtDebug.Text := 'DEBUG MODE'
+      else
+        FTxtDebug.Text := '';
+    end;
+    // Quick save/load
+    if not Game.SavedGame.IsIronman then
+    begin
+      if AAction.Details.Key.keysym.sym = Options.KeyQuickSave then
+        Popup(TSaveGameState.Create(OPT_GEOSCAPE, SAVE_QUICK, Palette));
+      else if AAction.Details.Key.keysym.sym = Options.KeyQuickLoad then
+        Popup(TLoadGameState.Create(OPT_GEOSCAPE, SAVE_QUICK, Palette));
+    end;
+  end;
+
+  if FDogfights.Count > 0 then
+  begin
+    for i := 0 to FDogfights.Count - 1 do
+      TDogfightState(FDogfights[i]).Handle(AAction);
+    FMinimizedDogfights := MinimizedDogfightsCount;
+  end;
+end;
+
+procedure TGeoscapeState.Init;
+begin
+  inherited;
+  TimeDisplay;
+
+  FGlobe.OnMouseClick := GlobeClick;
+  FGlobe.OnMouseOver(nil);
+  FGlobe.RotateStop;
+  FGlobe.Focus := True;
+  FGlobe.Draw;
+
+  if Game.SavedGame.IsIronman and Game.SavedGame.Name.IsEmpty then
+    Popup(TListSaveState.Create(OPT_GEOSCAPE));
+
+  if (FDogfights.Count = 0) and not FDogfightStartTimer.IsRunning then
+  begin
+    if Game.SavedGame.MonthsPassed = -1 then
+      Game.Mod.PlayMusic('GMGEO', 1)
+    else
+      Game.Mod.PlayMusic('GMGEO');
+  end
+  else
+    Game.Mod.PlayMusic('GMINTER');
+
+  FGlobe.SetNewBaseHover(False);
+
+  // Initial month setup
+  if (Game.SavedGame.MonthsPassed = -1) and
+     (Game.SavedGame.Bases.Count > 0) and
+     (not Game.SavedGame.Bases[0].Name.IsEmpty) then
+  begin
+    Game.SavedGame.AddMonth;
+    DetermineAlienMissions;
+    Game.SavedGame.Funds := Game.SavedGame.Funds -
+      (Game.SavedGame.BaseMaintenance - Game.SavedGame.Bases[0].PersonnelMaintenance);
+  end;
+end;
+
+procedure TGeoscapeState.Think;
+begin
+  inherited;
+
+  FZoomInEffectTimer.Think(Self, 0);
+  FZoomOutEffectTimer.Think(Self, 0);
+  FDogfightStartTimer.Think(Self, 0);
+
+  if (FPopups.Count = 0) and (FDogfights.Count = 0) and
+     ((not FZoomInEffectTimer.IsRunning) or FZoomInEffectDone) and
+     ((not FZoomOutEffectTimer.IsRunning) or FZoomOutEffectDone) then
+  begin
+    FGameTimer.Think(Self, 0);
+  end
+  else
+  begin
+    if (FDogfights.Count > 0) or (FMinimizedDogfights <> 0) then
+    begin
+      if FDogfights.Count = FMinimizedDogfights then
+      begin
+        FPause := False;
+        FGameTimer.Think(Self, 0);
+      end;
+      FDogfightTimer.Think(Self, 0);
+    end;
+    if FPopups.Count > 0 then
+    begin
+      FGlobe.RotateStop;
+      Game.PushState(TState(FPopups[0]));
+      FPopups.Delete(0);
+    end;
+  end;
+end;
+
+procedure TGeoscapeState.TimeDisplay;
+var
+  ss: string;
+begin
+  if Options.ShowFundsOnGeoscape then
+    FTxtFunds.Text := Unicode.FormatFunding(Game.SavedGame.Funds);
+
+  FTxtSec.Text := Format('%.2d', [Game.SavedGame.Time.Second]);
+  FTxtMin.Text := Format('%.2d', [Game.SavedGame.Time.Minute]);
+  FTxtHour.Text := IntToStr(Game.SavedGame.Time.Hour);
+  FTxtDay.Text := IntToStr(Game.SavedGame.Time.Day);
+  FTxtWeekday.Text := Tr(Game.SavedGame.Time.WeekdayString);
+  FTxtMonth.Text := Tr(Game.SavedGame.Time.MonthString);
+  FTxtYear.Text := IntToStr(Game.SavedGame.Time.Year);
+end;
+
+procedure TGeoscapeState.TimeAdvance;
+var
+  timeSpan, i: Integer;
+  trigger: TTimeTrigger;
+begin
+  if FTimeSpeed = FBtn5Secs then timeSpan := 1
+  else if FTimeSpeed = FBtn1Min then timeSpan := 12
+  else if FTimeSpeed = FBtn5Mins then timeSpan := 12 * 5
+  else if FTimeSpeed = FBtn30Mins then timeSpan := 12 * 5 * 6
+  else if FTimeSpeed = FBtn1Hour then timeSpan := 12 * 5 * 6 * 2
+  else if FTimeSpeed = FBtn1Day then timeSpan := 12 * 5 * 6 * 2 * 24
+  else timeSpan := 1;
+
+  for i := 0 to timeSpan - 1 do
+  begin
+    if FPause then Break;
+    trigger := Game.SavedGame.Time.Advance;
+    case trigger of
+      TIME_1MONTH: Time1Month;
+      TIME_1DAY: Time1Day;
+      TIME_1HOUR: Time1Hour;
+      TIME_30MIN: Time30Minutes;
+      TIME_10MIN: Time10Minutes;
+      TIME_5SEC: Time5Seconds;
+    end;
+  end;
+
+  FPause := (FDogfightsToBeStarted.Count > 0) or
+            FZoomInEffectTimer.IsRunning or
+            FZoomOutEffectTimer.IsRunning;
+
+  TimeDisplay;
+  FGlobe.Draw;
+end;
+
+procedure TGeoscapeState.Time5Seconds;
+var
+  i: Integer;
+  ufo: TUfo;
+  mission: TAlienMission;
+  detected: Boolean;
+  site: TMissionSite;
+  base: TBase;
+  craft: TCraft;
+  follower: TCraft;
+  country: TCountry;
+  region: TRegion;
+  waypoint: TWaypoint;
+  dogfight: TDogfightState;
+  texture, shade: Integer;
+  b: TBase;
+  w: TWaypoint;
+begin
+  // Game over if no bases left
+  if Game.SavedGame.Bases.Count = 0 then
+  begin
+    Game.SavedGame.Ending := END_LOSE;
+  end;
+  if Game.SavedGame.Ending = END_LOSE then
+  begin
+    Game.PushState(TCutsceneState.Create(CutsceneState.LOSE_GAME));
+    if Game.SavedGame.IsIronman then
+      Game.PushState(TSaveGameState.Create(OPT_GEOSCAPE, SAVE_IRONMAN, Palette));
+    Exit;
+  end;
+
+  // UFO logic
+  i := 0;
+  while i < Game.SavedGame.Ufos.Count do
+  begin
+    ufo := Game.SavedGame.Ufos[i];
+    case ufo.Status of
+      UfoStatus.FLYING:
+        begin
+          ufo.Think;
+          if ufo.ReachedDestination then
+          begin
+            var siteCount := Game.SavedGame.MissionSites.Count;
+            mission := ufo.Mission;
+            detected := ufo.Detected;
+            mission.UfoReachedWaypoint(ufo, Game, FGlobe);
+            if detected <> ufo.Detected then
+              if not ((ufo.Trajectory.ID = UfoTrajectory.RETALIATION_ASSAULT_RUN) and (ufo.Status = UfoStatus.LANDED)) then
+                Popup(TUfoLostState.Create(ufo.Name(Game.Language)));
+            if Game.SavedGame.MissionSites.Count > siteCount then
+            begin
+              site := Game.SavedGame.MissionSites[Game.SavedGame.MissionSites.Count - 1];
+              site.Detected := True;
+              Popup(TMissionDetectedState.Create(site, Self));
+            end;
+            if ufo.Status = UfoStatus.DESTROYED then
+            begin
+              Inc(i);
+              Continue;
+            end;
+            base := ufo.Destination as TBase;
+            if Assigned(base) then
+            begin
+              mission.WaveCountdown := 30 * (RNG.Generate(0, 400) + 48);
+              ufo.Destination := nil;
+              base.SetupDefenses;
+              TimerReset;
+              if base.Defenses.Count > 0 then
+                Popup(TBaseDefenseState.Create(base, ufo, Self))
+              else
+                HandleBaseDefense(base, ufo);
+            end;
+          end;
+        end;
+      UfoStatus.LANDED:
+        begin
+          ufo.Think;
+          if ufo.SecondsRemaining = 0 then
+          begin
+            mission := ufo.Mission;
+            detected := ufo.Detected;
+            mission.UfoLifting(ufo, Game.SavedGame);
+            if detected <> ufo.Detected then
+              if ufo.CraftFollowers.Count > 0 then
+                Popup(TUfoLostState.Create(ufo.Name(Game.Language)));
+          end;
+        end;
+      UfoStatus.CRASHED:
+        begin
+          ufo.Think;
+          if ufo.SecondsRemaining = 0 then
+          begin
+            ufo.Detected := False;
+            ufo.Status := UfoStatus.DESTROYED;
+          end;
+        end;
+      UfoStatus.DESTROYED: ; // nothing
+    end;
+    Inc(i);
+  end;
+
+  // Craft logic
+  for base in Game.SavedGame.Bases do
+  begin
+    i := 0;
+    while i < base.Crafts.Count do
+    begin
+      craft := base.Crafts[i];
+      if craft.IsDestroyed then
+      begin
+        // Craft destroyed
+        for country in Game.SavedGame.Countries do
+          if country.Rules.InsideCountry(craft.Longitude, craft.Latitude) then
+          begin
+            country.AddActivityXcom(-craft.Rules.Score);
+            Break;
+          end;
+        for region in Game.SavedGame.Regions do
+          if region.Rules.InsideRegion(craft.Longitude, craft.Latitude) then
+          begin
+            region.AddActivityXcom(-craft.Rules.Score);
+            Break;
+          end;
+        // Kill soldiers on board
+        if craft.Rules.Soldiers > 0 then
+        begin
+          var j := 0;
+          while j < base.Soldiers.Count do
+          begin
+            if base.Soldiers[j].Craft = craft then
+              Game.SavedGame.KillSoldier(base.Soldiers[j])
+            else
+              Inc(j);
+          end;
+        end;
+        base.RemoveCraft(craft, False);
+        craft.Free;
+        Continue;
+      end;
+
+      if Assigned(craft.Destination) then
+      begin
+        var u := craft.Destination as TUfo;
+        if Assigned(u) then
+        begin
+          if not u.Detected then
+          begin
+            if (u.Trajectory.ID = UfoTrajectory.RETALIATION_ASSAULT_RUN) and
+               ((u.Status = UfoStatus.LANDED) or (u.Status = UfoStatus.DESTROYED)) then
+              craft.ReturnToBase
+            else
+            begin
+              waypoint := TWaypoint.Create;
+              waypoint.Longitude := u.Longitude;
+              waypoint.Latitude := u.Latitude;
+              waypoint.Id := u.Id;
+              craft.Destination := nil;
+              Popup(TGeoscapeCraftState.Create(craft, FGlobe, waypoint));
+            end;
+          end;
+          if u.Status = UfoStatus.LANDED then
+            craft.InDogfight := False
+          else if u.Status = UfoStatus.DESTROYED then
+            craft.ReturnToBase;
+        end
+        else
+        begin
+          if craft.IsInDogfight then
+            craft.InDogfight := False;
+        end;
+      end;
+
+      craft.Think;
+
+      if craft.ReachedDestination then
+      begin
+        var u := craft.Destination as TUfo;
+        var w := craft.Destination as TWaypoint;
+        var m := craft.Destination as TMissionSite;
+        var b2 := craft.Destination as TAlienBase;
+        if Assigned(u) then
+        begin
+          case u.Status of
+            UfoStatus.FLYING:
+              begin
+                if (FDogfights.Count + FDogfightsToBeStarted.Count >= 4) then
+                begin
+                  Inc(i); Continue;
+                end;
+                if not craft.IsInDogfight and (u.Speed <= craft.Rules.MaxSpeed) then
+                begin
+                  dogfight := TDogfightState.Create(Self, craft, u);
+                  FDogfightsToBeStarted.Add(dogfight);
+                  if craft.Rules.IsWaterOnly and (u.AltitudeInt > craft.Rules.MaxAltitude) then
+                  begin
+                    Popup(TDogfightErrorState.Create(craft, Tr('STR_UNABLE_TO_ENGAGE_DEPTH')));
+                    dogfight.SetMinimized(True);
+                    dogfight.SetWaitForAltitude(True);
+                  end
+                  else if craft.Rules.IsWaterOnly and not FGlobe.InsideLand(craft.Longitude, craft.Latitude) then
+                  begin
+                    Popup(TDogfightErrorState.Create(craft, Tr('STR_UNABLE_TO_ENGAGE_AIRBORNE')));
+                    dogfight.SetMinimized(True);
+                    dogfight.SetWaitForPoly(True);
+                  end;
+                  if not FDogfightStartTimer.IsRunning then
+                  begin
+                    FPause := True;
+                    TimerReset;
+                    FGlobe.Center(craft.Longitude, craft.Latitude);
+                    StartDogfight;
+                    FDogfightStartTimer.Start;
+                  end;
+                  Game.Mod.PlayMusic('GMINTER');
+                end;
+              end;
+            UfoStatus.LANDED, UfoStatus.CRASHED, UfoStatus.DESTROYED:
+              begin
+                if (craft.NumSoldiers > 0) or (craft.NumVehicles > 0) then
+                begin
+                  if not craft.IsInDogfight then
+                  begin
+                    FGlobe.GetPolygonTextureAndShade(u.Longitude, u.Latitude, texture, shade);
+                    TimerReset;
+                    Popup(TConfirmLandingState.Create(craft,
+                          Game.Mod.Globe.GetTexture(texture), shade));
+                  end;
+                end
+                else if u.Status <> UfoStatus.LANDED then
+                  craft.ReturnToBase;
+              end;
+          end;
+        end
+        else if Assigned(w) then
+        begin
+          Popup(TCraftPatrolState.Create(craft, FGlobe));
+          craft.Destination := nil;
+        end
+        else if Assigned(m) then
+        begin
+          if (craft.NumSoldiers > 0) or (craft.NumVehicles > 0) then
+          begin
+            if m.Texture <> -1 then
+              texture := m.Texture
+            else
+              FGlobe.GetPolygonTextureAndShade(m.Longitude, m.Latitude, texture, shade);
+            TimerReset;
+            Popup(TConfirmLandingState.Create(craft,
+                  Game.Mod.Globe.GetTexture(texture), shade));
+          end
+          else
+            craft.ReturnToBase;
+        end
+        else if Assigned(b2) then
+        begin
+          if b2.IsDiscovered then
+          begin
+            if (craft.NumSoldiers > 0) or (craft.NumVehicles > 0) then
+            begin
+              FGlobe.GetPolygonTextureAndShade(b2.Longitude, b2.Latitude, texture, shade);
+              TimerReset;
+              Popup(TConfirmLandingState.Create(craft,
+                    Game.Mod.Globe.GetTexture(texture), shade));
+            end
+            else
+              craft.ReturnToBase;
+          end;
+        end;
+      end;
+      Inc(i);
+    end;
+  end;
+
+  // Clean up dead UFOs and dogfights
+  i := 0;
+  while i < Game.SavedGame.Ufos.Count do
+  begin
+    ufo := Game.SavedGame.Ufos[i];
+    if ufo.Status = UfoStatus.DESTROYED then
+    begin
+      if ufo.CraftFollowers.Count > 0 then
+      begin
+        var j := 0;
+        while j < FDogfights.Count do
+        begin
+          if TDogfightState(FDogfights[j]).GetUfo = ufo then
+          begin
+            TDogfightState(FDogfights[j]).Free;
+            FDogfights.Delete(j);
+          end
+          else
+            Inc(j);
+        end;
+      end;
+      ufo.Free;
+      Game.SavedGame.Ufos.Delete(i);
+    end
+    else
+      Inc(i);
+  end;
+
+  // Check dogfights waiting to open
+  for i := 0 to FDogfights.Count - 1 do
+  begin
+    dogfight := TDogfightState(FDogfights[i]);
+    if dogfight.IsMinimized then
+    begin
+      if (dogfight.GetWaitForPoly and FGlobe.InsideLand(dogfight.GetUfo.Longitude, dogfight.GetUfo.Latitude)) or
+         (dogfight.GetWaitForAltitude and (dogfight.GetUfo.AltitudeInt <= dogfight.GetCraft.Rules.MaxAltitude)) then
+      begin
+        FPause := True;
+      end;
+    end;
+  end;
+
+  // Clean up waypoints
+  i := 0;
+  while i < Game.SavedGame.Waypoints.Count do
+  begin
+    if Game.SavedGame.Waypoints[i].CraftFollowers.Count = 0 then
+    begin
+      Game.SavedGame.Waypoints[i].Free;
+      Game.SavedGame.Waypoints.Delete(i);
+    end
+    else
+      Inc(i);
+  end;
+end;
+
+procedure TGeoscapeState.Time10Minutes;
+var
+  base: TBase;
+  craft: TCraft;
+  ab: TAlienBase;
+begin
+  for base in Game.SavedGame.Bases do
+  begin
+    for craft in base.Crafts do
+    begin
+      if craft.Status = 'STR_OUT' then
+      begin
+        craft.ConsumeFuel;
+        if not craft.LowFuel and (craft.Fuel <= craft.FuelLimit) then
+        begin
+          craft.LowFuel := True;
+          craft.ReturnToBase;
+          Popup(TLowFuelState.Create(craft, Self));
+        end;
+        if craft.Destination = nil then
+        begin
+          var range := Nautical(craft.Rules.SightRange);
+          for ab in Game.SavedGame.AlienBases do
+            if craft.DistanceTo(ab) <= range then
+              if RNG.Percent(50 - (craft.DistanceTo(ab) / range) * 50) and not ab.IsDiscovered then
+                ab.Discovered := True;
+        end;
+      end;
+    end;
+  end;
+  // Base detection for retaliation
+  if Options.AggressiveRetaliation then
+  begin
+    for base in Game.SavedGame.Bases do
+      for var ufo in Game.SavedGame.Ufos do
+        if (ufo.TrajectoryPoint > 1) and
+           (ufo.Trajectory.Zone[ufo.TrajectoryPoint] <> 5) and
+           (ufo.Mission.Rules.Objective = OBJECTIVE_RETALIATION) and
+           (not ufo.IsCrashed) and
+           (base.DistanceTo(ufo) <= Nautical(ufo.Rules.SightRange)) then
+          if RNG.Percent(base.DetectionChance) then
+          begin
+            base.RetaliationTarget := True;
+            Break;
+          end;
+  end
+  else
+  begin
+    var discovered: TDictionary<TRegion, TBase> := TDictionary<TRegion, TBase>.Create;
+    try
+      for base in Game.SavedGame.Bases do
+        for var ufo in Game.SavedGame.Ufos do
+          if (ufo.TrajectoryPoint > 1) and
+             (ufo.Trajectory.Zone[ufo.TrajectoryPoint] <> 5) and
+             (ufo.Mission.Rules.Objective = OBJECTIVE_RETALIATION) and
+             (not ufo.IsCrashed) and
+             (base.DistanceTo(ufo) <= Nautical(ufo.Rules.SightRange)) then
+            if RNG.Percent(base.DetectionChance) then
+              discovered.AddOrSetValue(Game.SavedGame.LocateRegion(base), base);
+      for var pair in discovered do
+        pair.Value.RetaliationTarget := True;
+    finally
+      discovered.Free;
+    end;
+  end;
+end;
+
+procedure TGeoscapeState.Time30Minutes;
+var
+  i: Integer;
+  am: TAlienMission;
+  ufo: TUfo;
+  site: TMissionSite;
+  base: TBase;
+  craft: TCraft;
+begin
+  // Alien missions think
+  i := 0;
+  while i < Game.SavedGame.AlienMissions.Count do
+  begin
+    am := Game.SavedGame.AlienMissions[i];
+    am.Think(Game, FGlobe);
+    if am.IsOver then
+    begin
+      am.Free;
+      Game.SavedGame.AlienMissions.Delete(i);
+    end
+    else
+      Inc(i);
+  end;
+
+  // Crashed UFOs expire
+  for ufo in Game.SavedGame.Ufos do
+    if ufo.Status = UfoStatus.CRASHED then
+    begin
+      if ufo.SecondsRemaining >= 30 * 60 then
+        ufo.SecondsRemaining := ufo.SecondsRemaining - 30 * 60
+      else
+        ufo.Status := UfoStatus.DESTROYED;
+    end;
+
+  // Craft maintenance
+  for base in Game.SavedGame.Bases do
+    for craft in base.Crafts do
+      if craft.Status = 'STR_REFUELLING' then
+      begin
+        var s := craft.Refuel;
+        if not s.IsEmpty then
+        begin
+          var msg := Tr('STR_NOT_ENOUGH_ITEM_TO_REFUEL_CRAFT_AT_BASE')
+                       .Arg(Tr(s))
+                       .Arg(craft.Name(Game.Language))
+                       .Arg(base.Name);
+          Popup(TCraftErrorState.Create(Self, msg));
+        end;
+      end;
+
+  // UFO detection and alien points
+  for ufo in Game.SavedGame.Ufos do
+  begin
+    var points := ufo.Rules.MissionScore;
+    case ufo.Status of
+      UfoStatus.LANDED: points := points * 2;
+      UfoStatus.FLYING:
+        begin
+          // Add points to region and country
+          for var region in Game.SavedGame.Regions do
+            if region.Rules.InsideRegion(ufo.Longitude, ufo.Latitude) then
+            begin
+              region.AddActivityAlien(points);
+              Break;
+            end;
+          for var country in Game.SavedGame.Countries do
+            if country.Rules.InsideCountry(ufo.Longitude, ufo.Latitude) then
+            begin
+              country.AddActivityAlien(points);
+              Break;
+            end;
+          // Detection
+          if not ufo.Detected then
+          begin
+            var detected := False;
+            var hyper := False;
+            for base in Game.SavedGame.Bases do
+            begin
+              var det := base.Detect(ufo);
+              if det = 2 then // hyper-wave
+              begin
+                ufo.HyperDetected := True;
+                hyper := True;
+                detected := True;
+              end
+              else if det = 1 then
+                detected := True;
+              if detected then Break;
+              for craft in base.Crafts do
+                if (craft.Status = 'STR_OUT') and craft.Detect(ufo) then
+                begin
+                  detected := True;
+                  Break;
+                end;
+              if detected then Break;
+            end;
+            if detected then
+            begin
+              ufo.Detected := True;
+              Popup(TUfoDetectedState.Create(ufo, Self, True, ufo.HyperDetected));
+            end;
+          end
+          else
+          begin
+            var detected := False;
+            var hyper := False;
+            for base in Game.SavedGame.Bases do
+            begin
+              var det := base.InsideRadarRange(ufo);
+              if det = 2 then
+              begin
+                detected := True;
+                hyper := True;
+                ufo.HyperDetected := True;
+              end
+              else if det = 1 then
+                detected := True;
+              if detected then Break;
+              for craft in base.Crafts do
+                if (craft.Status = 'STR_OUT') and craft.InsideRadarRange(ufo) then
+                begin
+                  detected := True;
+                  Break;
+                end;
+              if detected then Break;
+            end;
+            if not detected then
+            begin
+              ufo.Detected := False;
+              ufo.HyperDetected := False;
+              if ufo.CraftFollowers.Count > 0 then
+                Popup(TUfoLostState.Create(ufo.Name(Game.Language)));
+            end;
+          end;
+        end;
+    end;
+  end;
+
+  // Mission sites
+  i := 0;
+  while i < Game.SavedGame.MissionSites.Count do
+  begin
+    site := Game.SavedGame.MissionSites[i];
+    if ProcessMissionSite(site) then
+    begin
+      site.Free;
+      Game.SavedGame.MissionSites.Delete(i);
+    end
+    else
+      Inc(i);
+  end;
+end;
+
+function TGeoscapeState.ProcessMissionSite(Site: TMissionSite): Boolean;
+var
+  remove: Boolean;
+  score: Integer;
+  region: TRegion;
+begin
+  remove := Site.SecondsRemaining < 30 * 60;
+  if not remove then
+    Site.SecondsRemaining := Site.SecondsRemaining - 30 * 60
+  else
+    remove := Site.CraftFollowers.Count = 0; // CHEEKY EXPLOIT
+
+  score := IfThen(remove, Site.Deployment.DespawnPenalty, Site.Deployment.Points);
+
+  region := Game.SavedGame.LocateRegion(Site);
+  if Assigned(region) then
+    region.AddActivityAlien(score);
+  for var country in Game.SavedGame.Countries do
+    if country.Rules.InsideCountry(Site.Longitude, Site.Latitude) then
+    begin
+      country.AddActivityAlien(score);
+      Break;
+    end;
+  Result := remove;
+end;
+
+procedure TGeoscapeState.Time1Hour;
+var
+  base: TBase;
+  craft: TCraft;
+  transfer: TTransfer;
+  prod: TProduction;
+  toRemove: TList;
+  i: Integer;
+  site: TMissionSite;
+begin
+  // Craft maintenance
+  for base in Game.SavedGame.Bases do
+  begin
+    for craft in base.Crafts do
+    begin
+      if craft.Status = 'STR_REPAIRS' then
+        craft.Repair
+      else if craft.Status = 'STR_REARMING' then
+      begin
+        var s := craft.Rearm(Game.Mod);
+        if not s.IsEmpty then
+        begin
+          var msg := Tr('STR_NOT_ENOUGH_ITEM_TO_REARM_CRAFT_AT_BASE')
+                       .Arg(Tr(s))
+                       .Arg(craft.Name(Game.Language))
+                       .Arg(base.Name);
+          Popup(TCraftErrorState.Create(Self, msg));
+        end;
+      end;
+    end;
+  end;
+
+  // Transfers
+  var hasArrivals := False;
+  for base in Game.SavedGame.Bases do
+  begin
+    i := 0;
+    while i < base.Transfers.Count do
+    begin
+      transfer := base.Transfers[i];
+      transfer.Advance(base);
+      if transfer.Hours <= 0 then
+        hasArrivals := True;
+      Inc(i);
+    end;
+  end;
+  if hasArrivals then
+    Popup(TItemsArrivingState.Create(Self));
+
+  // Production
+  for base in Game.SavedGame.Bases do
+  begin
+    toRemove := TList.Create;
+    try
+      for prod in base.Productions do
+        if prod.Step(base, Game.SavedGame, Game.Mod) > PROGRESS_NOT_COMPLETE then
+          toRemove.Add(prod);
+      for i := 0 to toRemove.Count - 1 do
+      begin
+        prod := TProduction(toRemove[i]);
+        Popup(TProductionCompleteState.Create(base, Tr(prod.Rules.Name), Self,
+              prod.GetEndType));
+        base.RemoveProduction(prod);
+      end;
+    finally
+      toRemove.Free;
+    end;
+
+    if Options.StorageLimitsEnforced and base.StoresOverfull then
+    begin
+      Popup(TErrorMessageState.Create(Tr('STR_STORAGE_EXCEEDED').Arg(base.Name),
+            Palette,
+            Game.Mod.Interface('geoscape').GetElement('errorMessage').Color,
+            'BACK13.SCR',
+            Game.Mod.Interface('geoscape').GetElement('errorPalette').Color));
+      Popup(TSellState.Create(base));
+    end;
+  end;
+
+  // Detect mission sites
+  for site in Game.SavedGame.MissionSites do
+    if not site.Detected then
+    begin
+      site.Detected := True;
+      Popup(TMissionDetectedState.Create(site, Self));
+      Break;
+    end;
+end;
+
+procedure TGeoscapeState.Time1Day;
+var
+  base: TBase;
+  fac: TBaseFacility;
+  research: TResearchProject;
+  finished: TList;
+  before, after, newPossibleResearch: TList;
+  newPossibleManufacture: TList;
+  soldier: TSoldier;
+  am: TAlienMission;
+  researchName: string;
+  bonus: TRuleResearch;
+  possibilities: TStringList;
+  pick: Integer;
+  sel: string;
+  newResearch: TRuleResearch;
+  item: TRuleItem;
+  man: TRuleManufacture;
+  req: TStringList;
+  ammoItem: TRuleItem;
+  i: Integer;
+begin
+  for base in Game.SavedGame.Bases do
+  begin
+    // Facility construction
+    for fac in base.Facilities do
+      if fac.BuildTime > 0 then
+      begin
+        fac.Build;
+        if fac.BuildTime = 0 then
+          Popup(TProductionCompleteState.Create(base, Tr(fac.Rules.TypeName), Self, PROGRESS_CONSTRUCTION));
+      end;
+
+    // Research
+    finished := TList.Create;
+    try
+      for research in base.Research do
+        if research.Step then
+          finished.Add(research);
+
+      // Remember available research before adding finished
+      before := TList.Create;
+      try
+        Game.SavedGame.GetAvailableResearchProjects(before, Game.Mod, base);
+
+        for research in finished do
+        begin
+          // Remove from base
+          base.RemoveResearch(research);
+          research := nil;
+
+          var rule := TRuleResearch(research);
+          // Handle interrogation
+          if Options.RetainCorpses and rule.DestroyItem and
+             Assigned(Game.Mod.GetUnit(rule.Name)) then
+            base.StorageItems.AddItem(Game.Mod.GetArmor(Game.Mod.GetUnit(rule.Name).Armor, True).CorpseGeoscape);
+
+          // GetOneFree
+          if rule.GetOneFree.Count > 0 then
+          begin
+            possibilities := TStringList.Create;
+            try
+              for var f in rule.GetOneFree do
+                if not Game.SavedGame.IsResearched(f, False) then
+                  possibilities.Add(f);
+              if possibilities.Count > 0 then
+              begin
+                pick := RNG.Generate(0, possibilities.Count - 1);
+                sel := possibilities[pick];
+                bonus := Game.Mod.GetResearch(sel, True);
+                Game.SavedGame.AddFinishedResearch(bonus, Game.Mod, base);
+                if not bonus.Lookup.IsEmpty then
+                  Game.SavedGame.AddFinishedResearch(Game.Mod.GetResearch(bonus.Lookup, True), Game.Mod, base);
+              end;
+            finally
+              possibilities.Free;
+            end;
+          end;
+
+          // Determine if ufopedia article should pop up again
+          var newRes := rule;
+          var name := IfThen(rule.Lookup.IsEmpty, rule.Name, rule.Lookup);
+          if Game.SavedGame.IsResearched(name, False) then
+            newRes := nil;
+
+          // Add core research
+          Game.SavedGame.AddFinishedResearch(rule, Game.Mod, base);
+          if not rule.Lookup.IsEmpty then
+            Game.SavedGame.AddFinishedResearch(Game.Mod.GetResearch(rule.Lookup, True), Game.Mod, base);
+
+          // Cutscenes
+          if not rule.Cutscene.IsEmpty then
+            Popup(TCutsceneState.Create(rule.Cutscene));
+          if Assigned(bonus) and not bonus.Cutscene.IsEmpty then
+            Popup(TCutsceneState.Create(bonus.Cutscene));
+
+          Popup(TResearchCompleteState.Create(newRes, bonus, rule));
+
+          TimerReset;
+
+          // Weapon clip warning
+          if Assigned(newRes) then
+          begin
+            item := Game.Mod.GetItem(newRes.Name);
+            if Assigned(item) and (item.BattleType = BT_FIREARM) and (item.CompatibleAmmo.Count > 0) then
+            begin
+              man := Game.Mod.GetManufacture(item.TypeName);
+              if Assigned(man) and (man.Requirements.Count > 0) then
+              begin
+                req := man.Requirements;
+                ammoItem := Game.Mod.GetItem(item.CompatibleAmmo[0]);
+                if Assigned(ammoItem) and req.Contains(ammoItem.TypeName) and
+                   not Game.SavedGame.IsResearched(req, True) then
+                  Popup(TResearchRequiredState.Create(item));
+              end;
+            end;
+          end;
+
+          // New possible research
+          after := TList.Create;
+          try
+            Game.SavedGame.GetAvailableResearchProjects(after, Game.Mod, base);
+            newPossibleResearch := TList.Create;
+            try
+              Game.SavedGame.GetNewlyAvailableResearchProjects(before, after, newPossibleResearch);
+              Popup(TNewPossibleResearchState.Create(base, newPossibleResearch));
+            finally
+              newPossibleResearch.Free;
+            end;
+          finally
+            after.Free;
+          end;
+
+          // New possible manufacture
+          newPossibleManufacture := TList.Create;
+          try
+            Game.SavedGame.GetDependableManufacture(newPossibleManufacture, rule, Game.Mod, base);
+            if newPossibleManufacture.Count > 0 then
+              Popup(TNewPossibleManufactureState.Create(base, newPossibleManufacture));
+          finally
+            newPossibleManufacture.Free;
+          end;
+
+          // Remove this project from all other bases if it can't yield more
+          for var otherBase in Game.SavedGame.Bases do
+          begin
+            var j := 0;
+            while j < otherBase.Research.Count do
+            begin
+              var rp := otherBase.Research[j];
+              if rp.Rules.Name = rule.Name then
+              begin
+                if not Game.SavedGame.IsResearched(rule.GetOneFree, False) then
+                  // keep it
+                else if Game.SavedGame.HasUndiscoveredProtectedUnlock(rule, Game.Mod) then
+                  // keep it
+                else
+                begin
+                  otherBase.RemoveResearch(rp);
+                  Break;
+                end;
+              end;
+              Inc(j);
+            end;
+          end;
+        end;
+      finally
+        before.Free;
+      end;
+    finally
+      finished.Free;
+    end;
+
+    // Heal soldiers
+    for soldier in base.Soldiers do
+      if soldier.WoundRecovery > 0 then
+        soldier.Heal;
+
+    // Psi training (if anytime)
+    if Options.AnytimePsiTraining and (base.AvailablePsiLabs > 0) then
+      for soldier in base.Soldiers do
+      begin
+        soldier.TrainPsi1Day;
+        soldier.CalcStatString(Game.Mod.StatStrings,
+          (Options.PsiStrengthEval and Game.SavedGame.IsResearched(Game.Mod.PsiRequirements)));
+      end;
+  end;
+
+  // Alien bases activity
+  for var alienBase in Game.SavedGame.AlienBases do
+  begin
+    for var region in Game.SavedGame.Regions do
+      if region.Rules.InsideRegion(alienBase.Longitude, alienBase.Latitude) then
+      begin
+        region.AddActivityAlien(alienBase.Deployment.Points);
+        Break;
+      end;
+    for var country in Game.SavedGame.Countries do
+      if country.Rules.InsideCountry(alienBase.Longitude, alienBase.Latitude) then
+      begin
+        country.AddActivityAlien(alienBase.Deployment.Points);
+        Break;
+      end;
+  end;
+
+  // Supply missions
+  for var alienBase in Game.SavedGame.AlienBases do
+  begin
+    var missionName := alienBase.Deployment.ChooseGenMissionType;
+    if Assigned(Game.Mod.GetAlienMission(missionName)) then
+      if RNG.Percent(alienBase.Deployment.GenMissionFrequency) then
+      begin
+        var rule := Game.Mod.GetAlienMission(missionName);
+        am := TAlienMission.Create(rule);
+        am.Region := Game.SavedGame.LocateRegion(alienBase).Rules.TypeName;
+        am.Id := Game.SavedGame.GetId('ALIEN_MISSIONS');
+        am.Race := alienBase.AlienRace;
+        am.AlienBase := alienBase;
+        am.Start;
+        Game.SavedGame.AlienMissions.Add(am);
+      end;
+  end;
+
+  // Autosave
+  var day := Game.SavedGame.Time.Day;
+  if (day = 10) or (day = 20) then
+  begin
+    if Game.SavedGame.IsIronman then
+      Popup(TSaveGameState.Create(OPT_GEOSCAPE, SAVE_IRONMAN, Palette))
+    else if Options.Autosave then
+      Popup(TSaveGameState.Create(OPT_GEOSCAPE, SAVE_AUTO_GEOSCAPE, Palette));
+  end;
+end;
+
+procedure TGeoscapeState.Time1Month;
+var
+  psi: Boolean;
+  base: TBase;
+begin
+  Game.SavedGame.AddMonth;
+  DetermineAlienMissions;
+
+  // Psi training (monthly)
+  psi := False;
+  if not Options.AnytimePsiTraining then
+  begin
+    for base in Game.SavedGame.Bases do
+      if base.AvailablePsiLabs > 0 then
+      begin
+        psi := True;
+        for var soldier in base.Soldiers do
+          if soldier.IsInPsiTraining then
+          begin
+            soldier.TrainPsi;
+            soldier.CalcStatString(Game.Mod.StatStrings,
+              (Options.PsiStrengthEval and Game.SavedGame.IsResearched(Game.Mod.PsiRequirements)));
+          end;
+      end;
+  end;
+
+  // Monthly funding
+  TimerReset;
+  Game.SavedGame.MonthlyFunding;
+  Popup(TMonthlyReportState.Create(psi, FGlobe));
+
+  // Alien base discovery
+  if (Game.SavedGame.AlienBases.Count > 0) and RNG.Percent(20) then
+    for var ab in Game.SavedGame.AlienBases do
+      if not ab.IsDiscovered then
+      begin
+        ab.Discovered := True;
+        Popup(TAlienBaseState.Create(ab, Self));
+        Break;
+      end;
+end;
+
+procedure TGeoscapeState.TimerReset;
+begin
+  // Simulate click on 5 sec button
+  var ev: TSDL_Event;
+  ev.type_ := SDL_MOUSEBUTTONDOWN;
+  ev.button.button := SDL_BUTTON_LEFT;
+  var act := TAction.Create(@ev, Game.Screen.XScale, Game.Screen.YScale,
+                            Game.Screen.CursorTopBlackBand, Game.Screen.CursorLeftBlackBand);
+  try
+    FBtn5Secs.MousePress(act, Self);
+  finally
+    act.Free;
+  end;
+end;
+
+procedure TGeoscapeState.Popup(AState: TState);
+begin
+  FPause := True;
+  FPopups.Add(AState);
+end;
+
+function TGeoscapeState.GetGlobe: TGlobe;
+begin
+  Result := FGlobe;
+end;
+
+procedure TGeoscapeState.GlobeClick(AAction: TAction);
+var
+  mouseX, mouseY: Integer;
+  targets: TList;
+  lon, lat: Double;
+  texture, shade: Integer;
+begin
+  mouseX := Floor(AAction.AbsoluteXMouse);
+  mouseY := Floor(AAction.AbsoluteYMouse);
+
+  if AAction.Details.button.button = SDL_BUTTON_LEFT then
+  begin
+    targets := FGlobe.GetTargets(mouseX, mouseY, False);
+    try
+      if targets.Count > 0 then
+        Game.PushState(TMultipleTargetsState.Create(targets, nil, Self));
+    finally
+      targets.Free;
+    end;
+  end;
+
+  if Game.SavedGame.DebugMode then
+  begin
+    FGlobe.CartToPolar(mouseX, mouseY, lon, lat);
+    FGlobe.GetPolygonTextureAndShade(lon, lat, texture, shade);
+    var ss := Format('rad: %f, %f'#13#10 +
+                     'deg: %f, %f'#13#10 +
+                     'texture: %d, shade: %d',
+                     [lon, lat, lon/PI*180, lat/PI*180, texture, shade]);
+    FTxtDebug.Text := ss;
+  end;
+end;
+
+procedure TGeoscapeState.BtnInterceptClick(AAction: TAction);
+begin
+  if ButtonsDisabled then Exit;
+  Game.PushState(TInterceptState.Create(FGlobe));
+end;
+
+procedure TGeoscapeState.BtnBasesClick(AAction: TAction);
+begin
+  if ButtonsDisabled then Exit;
+  TimerReset;
+  if Game.SavedGame.Bases.Count > 0 then
+    Game.PushState(TBasescapeState.Create(Game.SavedGame.SelectedBase, FGlobe))
+  else
+    Game.PushState(TBasescapeState.Create(nil, FGlobe));
+end;
+
+procedure TGeoscapeState.BtnGraphsClick(AAction: TAction);
+begin
+  if ButtonsDisabled then Exit;
+  Game.PushState(TGraphsState.Create);
+end;
+
+procedure TGeoscapeState.BtnUfopaediaClick(AAction: TAction);
+begin
+  if ButtonsDisabled then Exit;
+  Ufopaedia.Open(Game);
+end;
+
+procedure TGeoscapeState.BtnOptionsClick(AAction: TAction);
+begin
+  if ButtonsDisabled then Exit;
+  Game.PushState(TPauseState.Create(OPT_GEOSCAPE));
+end;
+
+procedure TGeoscapeState.BtnFundingClick(AAction: TAction);
+begin
+  if ButtonsDisabled then Exit;
+  Game.PushState(TFundingState.Create);
+end;
+
+procedure TGeoscapeState.BtnTimerClick(AAction: TAction);
+begin
+  // Simulate mouse press on the button
+  var ev: TSDL_Event;
+  ev.type_ := SDL_MOUSEBUTTONDOWN;
+  ev.button.button := SDL_BUTTON_LEFT;
+  var act := TAction.Create(@ev, 0, 0, 0, 0);
+  try
+    TTextButton(AAction.Sender).MousePress(act, Self);
+  finally
+    act.Free;
+  end;
+end;
+
+procedure TGeoscapeState.BtnRotateLeftPress(AAction: TAction);
+begin
+  FGlobe.RotateLeft;
+end;
+
+procedure TGeoscapeState.BtnRotateLeftRelease(AAction: TAction);
+begin
+  FGlobe.RotateStopLon;
+end;
+
+procedure TGeoscapeState.BtnRotateRightPress(AAction: TAction);
+begin
+  FGlobe.RotateRight;
+end;
+
+procedure TGeoscapeState.BtnRotateRightRelease(AAction: TAction);
+begin
+  FGlobe.RotateStopLon;
+end;
+
+procedure TGeoscapeState.BtnRotateUpPress(AAction: TAction);
+begin
+  FGlobe.RotateUp;
+end;
+
+procedure TGeoscapeState.BtnRotateUpRelease(AAction: TAction);
+begin
+  FGlobe.RotateStopLat;
+end;
+
+procedure TGeoscapeState.BtnRotateDownPress(AAction: TAction);
+begin
+  FGlobe.RotateDown;
+end;
+
+procedure TGeoscapeState.BtnRotateDownRelease(AAction: TAction);
+begin
+  FGlobe.RotateStopLat;
+end;
+
+procedure TGeoscapeState.BtnZoomInLeftClick(AAction: TAction);
+begin
+  FGlobe.ZoomIn;
+end;
+
+procedure TGeoscapeState.BtnZoomInRightClick(AAction: TAction);
+begin
+  FGlobe.ZoomMax;
+end;
+
+procedure TGeoscapeState.BtnZoomOutLeftClick(AAction: TAction);
+begin
+  FGlobe.ZoomOut;
+end;
+
+procedure TGeoscapeState.BtnZoomOutRightClick(AAction: TAction);
+begin
+  FGlobe.ZoomMin;
+end;
+
+procedure TGeoscapeState.ZoomInEffect;
+begin
+  if FGlobe.ZoomDogfightIn then
+  begin
+    FZoomInEffectDone := True;
+    FZoomInEffectTimer.Stop;
+  end;
+end;
+
+procedure TGeoscapeState.ZoomOutEffect;
+begin
+  if FGlobe.ZoomDogfightOut then
+  begin
+    FZoomOutEffectDone := True;
+    FZoomOutEffectTimer.Stop;
+    Init;
+  end;
+end;
+
+procedure TGeoscapeState.StartDogfight;
+begin
+  if FGlobe.Zoom < 3 then
+  begin
+    if not FZoomInEffectTimer.IsRunning then
+    begin
+      FGlobe.SaveZoomDogfight;
+      FGlobe.RotateStop;
+      FZoomInEffectTimer.Start;
+    end;
+  end
+  else
+  begin
+    FDogfightStartTimer.Stop;
+    FZoomInEffectTimer.Stop;
+    FDogfightTimer.Start;
+    TimerReset;
+    while FDogfightsToBeStarted.Count > 0 do
+    begin
+      var d := TDogfightState(FDogfightsToBeStarted[FDogfightsToBeStarted.Count - 1]);
+      FDogfights.Add(d);
+      FDogfightsToBeStarted.Delete(FDogfightsToBeStarted.Count - 1);
+      d.SetInterceptionNumber(GetFirstFreeDogfightSlot);
+      d.SetInterceptionsCount(FDogfights.Count + FDogfightsToBeStarted.Count);
+    end;
+    for var d in FDogfights do
+      d.SetInterceptionsCount(FDogfights.Count);
+  end;
+end;
+
+procedure TGeoscapeState.HandleDogfights;
+var
+  i: Integer;
+  d: TDogfightState;
+begin
+  FMinimizedDogfights := 0;
+
+  // Reset interception processed flag
+  for i := 0 to FDogfights.Count - 1 do
+    TDogfightState(FDogfights[i]).GetUfo.InterceptionProcessed := False;
+
+  i := 0;
+  while i < FDogfights.Count do
+  begin
+    d := TDogfightState(FDogfights[i]);
+    if d.IsMinimized then
+    begin
+      if d.GetWaitForPoly and FGlobe.InsideLand(d.GetUfo.Longitude, d.GetUfo.Latitude) then
+      begin
+        d.SetMinimized(False);
+        d.SetWaitForPoly(False);
+      end
+      else if d.GetWaitForAltitude and (d.GetUfo.AltitudeInt <= d.GetCraft.Rules.MaxAltitude) then
+      begin
+        d.SetMinimized(False);
+        d.SetWaitForAltitude(False);
+      end
+      else
+        Inc(FMinimizedDogfights);
+    end
+    else
+      FGlobe.RotateStop;
+
+    d.Think;
+    if d.DogfightEnded then
+    begin
+      if d.IsMinimized then
+        Dec(FMinimizedDogfights);
+      d.Free;
+      FDogfights.Delete(i);
+    end
+    else
+      Inc(i);
+  end;
+
+  if FDogfights.Count = 0 then
+  begin
+    FDogfightTimer.Stop;
+    FZoomOutEffectTimer.Start;
+  end;
+end;
+
+function TGeoscapeState.MinimizedDogfightsCount: Integer;
+var
+  count: Integer;
+begin
+  count := 0;
+  for var d in FDogfights do
+    if TDogfightState(d).IsMinimized then
+      Inc(count);
+  Result := count;
+end;
+
+function TGeoscapeState.GetFirstFreeDogfightSlot: Integer;
+var
+  slot: Integer;
+begin
+  slot := 1;
+  for var d in FDogfights do
+    if TDogfightState(d).GetInterceptionNumber = slot then
+      Inc(slot);
+  Result := slot;
+end;
+
+procedure TGeoscapeState.DetermineAlienMissions;
+var
+  save: TSavedGame;
+  strategy: TAlienStrategy;
+  mod: TMod;
+  month: Integer;
+  availableMissions: TList;
+  conditions: TDictionary<Integer, Boolean>;
+  command: TRuleMissionScript;
+  process: Boolean;
+  success: Boolean;
+begin
+  save := Game.SavedGame;
+  strategy := save.AlienStrategy;
+  mod := Game.Mod;
+  month := save.MonthsPassed;
+
+  availableMissions := TList.Create;
+  conditions := TDictionary<Integer, Boolean>.Create;
+  try
+    for var missionName in mod.MissionScriptList do
+    begin
+      command := mod.GetMissionScript(missionName);
+      if (command.FirstMonth <= month) and
+         ((command.LastMonth >= month) or (command.LastMonth = -1)) and
+         ((command.MaxRuns = -1) or (strategy.GetMissionsRun(command.VarName) < command.MaxRuns)) and
+         (command.MinDifficulty <= save.Difficulty) then
+      begin
+        var triggerHappy := True;
+        for var pair in command.ResearchTriggers do
+          if save.IsResearched(pair.Key) <> pair.Value then
+          begin
+            triggerHappy := False;
+            Break;
+          end;
+        if triggerHappy then
+          availableMissions.Add(command);
+      end;
+    end;
+
+    for command in availableMissions do
+    begin
+      process := True;
+      for var cond in command.Conditionals do
+      begin
+        var found: Boolean;
+        var val: Boolean;
+        if conditions.TryGetValue(Abs(cond), found, val) then
+          if not ((val = True) and (cond > 0)) and not ((val = False) and (cond < 0)) then
+            process := False;
+        if not process then Break;
+      end;
+      if process and RNG.Percent(command.ExecutionOdds) then
+        success := ProcessCommand(command)
+      else
+        success := False;
+      if command.Label <> 0 then
+        conditions.AddOrSetValue(command.Label, success);
+    end;
+  finally
+    availableMissions.Free;
+    conditions.Free;
+  end;
+end;
+
+function TGeoscapeState.ProcessCommand(Command: TRuleMissionScript): Boolean;
+var
+  save: TSavedGame;
+  strategy: TAlienStrategy;
+  mod: TMod;
+  month: Integer;
+  targetRegion: string;
+  missionRules: TRuleAlienMission;
+  missionType: string;
+  missionRace: string;
+  targetZone: Integer;
+  validAreas: TList;
+  regions: TStringList;
+  missionWeight: string;
+  maxMissions, currPos: Integer;
+  targetBase: Boolean;
+  h: Integer;
+  regionName: string;
+  region: TRuleRegion;
+  areas: TArray<TMissionArea>;
+  counter: Integer;
+  min, max: Integer;
+  curr: Integer;
+  mission: TAlienMission;
+  types: TStringList;
+  regionsMaster: TStringList;
+  entry: Integer;
+  i: Integer;
+begin
+  save := Game.SavedGame;
+  strategy := save.AlienStrategy;
+  mod := Game.Mod;
+  month := save.MonthsPassed;
+  targetRegion := '';
+  missionType := '';
+  missionRace := '';
+  targetZone := -1;
+
+  if Command.SiteType then
+  begin
+    missionType := Command.Generate(month, GEN_MISSION);
+    types := Command.GetMissionTypes(month);
+    try
+      maxMissions := types.Count;
+      targetBase := RNG.Percent(Command.TargetBaseOdds);
+      currPos := 0;
+      for h := 0 to types.Count - 1 do
+        if types[h] = missionType then
+        begin
+          currPos := h;
+          Break;
+        end;
+
+      validAreas := TList.Create;
+      try
+        for h := 0 to maxMissions - 1 do
+        begin
+          regions := TStringList.Create;
+          try
+            if Command.HasRegionWeights then
+              regions.AddStrings(Command.GetRegions(month))
+            else
+              regions.AddStrings(mod.RegionsList);
+
+            missionRules := mod.GetAlienMission(missionType, True);
+            targetZone := missionRules.SpawnZone;
+
+            if targetBase then
+            begin
+              var regionsToKeep := TStringList.Create;
+              try
+                for var base in save.Bases do
+                  regionsToKeep.Add(save.LocateRegion(base.Longitude, base.Latitude).Rules.TypeName);
+                i := 0;
+                while i < regions.Count do
+                  if regionsToKeep.IndexOf(regions[i]) = -1 then
+                    regions.Delete(i)
+                  else
+                    Inc(i);
+              finally
+                regionsToKeep.Free;
+              end;
+            end;
+
+            // Remove regions that already have this mission
+            i := 0;
+            while i < regions.Count do
+            begin
+              var skip := False;
+              for var am in save.AlienMissions do
+                if (am.Rules.TypeName = missionRules.TypeName) and (am.Region = regions[i]) then
+                begin
+                  skip := True;
+                  Break;
+                end;
+              if skip then
+                regions.Delete(i)
+              else
+                Inc(i);
+            end;
+
+            // Check for valid mission zones
+            for regionName in regions do
+            begin
+              region := mod.GetRegion(regionName, True);
+              if region.MissionZones.Count > targetZone then
+              begin
+                areas := region.MissionZones[targetZone].Areas;
+                counter := 0;
+                for var area in areas do
+                  if area.IsPoint and strategy.ValidMissionLocation(Command.VarName, regionName, counter) then
+                    validAreas.Add(TObject(regionName + '|' + IntToStr(counter)));
+                Inc(counter);
+              end;
+            end;
+
+            if validAreas.Count > 0 then
+              Break
+            else
+            begin
+              // Try next mission type
+              if maxMissions > 1 then
+              begin
+                Inc(currPos);
+                if currPos = maxMissions then currPos := 0;
+                missionType := types[currPos];
+              end;
+            end;
+          finally
+            regions.Free;
+          end;
+        end;
+
+        if validAreas.Count = 0 then
+          Exit(False);
+
+        // Pick a valid area
+        targetZone := -1;
+        while targetZone = -1 do
+        begin
+          if Command.HasRegionWeights then
+            targetRegion := Command.Generate(month, GEN_REGION)
+          else
+            targetRegion := mod.RegionsList[RNG.Generate(0, mod.RegionsList.Count - 1)];
+
+          min := -1; max := -1; curr := 0;
+          for var item in validAreas do
+          begin
+            var parts := TStringList.Create;
+            try
+              parts.Delimiter := '|';
+              parts.DelimitedText := string(item);
+              if parts[0] = targetRegion then
+              begin
+                if min = -1 then min := curr;
+                max := curr;
+              end;
+            finally
+              parts.Free;
+            end;
+            Inc(curr);
+          end;
+          if min <> -1 then
+          begin
+            var chosen := validAreas[RNG.Generate(min, max)];
+            var parts := TStringList.Create;
+            try
+              parts.Delimiter := '|';
+              parts.DelimitedText := string(chosen);
+              targetZone := StrToInt(parts[1]);
+            finally
+              parts.Free;
+            end;
+          end;
+        end;
+        strategy.AddMissionLocation(Command.VarName, targetRegion, targetZone, Command.RepeatAvoidance);
+      finally
+        validAreas.Free;
+      end;
+    finally
+      types.Free;
+    end;
+  end
+  else if RNG.Percent(Command.TargetBaseOdds) then
+  begin
+    types := Command.GetMissionTypes(month);
+    try
+      regionsMaster := TStringList.Create;
+      try
+        for var base in save.Bases do
+          regionsMaster.Add(save.LocateRegion(base).Rules.TypeName);
+
+        if types.Count = 0 then
+        begin
+          i := 0;
+          while i < regionsMaster.Count do
+            if not strategy.ValidMissionRegion(regionsMaster[i]) then
+              regionsMaster.Delete(i)
+            else
+              Inc(i);
+          if regionsMaster.Count = 0 then
+            Exit(False);
+          targetRegion := regionsMaster[RNG.Generate(0, regionsMaster.Count - 1)];
+        end
+        else
+        begin
+          var max := types.Count;
+          entry := RNG.Generate(0, max - 1);
+          var regions := TStringList.Create;
+          try
+            for var t := 0 to max - 1 do
+            begin
+              regions.Assign(regionsMaster);
+              for var am in save.AlienMissions do
+                if am.Rules.TypeName = types[entry] then
+                  for i := regions.Count - 1 downto 0 do
+                    if regions[i] = am.Region then
+                      regions.Delete(i);
+              if regions.Count > 0 then
+              begin
+                missionType := types[entry];
+                targetRegion := regions[RNG.Generate(0, regions.Count - 1)];
+                Break;
+              end;
+              if max > 1 then
+              begin
+                Inc(entry);
+                if entry = max then entry := 0;
+              end;
+            end;
+          finally
+            regions.Free;
+          end;
+        end;
+      finally
+        regionsMaster.Free;
+      end;
+    finally
+      types.Free;
+    end;
+  end
+  else if not Command.HasRegionWeights then
+    targetRegion := strategy.ChooseRandomRegion(mod)
+  else
+    targetRegion := Command.Generate(month, GEN_REGION);
+
+  if targetRegion.IsEmpty then
+    Exit(False);
+
+  if mod.GetRegion(targetRegion) = nil then
+    raise Exception.CreateFmt('Error processing mission script: %s, region %s not defined',
+                              [Command.TypeName, targetRegion]);
+
+  if missionType.IsEmpty then
+  begin
+    if not Command.HasMissionWeights then
+      missionType := strategy.ChooseRandomMission(targetRegion)
+    else
+      missionType := Command.Generate(month, GEN_MISSION);
+  end;
+
+  if missionType.IsEmpty then
+    Exit(False);
+
+  missionRules := mod.GetAlienMission(missionType);
+  if missionRules = nil then
+    raise Exception.CreateFmt('Error processing mission script: %s, mission type %s not defined',
+                              [Command.TypeName, missionType]);
+
+  if not Command.HasRaceWeights then
+    missionRace := missionRules.GenerateRace(month)
+  else
+    missionRace := Command.Generate(month, GEN_RACE);
+
+  if missionRace.IsEmpty then
+    raise Exception.CreateFmt('Error processing mission script: %s, no available races',
+                              [Command.TypeName]);
+
+  if mod.GetAlienRace(missionRace) = nil then
+    raise Exception.CreateFmt('Error processing mission script: %s, race %s not defined',
+                              [Command.TypeName, missionRace]);
+
+  mission := TAlienMission.Create(missionRules);
+  mission.Race := missionRace;
+  mission.Id := save.GetId('ALIEN_MISSIONS');
+  mission.Region := targetRegion;
+  mission.MissionSiteZone := targetZone;
+  strategy.AddMissionRun(Command.VarName);
+  mission.Start(Command.Delay);
+  save.AlienMissions.Add(mission);
+
+  if Command.UseTable then
+    strategy.RemoveMission(targetRegion, missionType);
+
+  Result := True;
+end;
+
+procedure TGeoscapeState.HandleBaseDefense(ABase: TBase; AUfo: TUfo);
+var
+  bgame: TSavedBattleGame;
+  bgen: TBattlescapeGenerator;
+begin
+  AUfo.Status := UfoStatus.DESTROYED;
+
+  if (ABase.AvailableSoldiers(True) > 0) or (ABase.Vehicles.Count > 0) then
+  begin
+    bgame := TSavedBattleGame.Create;
+    Game.SavedGame.BattleGame := bgame;
+    bgame.MissionType := 'STR_BASE_DEFENSE';
+    bgen := TBattlescapeGenerator.Create(Game);
+    try
+      bgen.Base := ABase;
+      bgen.AlienRace := AUfo.AlienRace;
+      bgen.Run;
+    finally
+      bgen.Free;
+    end;
+    FPause := True;
+    Game.PushState(TBriefingState.Create(nil, ABase));
+  end
+  else
+    Popup(TBaseDestroyedState.Create(ABase));
+end;
+
+function TGeoscapeState.ButtonsDisabled: Boolean;
+begin
+  Result := FZoomInEffectTimer.IsRunning or FZoomOutEffectTimer.IsRunning;
+end;
+
+procedure TGeoscapeState.Resize(var dX, dY: Integer);
+var
+  height: Integer;
+begin
+  if Game.SavedGame.SavedBattle <> nil then Exit;
+  dX := Options.BaseXResolution;
+  dY := Options.BaseYResolution;
+  var divisor := 1;
+  var pixelRatioY := 1.0;
+  if Options.NonSquarePixelRatio then pixelRatioY := 1.2;
+  case Options.GeoscapeScale of
+    SCALE_SCREEN_DIV_3: divisor := 3;
+    SCALE_SCREEN_DIV_2: divisor := 2;
+    SCALE_SCREEN: ; // nothing
+    else begin dX := 0; dY := 0; Exit; end;
+  end;
+
+  Options.BaseXResolution := Max(Screen.ORIGINAL_WIDTH, Options.DisplayWidth div divisor);
+  Options.BaseYResolution := Max(Screen.ORIGINAL_HEIGHT, Trunc(Options.DisplayHeight / pixelRatioY / divisor));
+
+  dX := Options.BaseXResolution - dX;
+  dY := Options.BaseYResolution - dY;
+
+  FGlobe.Resize;
+
+  for var surf in FSurfaces do
+    if surf <> FGlobe then
+    begin
+      surf.X := surf.X + dX;
+      surf.Y := surf.Y + dY div 2;
+    end;
+
+  FBg.X := (FGlobe.Width - FBg.Width) div 2;
+  FBg.Y := (FGlobe.Height - FBg.Height) div 2;
+
+  height := (Options.BaseYResolution - Screen.ORIGINAL_HEIGHT) div 2 + 10;
+  FSideTop.Height := height;
+  FSideTop.Y := FSidebar.Y - height - 1;
+  FSideBottom.Height := height;
+  FSideBottom.Y := FSidebar.Y + FSidebar.Height + 1;
+
+  FSideLine.Height := Options.BaseYResolution;
+  FSideLine.Y := 0;
+  FSideLine.DrawRect(0, 0, FSideLine.Width, FSideLine.Height, 15);
+end;
+
+end.

@@ -1,0 +1,7446 @@
+⟦BUNDLE:v=0.18;sha256=6dd9ffa383a1f82f95d0449e11d3dd3e6537f1ed8dd4b235b1b9c4a51c3c1119⟧
+⟦INDEX⟧
+{
+  "version": "0.18",
+  "roots": ['.']
+  "files": {
+  }
+}
+⟦/INDEX⟧
+⟦FILE:ArrowButton.cpp;encoding=utf8;sha256=7f62709869ef2f2919ce0511634210a8e3e36443171ec2a21894f5e8fc3675b0;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArrowButton.h"
+#include "TextList.h"
+#include "../Engine/Timer.h"
+#include "../Engine/Action.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up an arrow button with the specified size and position.
+ * @param shape Shape of the arrow.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+ArrowButton::ArrowButton(ArrowShape shape, int width, int height, int x, int y) : ImageButton(width, height, x, y), _shape(shape), _list(0)
+{
+	_timer = new Timer(50);
+	_timer->onTimer((SurfaceHandler)&ArrowButton::scroll);
+}
+
+/**
+ * Deletes timers.
+ */
+ArrowButton::~ArrowButton()
+{
+	delete _timer;
+}
+
+bool ArrowButton::isButtonHandled(Uint8 button)
+{
+	if (_list != 0)
+	{
+		return (button == SDL_BUTTON_LEFT || button == SDL_BUTTON_RIGHT);
+	}
+	else
+	{
+		return ImageButton::isButtonHandled(button);
+	}
+}
+
+/**
+ * Changes the color for the image button.
+ * @param color Color value.
+ */
+void ArrowButton::setColor(Uint8 color)
+{
+	ImageButton::setColor(color);
+	_redraw = true;
+}
+
+/**
+ * Changes the shape for the arrow button.
+ * @param shape Shape of the arrow.
+ */
+void ArrowButton::setShape(ArrowShape shape)
+{
+	_shape = shape;
+	_redraw = true;
+}
+
+/**
+ * Changes the list associated with the arrow button.
+ * This makes the button scroll that list.
+ * @param list Pointer to text list.
+ */
+void ArrowButton::setTextList(TextList *list)
+{
+	_list = list;
+}
+
+/**
+ * Draws the button with the specified arrow shape.
+ */
+void ArrowButton::draw()
+{
+	ImageButton::draw();
+	lock();
+
+	// Draw button
+	SDL_Rect square;
+	int color = _color + 2;
+
+	square.x = 0;
+	square.y = 0;
+	square.w = getWidth() - 1;
+	square.h = getHeight() - 1;
+
+	drawRect(&square, color);
+
+	square.x++;
+	square.y++;
+	color = _color + 5;
+
+	drawRect(&square, color);
+
+	square.w--;
+	square.h--;
+	color = _color + 4;
+
+	drawRect(&square, color);
+
+	setPixel(0, 0, _color + 1);
+	setPixel(0, getHeight() - 1, _color + 4);
+	setPixel(getWidth() - 1, 0, _color + 4);
+
+	color = _color + 1;
+
+	switch (_shape)
+	{
+	case OpenXcom::ARROW_BIG_UP:
+		// Draw arrow square
+		square.x = 5;
+		square.y = 8;
+		square.w = 3;
+		square.h = 3;
+
+		drawRect(&square, color);
+
+		// Draw arrow triangle
+		square.x = 2;
+		square.y = 7;
+		square.w = 9;
+		square.h = 1;
+
+		for (; square.w > 1; square.w -= 2)
+		{
+			drawRect(&square, color);
+			square.x++;
+			square.y--;
+		}
+		drawRect(&square, color);
+		break;
+	case OpenXcom::ARROW_BIG_DOWN:
+		// Draw arrow square
+		square.x = 5;
+		square.y = 3;
+		square.w = 3;
+		square.h = 3;
+
+		drawRect(&square, color);
+
+		// Draw arrow triangle
+		square.x = 2;
+		square.y = 6;
+		square.w = 9;
+		square.h = 1;
+
+		for (; square.w > 1; square.w -= 2)
+		{
+			drawRect(&square, color);
+			square.x++;
+			square.y++;
+		}
+		drawRect(&square, color);
+		break;
+	case OpenXcom::ARROW_SMALL_UP:
+		// Draw arrow triangle 1
+		square.x = 1;
+		square.y = 5;
+		square.w = 9;
+		square.h = 1;
+
+		for (; square.w > 1; square.w -= 2)
+		{
+			drawRect(&square, color + 2);
+			square.x++;
+			square.y--;
+		}
+		drawRect(&square, color + 2);
+
+		// Draw arrow triangle 2
+		square.x = 2;
+		square.y = 5;
+		square.w = 7;
+		square.h = 1;
+
+		for (; square.w > 1; square.w -= 2)
+		{
+			drawRect(&square, color);
+			square.x++;
+			square.y--;
+		}
+		drawRect(&square, color);
+		break;
+	case OpenXcom::ARROW_SMALL_DOWN:
+		// Draw arrow triangle 1
+		square.x = 1;
+		square.y = 2;
+		square.w = 9;
+		square.h = 1;
+
+		for (; square.w > 1; square.w -= 2)
+		{
+			drawRect(&square, color + 2);
+			square.x++;
+			square.y++;
+		}
+		drawRect(&square, color + 2);
+
+		// Draw arrow triangle 2
+		square.x = 2;
+		square.y = 2;
+		square.w = 7;
+		square.h = 1;
+
+		for (; square.w > 1; square.w -= 2)
+		{
+			drawRect(&square, color);
+			square.x++;
+			square.y++;
+		}
+		drawRect(&square, color);
+		break;
+	case OpenXcom::ARROW_SMALL_LEFT:
+		// Draw arrow triangle 1
+		square.x = 2;
+		square.y = 4;
+		square.w = 2;
+		square.h = 1;
+
+		for (; square.h < 5; square.h += 2)
+		{
+			drawRect(&square, color + 2);
+			square.x += 2;
+			square.y--;
+		}
+		square.w = 1;
+		drawRect(&square, color + 2);
+
+		// Draw arrow triangle 2
+		square.x = 3;
+		square.y = 4;
+		square.w = 2;
+		square.h = 1;
+
+		for (; square.h < 5; square.h += 2)
+		{
+			drawRect(&square, color);
+			square.x += 2;
+			square.y--;
+		}
+		square.w = 1;
+		drawRect(&square, color);
+		break;
+	case OpenXcom::ARROW_SMALL_RIGHT:
+		// Draw arrow triangle 1
+		square.x = 7;
+		square.y = 4;
+		square.w = 2;
+		square.h = 1;
+
+		for (; square.h < 5; square.h += 2)
+		{
+			drawRect(&square, color + 2);
+			square.x -= 2;
+			square.y--;
+		}
+		square.x++;
+		square.w = 1;
+		drawRect(&square, color + 2);
+
+		// Draw arrow triangle 2
+		square.x = 6;
+		square.y = 4;
+		square.w = 2;
+		square.h = 1;
+
+		for (; square.h < 5; square.h += 2)
+		{
+			drawRect(&square, color);
+			square.x -= 2;
+			square.y--;
+		}
+		square.x++;
+		square.w = 1;
+		drawRect(&square, color);
+		break;
+	default:
+		break;
+	}
+
+	unlock();
+}
+
+/**
+ * Keeps the scrolling timers running.
+ */
+void ArrowButton::think()
+{
+	_timer->think(0, this);
+}
+
+/**
+ * Scrolls the list.
+ */
+void ArrowButton::scroll()
+{
+	if (_shape == ARROW_BIG_UP)
+	{
+		_list->scrollUp(false);
+	}
+	else if (_shape == ARROW_BIG_DOWN)
+	{
+		_list->scrollDown(false);
+	}
+}
+
+/**
+ * Starts scrolling the associated list.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void ArrowButton::mousePress(Action *action, State *state)
+{
+	ImageButton::mousePress(action, state);
+	if (_list != 0)
+	{
+		if (action->getDetails()->button.button == SDL_BUTTON_LEFT)
+		{
+			_timer->start();
+		}
+		else if (action->getDetails()->button.button == SDL_BUTTON_WHEELUP) _list->scrollUp(false, true);
+		else if (action->getDetails()->button.button == SDL_BUTTON_WHEELDOWN) _list->scrollDown(false, true);
+	}
+}
+
+/*
+ * Stops scrolling the associated list.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void ArrowButton::mouseRelease(Action *action, State *state)
+{
+	ImageButton::mouseRelease(action, state);
+	if (_list != 0 && action->getDetails()->button.button == SDL_BUTTON_LEFT)
+	{
+		_timer->stop();
+	}
+}
+
+/*
+ * Scrolls the associated list to top or bottom.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void ArrowButton::mouseClick(Action *action, State *state)
+{
+	ImageButton::mouseClick(action, state);
+	if (_list != 0 && SDL_BUTTON_RIGHT == action->getDetails()->button.button) {
+		if (_shape == ARROW_BIG_UP) _list->scrollUp(true);
+		else if (_shape == ARROW_BIG_DOWN) _list->scrollDown(true);
+	}
+}
+
+}
+⟦/FILE⟧
+⟦FILE:ArrowButton.h;encoding=utf8;sha256=d2aa35569360bcef74ce03a5042fb695470ec8ac785907a1e81d555fb3100fff;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ImageButton.h"
+
+namespace OpenXcom
+{
+
+enum ArrowShape { ARROW_NONE, ARROW_BIG_UP, ARROW_BIG_DOWN, ARROW_SMALL_UP, ARROW_SMALL_DOWN, ARROW_SMALL_LEFT, ARROW_SMALL_RIGHT };
+
+class TextList;
+class Timer;
+
+/**
+ * Button with an arrow on it. Can be used for
+ * scrolling lists, spinners, etc. Contains various
+ * arrow shapes.
+ */
+class ArrowButton : public ImageButton
+{
+private:
+	ArrowShape _shape;
+	TextList *_list;
+	Timer *_timer;
+protected:
+	bool isButtonHandled(Uint8 button = 0);
+public:
+	/// Creates a new arrow button with the specified size and position.
+	ArrowButton(ArrowShape shape, int width, int height, int x = 0, int y = 0);
+	/// Cleans up the arrow button.
+	~ArrowButton();
+	/// Sets the arrow button's color.
+	void setColor(Uint8 color);
+	/// Sets the arrow button's shape.
+	void setShape(ArrowShape shape);
+	/// Sets the arrow button's list.
+	void setTextList(TextList *list);
+	/// Handles the timers.
+	void think();
+	/// Scrolls the list.
+	void scroll();
+	/// Draws the arrow button.
+	void draw();
+	/// Special handling for mouse presses.
+	void mousePress(Action *action, State *state);
+	/// Special handling for mouse releases.
+	void mouseRelease(Action *action, State *state);
+	/// Special handling for mouse clicks.
+	void mouseClick(Action *action, State *state);
+};
+
+}
+⟦/FILE⟧
+⟦FILE:Bar.cpp;encoding=utf8;sha256=b392568bfa6c6047b7cf0ac35198d28fcac63b9be6653f6b7b5ddcddfd88512f;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "Bar.h"
+#include <SDL.h>
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a blank bar with the specified size and position.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+Bar::Bar(int width, int height, int x, int y) : Surface(width, height, x, y), _color(0), _color2(0), _borderColor(0), _scale(0), _max(0), _value(0), _value2(0), _secondOnTop(true)
+{
+
+}
+
+/**
+ *
+ */
+Bar::~Bar()
+{
+}
+
+/**
+ * Changes the color used to draw the border and contents.
+ * @param color Color value.
+ */
+void Bar::setColor(Uint8 color)
+{
+	_color = color;
+	_redraw = true;
+}
+
+/**
+ * Returns the color used to draw the bar.
+ * @return Color value.
+ */
+Uint8 Bar::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Changes the color used to draw the second contents.
+ * @param color Color value.
+ */
+void Bar::setSecondaryColor(Uint8 color)
+{
+	_color2 = color;
+	_redraw = true;
+}
+
+/**
+ * Returns the second color used to draw the bar.
+ * @return Color value.
+ */
+Uint8 Bar::getSecondaryColor() const
+{
+	return _color2;
+}
+
+/**
+ * Changes the scale factor used to draw the bar values.
+ * @param scale Scale in pixels/unit.
+ */
+void Bar::setScale(double scale)
+{
+	_scale = scale;
+	_redraw = true;
+}
+
+/**
+ * Returns the scale factor used to draw the bar values.
+ * @return Scale in pixels/unit.
+ */
+double Bar::getScale() const
+{
+	return _scale;
+}
+
+/**
+ * Changes the maximum value used to draw the outer border.
+ * @param max Maximum value.
+ */
+void Bar::setMax(double max)
+{
+	_max = max;
+	_redraw = true;
+}
+
+/**
+ * Returns the maximum value used to draw the outer border.
+ * @return Maximum value.
+ */
+double Bar::getMax() const
+{
+	return _max;
+}
+
+/**
+ * Changes the value used to draw the inner contents.
+ * @param value Current value.
+ */
+void Bar::setValue(double value)
+{
+	_value = (value < 0.0)? 0.0 : value;
+	_redraw = true;
+}
+
+/**
+ * Returns the value used to draw the inner contents.
+ * @return Current value.
+ */
+double Bar::getValue() const
+{
+	return _value;
+}
+
+/**
+ * Changes the value used to draw the second inner contents.
+ * @param value Current value.
+ */
+void Bar::setValue2(double value)
+{
+	_value2 = (value < 0.0)? 0.0 : value;
+	_redraw = true;
+}
+
+/**
+ * Returns the value used to draw the second inner contents.
+ * @return Current value.
+ */
+double Bar::getValue2() const
+{
+	return _value2;
+}
+
+/**
+ * Defines whether the second value should be drawn on top. Default this is true.
+ * @param onTop Second value on top?
+ */
+void Bar::setSecondValueOnTop(bool onTop)
+{
+	_secondOnTop = onTop;
+}
+
+/**
+ * Draws the bordered bar filled according
+ * to its values.
+ */
+void Bar::draw()
+{
+	Surface::draw();
+	SDL_Rect square;
+
+	square.x = 0;
+	square.y = 0;
+	square.w = (Uint16)(_scale * _max) + 1;
+	square.h = getHeight();
+
+	if (_borderColor)
+		drawRect(&square, _borderColor);
+	else
+		drawRect(&square, _color + 4);
+
+	square.y++;
+	square.w--;
+	square.h -= 2;
+
+	drawRect(&square, 0);
+
+	if (_secondOnTop)
+	{
+		square.w = (Uint16)(_scale * _value);
+		drawRect(&square, _color);
+		square.w = (Uint16)(_scale * _value2);
+		drawRect(&square, _color2);
+	}
+	else
+	{
+		square.w = (Uint16)(_scale * _value2);
+		drawRect(&square, _color2);
+		square.w = (Uint16)(_scale * _value);
+		drawRect(&square, _color);
+	}
+}
+
+/**
+ * sets the border color for the bar.
+ * @param bc the color for the outline of the bar.
+ * @note will use base colour + 4 if none is defined here.
+ */
+void Bar::setBorderColor(Uint8 bc)
+{
+	_borderColor = bc;
+}
+
+}
+⟦/FILE⟧
+⟦FILE:Bar.h;encoding=utf8;sha256=f2c1b33bcef17173912518c0e93164c3c4a647c593d0c0bd10faa9f84b2e944e;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/Surface.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Bar graphic that represents a certain value.
+ * Drawn with a coloured border and partially
+ * filled content to contrast two values, typically
+ * used for showing base and soldier stats.
+ */
+class Bar : public Surface
+{
+private:
+	Uint8 _color, _color2, _borderColor;
+	double _scale, _max, _value, _value2;
+	bool _secondOnTop;
+public:
+	/// Creates a new bar with the specified size and position.
+	Bar(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the bar.
+	~Bar();
+	/// Sets the bar's color.
+	void setColor(Uint8 color);
+	/// Gets the bar's color.
+	Uint8 getColor() const;
+	/// Sets the bar's second color.
+	void setSecondaryColor(Uint8 color);
+	/// Gets the bar's second color.
+	Uint8 getSecondaryColor() const;
+	/// Sets the bar's scale.
+	void setScale(double scale);
+	/// Gets the bar's scale.
+	double getScale() const;
+	/// Sets the bar's maximum value.
+	void setMax(double max);
+	/// Gets the bar's maximum value.
+	double getMax() const;
+	/// Sets the bar's current value.
+	void setValue(double value);
+	/// Gets the bar's current value.
+	double getValue() const;
+	/// Sets the bar's second current value.
+	void setValue2(double value);
+	/// Gets the bar's second current value.
+	double getValue2() const;
+	/// Defines whether the second value should be drawn on top.
+	void setSecondValueOnTop(bool onTop);
+	/// Draws the bar.
+	void draw();
+	/// set the outline color for the bar.
+	void setBorderColor(Uint8 bc);
+};
+
+}
+⟦/FILE⟧
+⟦FILE:BattlescapeButton.cpp;encoding=utf8;sha256=812f6bf90657a9bc952b44423d23c3af81ad5b60a3c6d21d5f137a075ffa29ad;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "BattlescapeButton.h"
+#include "../Engine/Action.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a battlescape button with the specified size and position.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+BattlescapeButton::BattlescapeButton(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _color(0), _group(0), _inverted(false), _toggleMode(INVERT_NONE), _altSurface(0)
+{
+}
+
+/**
+ *
+ */
+BattlescapeButton::~BattlescapeButton()
+{
+	delete _altSurface;
+}
+
+/**
+ * Changes the color for the battlescape button.
+ * @param color Color value.
+ */
+void BattlescapeButton::setColor(Uint8 color)
+{
+	_color = color;
+}
+
+/**
+ * Returns the color for the battlescape button.
+ * @return Color value.
+ */
+Uint8 BattlescapeButton::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Changes the button group this battlescape button belongs to.
+ * @param group Pointer to the pressed button pointer in the group.
+ * Null makes it a regular button.
+ */
+void BattlescapeButton::setGroup(BattlescapeButton **group)
+{
+	_group = group;
+	if (_group != 0 && *_group == this)
+		_inverted = true;
+}
+
+/**
+ * Sets the button as the pressed button if it's part of a group,
+ * and inverts the colors when pressed.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void BattlescapeButton::mousePress(Action *action, State *state)
+{
+	if (_group != 0)
+	{
+		if (action->getDetails()->button.button == SDL_BUTTON_LEFT)
+		{
+			(*_group)->toggle(false);
+			*_group = this;
+			_inverted = true;
+		}
+	}
+	else if ((_tftdMode || _toggleMode == INVERT_CLICK ) && !_inverted && isButtonPressed() && isButtonHandled(action->getDetails()->button.button))
+	{
+		_inverted = true;
+	}
+	InteractiveSurface::mousePress(action, state);
+}
+
+/*
+ * Sets the button as the released button if it's part of a group.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void BattlescapeButton::mouseRelease(Action *action, State *state)
+{
+	if (_inverted && isButtonHandled(action->getDetails()->button.button))
+	{
+		_inverted = false;
+	}
+	InteractiveSurface::mouseRelease(action, state);
+}
+
+/**
+ * Invert a button explicitly either ON or OFF and keep track of the state using our internal variables.
+ * @param press Set this button as pressed.
+ */
+void BattlescapeButton::toggle(bool press)
+{
+	if (_tftdMode || _toggleMode == INVERT_TOGGLE || _inverted)
+	{
+		_inverted = press;
+	}
+}
+
+/**
+ * Toggle inversion mode: click to press, click to unpress.
+ */
+void BattlescapeButton::allowToggleInversion()
+{
+	_toggleMode = INVERT_TOGGLE;
+}
+
+/**
+ * Click inversion mode: click to press, release to unpress.
+ */
+void BattlescapeButton::allowClickInversion()
+{
+	_toggleMode = INVERT_CLICK;
+}
+
+/**
+ * Initializes the alternate surface for swapping out as needed.
+ * performs a colour swap for TFTD style buttons, and a palette inversion for coloured buttons
+ * we use two separate surfaces because it's far easier to keep track of
+ * whether or not this surface is inverted.
+ */
+void BattlescapeButton::initSurfaces()
+{
+	delete _altSurface;
+	_altSurface = new Surface(_surface->w, _surface->h, _x, _y);
+	_altSurface->setPalette(getPalette());
+
+	// Lock the surface
+	_altSurface->lock();
+
+	// tftd mode: use a colour lookup table instead of simple palette inversion for our "pressed" state
+	if (_tftdMode)
+	{
+		// this is our colour lookup table
+		const int colorFrom[] = {1, 2, 3, 4,  7,  8, 31, 47, 153, 156, 159};
+		const int colorTo[]   = {2, 3, 4, 5, 11, 10,  2,  2,  96,   9,  97};
+
+		for (int x = 0, y = 0; x < getWidth() && y < getHeight();)
+		{
+			Uint8 pixel = getPixel(x, y);
+			for (int i = 0; i != sizeof(colorFrom)/sizeof(colorFrom[0]); ++i)
+			{
+				if (pixel == colorFrom[i])
+				{
+					pixel = colorTo[i];
+					break;
+				}
+			}
+			_altSurface->setPixelIterative(&x, &y, pixel);
+		}
+	}
+	else
+	{
+		for (int x = 0, y = 0; x < getWidth() && y < getHeight();)
+		{
+			Uint8 pixel = getPixel(x, y);
+			if (pixel > 0)
+			{
+				_altSurface->setPixelIterative(&x, &y, pixel + 2 * ((int)_color + 3 - (int)pixel));
+			}
+			else
+			{
+				_altSurface->setPixelIterative(&x, &y, 0);
+			}
+		}
+	}
+
+	// Unlock the surface
+	_altSurface->unlock();
+}
+
+/**
+ * Blits this surface or the alternate surface onto another one,
+ * depending on whether the button is "pressed" or not.
+ * @param surface Pointer to surface to blit onto.
+ */
+void BattlescapeButton::blit(Surface *surface)
+{
+	if (_inverted)
+	{
+		_altSurface->blit(surface);
+	}
+	else
+	{
+		Surface::blit(surface);
+	}
+}
+
+/**
+ * Changes the position of the surface in the X axis.
+ * @param x X position in pixels.
+ */
+void BattlescapeButton::setX(int x)
+{
+	Surface::setX(x);
+	if (_altSurface)
+	{
+		_altSurface->setX(x);
+	}
+}
+
+/**
+ * Changes the position of the surface in the Y axis.
+ * @param y Y position in pixels.
+ */
+void BattlescapeButton::setY(int y)
+{
+	Surface::setY(y);
+	if (_altSurface)
+	{
+		_altSurface->setY(y);
+	}
+}
+
+}
+⟦/FILE⟧
+⟦FILE:BattlescapeButton.h;encoding=utf8;sha256=dd2da58c675f271b2af6f7592d98a63709da6acf02e0b42652d7aad23d083d1c;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/InteractiveSurface.h"
+
+namespace OpenXcom
+{
+
+enum InversionType {INVERT_NONE, INVERT_CLICK, INVERT_TOGGLE};
+
+/**
+ * Regular image that works like a button.
+ * Unlike the TextButton, this button doesn't draw
+ * anything on its own. It takes an existing graphic and
+ * treats it as a button, inverting colors when necessary.
+ * This is necessary for special buttons like in the Geoscape.
+ */
+class BattlescapeButton : public InteractiveSurface
+{
+protected:
+	Uint8 _color;
+	BattlescapeButton **_group;
+	bool _inverted;
+	InversionType _toggleMode;
+	Surface *_altSurface;
+public:
+	/// Creates a new image button with the specified size and position.
+	BattlescapeButton(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the image button.
+	virtual ~BattlescapeButton();
+	/// Sets the image button's color.
+	void setColor(Uint8 color);
+	/// Gets the image button's color.
+	Uint8 getColor() const;
+	/// Sets the image button's group.
+	void setGroup(BattlescapeButton **group);
+	/// Special handling for mouse presses.
+	void mousePress(Action *action, State *state);
+	/// Special handling for mouse releases.
+	void mouseRelease(Action *action, State *state);
+	/// Invert a button explicitly either ON or OFF.
+	void toggle(bool invert);
+	/// Allows this button to be toggled on/off with a click.
+	void allowToggleInversion();
+	/// Allows this button to be toggled on when clicked, and off when released.
+	void allowClickInversion();
+	/// Sets up the "pressed" surface.
+	void initSurfaces();
+	/// Blits this surface onto another one.
+	void blit(Surface *surface);
+	/// Alters both versions of the button's X pos.
+	void setX(int x);
+	/// Alters both versions of the button's Y pos.
+	void setY(int y);
+
+};
+
+}
+⟦/FILE⟧
+⟦FILE:ComboBox.cpp;encoding=utf8;sha256=9b6bf0fd6ce83287ef6de8f1aeb28f81a4b005be69edd12194227d85b6fa7468;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ComboBox.h"
+#include <algorithm>
+#include "TextButton.h"
+#include "Window.h"
+#include "TextList.h"
+#include "../Engine/State.h"
+#include "../Engine/Language.h"
+#include "../Engine/Font.h"
+#include "../Engine/Action.h"
+#include "../Engine/Options.h"
+#include "../Engine/Screen.h"
+
+namespace OpenXcom
+{
+
+const int ComboBox::HORIZONTAL_MARGIN = 2;
+const int ComboBox::VERTICAL_MARGIN = 3;
+const int ComboBox::MAX_ITEMS = 10;
+const int ComboBox::BUTTON_WIDTH = 14;
+const int ComboBox::TEXT_HEIGHT = 8;
+
+static int getPopupWindowY(int buttonHeight, int buttonY, int popupHeight, bool popupAboveButton)
+{
+	int belowButtonY = buttonY + buttonHeight;
+	if (popupAboveButton)
+	{
+		// used when popup list won't fit below the button; display it above
+		return buttonY - popupHeight;
+	}
+	return belowButtonY;
+}
+
+/**
+ * Sets up a combobox with the specified size and position.
+ * @param state Pointer to state the combobox belongs to.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+ComboBox::ComboBox(State *state, int width, int height, int x, int y, bool popupAboveButton) : InteractiveSurface(width, height, x, y), _change(0), _sel(0), _state(state), _lang(0), _toggled(false), _popupAboveButton(popupAboveButton)
+{
+	_button = new TextButton(width, height, x, y);
+	_button->setComboBox(this);
+
+	_arrow = new Surface(11, 8, x + width - BUTTON_WIDTH, y + 4);
+
+	int popupHeight = MAX_ITEMS * TEXT_HEIGHT + VERTICAL_MARGIN * 2;
+	int popupY = getPopupWindowY(height, y, popupHeight, popupAboveButton);
+	_window = new Window(state, width, popupHeight, x, popupY);
+	_window->setThinBorder();
+
+	_list = new TextList(width - HORIZONTAL_MARGIN * 2 - BUTTON_WIDTH + 1,
+						popupHeight - (VERTICAL_MARGIN * 2 + 2),
+						x + HORIZONTAL_MARGIN,
+						popupY + VERTICAL_MARGIN);
+	_list->setComboBox(this);
+	_list->setColumns(1, _list->getWidth());
+	_list->setSelectable(true);
+	_list->setBackground(_window);
+	_list->setAlign(ALIGN_CENTER);
+	_list->setScrolling(true, 0);
+
+	toggle(true);
+}
+
+/**
+ * Deletes all the stuff contained in the list.
+ */
+ComboBox::~ComboBox()
+{
+	delete _button;
+	delete _arrow;
+	delete _window;
+	delete _list;
+}
+
+/**
+ * Changes the position of the surface in the X axis.
+ * @param x X position in pixels.
+ */
+void ComboBox::setX(int x)
+{
+	Surface::setX(x);
+	_button->setX(x);
+	_arrow->setX(x + getWidth() - BUTTON_WIDTH);
+	_window->setX(x);
+	_list->setX(x + HORIZONTAL_MARGIN);
+}
+
+/**
+ * Changes the position of the surface in the Y axis.
+ * @param y Y position in pixels.
+ */
+void ComboBox::setY(int y)
+{
+	Surface::setY(y);
+	_button->setY(y);
+	_arrow->setY(y + 4);
+
+	int popupHeight = _window->getHeight();
+	int popupY = getPopupWindowY(getHeight(), y, popupHeight, _popupAboveButton);
+	_window->setY(popupY);
+	_list->setY(popupY + VERTICAL_MARGIN);
+}
+
+/**
+ * Replaces a certain amount of colors in the palette of all
+ * the text contained in the list.
+ * @param colors Pointer to the set of colors.
+ * @param firstcolor Offset of the first color to replace.
+ * @param ncolors Amount of colors to replace.
+ */
+void ComboBox::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+{
+	Surface::setPalette(colors, firstcolor, ncolors);
+	_button->setPalette(colors, firstcolor, ncolors);
+	_arrow->setPalette(colors, firstcolor, ncolors);
+	_window->setPalette(colors, firstcolor, ncolors);
+	_list->setPalette(colors, firstcolor, ncolors);
+}
+
+/**
+ * Changes the resources for the text in the combo box.
+ * @param big Pointer to large-size font.
+ * @param small Pointer to small-size font.
+ * @param lang Pointer to current language.
+ */
+void ComboBox::initText(Font *big, Font *small, Language *lang)
+{
+	_lang = lang;
+	_button->initText(big, small, lang);
+	_list->initText(big, small, lang);
+}
+
+/**
+ * Changes the surface used to draw the background of the combo box.
+ * @param bg New background.
+ */
+void ComboBox::setBackground(Surface *bg)
+{
+	_window->setBackground(bg);
+}
+
+/**
+ * Changes the color used to draw the combo box.
+ * @param color Color value.
+ */
+void ComboBox::setColor(Uint8 color)
+{
+	_color = color;
+	drawArrow();
+	_button->setColor(_color);
+	_window->setColor(_color);
+	_list->setColor(_color);
+}
+
+/**
+ * Returns the color used to draw the combo box.
+ * @return Color value.
+ */
+Uint8 ComboBox::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Draws the arrow used to indicate the combo box.
+ */
+void ComboBox::drawArrow()
+{
+	_arrow->clear();
+
+	SDL_Rect square;
+	int color = _color + 1;
+	if (color == 256)
+		color++;
+
+	// Draw arrow triangle 1
+	square.x = 1;
+	square.y = 2;
+	square.w = 9;
+	square.h = 1;
+
+	for (; square.w > 1; square.w -= 2)
+	{
+		_arrow->drawRect(&square, color + 2);
+		square.x++;
+		square.y++;
+	}
+	_arrow->drawRect(&square, color + 2);
+
+	// Draw arrow triangle 2
+	square.x = 2;
+	square.y = 2;
+	square.w = 7;
+	square.h = 1;
+
+	for (; square.w > 1; square.w -= 2)
+	{
+		_arrow->drawRect(&square, color);
+		square.x++;
+		square.y++;
+	}
+	_arrow->drawRect(&square, color);
+}
+
+/**
+ * Enables/disables high contrast color. Mostly used for
+ * Battlescape UI.
+ * @param contrast High contrast setting.
+ */
+void ComboBox::setHighContrast(bool contrast)
+{
+	_button->setHighContrast(contrast);
+	_window->setHighContrast(contrast);
+	_list->setHighContrast(contrast);
+}
+
+/**
+ * Changes the color of the arrow buttons in the list.
+ * @param color Color value.
+ */
+void ComboBox::setArrowColor(Uint8 color)
+{
+	_list->setArrowColor(color);
+}
+
+/**
+ * Returns the currently selected option.
+ * @return Selected row.
+ */
+size_t ComboBox::getSelected() const
+{
+	return _sel;
+}
+
+size_t ComboBox::getHoveredListIdx() const
+{
+	size_t ret = -1;
+	if (_list->getVisible())
+	{
+		ret = _list->getSelectedRow();
+	}
+	if ((size_t)-1 == ret)
+	{
+		ret = _sel;
+	}
+	return ret;
+}
+
+/**
+ * sets the button text independent of the currently selected option.
+ * @param text the text to display
+ */
+void ComboBox::setText(const std::string &text)
+{
+	_button->setText(text);
+}
+
+/**
+ * Changes the currently selected option.
+ * @param sel Selected row.
+ */
+void ComboBox::setSelected(size_t sel)
+{
+	_sel = sel;
+	if (_sel < _list->getTexts())
+	{
+		_button->setText(_list->getCellText(_sel, 0));
+	}
+}
+
+/**
+ * Updates the size of the dropdown list based on
+ * the number of options available.
+ * @param options Number of options.
+ */
+void ComboBox::setDropdown(int options)
+{
+	int items = std::min(options, MAX_ITEMS);
+	int h = _button->getFont()->getHeight() + _button->getFont()->getSpacing();
+	int dy = (Options::baseYResolution - 200) / 2;
+	while (_window->getY() + items * h + VERTICAL_MARGIN * 2 > 200 + dy)
+	{
+		items--;
+	}
+
+	int popupHeight = items * h + VERTICAL_MARGIN * 2;
+	int popupY = getPopupWindowY(getHeight(), getY(), popupHeight, _popupAboveButton);
+	_window->setY(popupY);
+	_window->setHeight(popupHeight);
+	_list->setY(popupY + VERTICAL_MARGIN);
+	_list->setHeight(items * h);
+}
+
+/**
+ * Changes the list of available options to choose from.
+ * @param options List of strings.
+ * @param translate True for a list of string IDs, false for a list of raw strings.
+ */
+void ComboBox::setOptions(const std::vector<std::string> &options, bool translate)
+{
+	setDropdown(options.size());
+	_list->clearList();
+	for (std::vector<std::string>::const_iterator i = options.begin(); i != options.end(); ++i)
+	{
+		if (translate)
+			_list->addRow(1, _lang->getString(*i).c_str());
+		else
+			_list->addRow(1, i->c_str());
+	}
+	setSelected(_sel);
+}
+
+/**
+ * Blits the combo box components.
+ * @param surface Pointer to surface to blit onto.
+ */
+void ComboBox::blit(Surface *surface)
+{
+	Surface::blit(surface);
+	_list->invalidate();
+	if (_visible && !_hidden)
+	{
+		_button->blit(surface);
+		_arrow->blit(surface);
+		_window->blit(surface);
+		_list->blit(surface);
+	}
+}
+
+/**
+ * Passes events to internal components.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void ComboBox::handle(Action *action, State *state)
+{
+	_button->handle(action, state);
+	_list->handle(action, state);
+	InteractiveSurface::handle(action, state);
+	int topY = std::min(getY(), _window->getY());
+	if (_window->getVisible() && action->getDetails()->type == SDL_MOUSEBUTTONDOWN &&
+		(action->getAbsoluteXMouse() < getX() || action->getAbsoluteXMouse() >= getX() + getWidth() ||
+		 action->getAbsoluteYMouse() < topY || action->getAbsoluteYMouse() >= topY + getHeight() + _window->getHeight()))
+	{
+		toggle();
+	}
+	if (_toggled)
+	{
+		if (_change)
+		{
+			(state->*_change)(action);
+		}
+		_toggled = false;
+	}
+}
+
+/**
+ * Passes ticks to arrow buttons.
+ */
+void ComboBox::think()
+{
+	_button->think();
+	_arrow->think();
+	_window->think();
+	_list->think();
+	InteractiveSurface::think();
+}
+
+/**
+ * Opens/closes the combo box list.
+ * @param first Is it the initialization toggle?
+ */
+void ComboBox::toggle(bool first)
+{
+	_window->setVisible(!_window->getVisible());
+	_list->setVisible(!_list->getVisible());
+	_state->setModal(_window->getVisible() ? this : 0);
+	if (!first && !_window->getVisible())
+	{
+		_toggled = true;
+	}
+	if (_list->getVisible())
+	{
+		if (_sel < _list->getVisibleRows()/2)
+		{
+			_list->scrollTo(0);
+		}
+		else
+		{
+			_list->scrollTo(_sel - _list->getVisibleRows()/2);
+		}
+	}
+}
+
+/**
+ * Sets a function to be called every time the slider's value changes.
+ * @param handler Action handler.
+ */
+void ComboBox::onChange(ActionHandler handler)
+{
+	_change = handler;
+}
+
+/**
+ * Sets a function to be called every time the mouse moves in to the listbox surface.
+ * @param handler Action handler.
+ */
+void ComboBox::onListMouseIn(ActionHandler handler)
+{
+	_list->onMouseIn(handler);
+}
+
+/**
+ * Sets a function to be called every time the mouse moves out of the listbox surface.
+ * @param handler Action handler.
+ */
+void ComboBox::onListMouseOut(ActionHandler handler)
+{
+	_list->onMouseOut(handler);
+}
+
+/**
+ * Sets a function to be called every time the mouse moves over the listbox surface.
+ * @param handler Action handler.
+ */
+void ComboBox::onListMouseOver(ActionHandler handler)
+{
+	_list->onMouseOver(handler);
+}
+
+}
+⟦/FILE⟧
+⟦FILE:ComboBox.h;encoding=utf8;sha256=71905f3c66c95925369589c3c6abcebd003fa144c79a868b4ff2a4ed963c61b8;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/InteractiveSurface.h"
+#include <vector>
+#include <string>
+
+namespace OpenXcom
+{
+
+class TextButton;
+class TextList;
+class Window;
+class Language;
+
+/**
+ * Text button with a list dropdown when pressed.
+ * Allows selection from multiple available options.
+ */
+class ComboBox : public InteractiveSurface
+{
+private:
+	static const int HORIZONTAL_MARGIN;
+	static const int VERTICAL_MARGIN;
+	static const int MAX_ITEMS;
+	static const int BUTTON_WIDTH;
+	static const int TEXT_HEIGHT;
+
+	TextButton *_button;
+	Surface *_arrow;
+	Window *_window;
+	TextList *_list;
+
+	ActionHandler _change;
+	size_t _sel;
+	State *_state;
+	Language *_lang;
+	Uint8 _color;
+	bool _toggled;
+	bool _popupAboveButton;
+
+	void drawArrow();
+	void setDropdown(int options);
+public:
+	/// Creates a combo box with the specified size and position.
+	ComboBox(State *state, int width, int height, int x = 0, int y = 0, bool popupAboveButton = false);
+	/// Cleans up the combo box.
+	~ComboBox();
+	/// Sets the X position of the surface.
+	void setX(int x);
+	/// Sets the Y position of the surface.
+	void setY(int y);
+	/// Sets the palette of the text list.
+	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	/// Initializes the resources for the text list.
+	void initText(Font *big, Font *small, Language *lang);
+	/// Sets the background surface.
+	void setBackground(Surface *bg);
+	/// Sets the border color.
+	void setColor(Uint8 color);
+	/// Gets the border color.
+	Uint8 getColor() const;
+	/// Sets the high contrast color setting.
+	void setHighContrast(bool contrast);
+	/// Sets the arrow color of the text list.
+	void setArrowColor(Uint8 color);
+	/// Gets the selected option in the list.
+	size_t getSelected() const;
+	/// Gets the item that is currently hovered over in the popup list, or the current
+	/// selected item if no item is hovered over.
+	size_t getHoveredListIdx() const;
+	/// Sets the button text without changing the selected option
+	void setText(const std::string &text);
+	/// Sets the selected option in the list.
+	void setSelected(size_t sel);
+	/// Sets the list of options.
+	void setOptions(const std::vector<std::string> &options, bool translate = false);
+	/// Blits the combo box onto another surface.
+	void blit(Surface *surface);
+	/// Thinks arrow buttons.
+	void think();
+	/// Handle arrow buttons.
+	void handle(Action *action, State *state);
+	/// Toggles the combo box state.
+	void toggle(bool first = false);
+	/// Hooks an action handler to when the slider changes.
+	void onChange(ActionHandler handler);
+	/// Hooks an action handler to moving the mouse in to the listbox when it is visible.
+	void onListMouseIn(ActionHandler handler);
+	/// Hooks an action handler to moving the mouse out of the listbox when it is visible.
+	void onListMouseOut(ActionHandler handler);
+	/// Hooks an action handler to moving the mouse over the listbox when it is visible.
+	void onListMouseOver(ActionHandler handler);
+};
+
+}
+⟦/FILE⟧
+⟦FILE:Cursor.cpp;encoding=utf8;sha256=eaa6b49ff27ccf1d4d1be23e9f39e66d1dd0f5a0be2fad1ec5add3d156b265da;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "Cursor.h"
+#include <cmath>
+#include <SDL.h>
+#include "../Engine/Action.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a cursor with the specified size and position
+ * and hides the system cursor.
+ * @note The size and position don't really matter since
+ * it's a 9x13 shape, they're just there for inheritance.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+Cursor::Cursor(int width, int height, int x, int y) : Surface(width, height, x, y), _color(0)
+{
+}
+
+/**
+ *
+ */
+Cursor::~Cursor()
+{
+}
+
+/**
+ * Automatically updates the cursor position
+ * when the mouse moves.
+ * @param action Pointer to an action.
+ */
+void Cursor::handle(Action *action)
+{
+	if (action->getDetails()->type == SDL_MOUSEMOTION)
+	{
+		setX((int)floor((action->getDetails()->motion.x - action->getLeftBlackBand()) / action->getXScale()));
+		setY((int)floor((action->getDetails()->motion.y - action->getTopBlackBand()) / action->getYScale()));
+	}
+}
+
+/**
+ * Changes the cursor's base color.
+ * @param color Color value.
+ */
+void Cursor::setColor(Uint8 color)
+{
+	_color = color;
+	_redraw = true;
+}
+
+/**
+ * Returns the cursor's base color.
+ * @return Color value.
+ */
+Uint8 Cursor::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Draws a pointer-shaped cursor graphic.
+ */
+void Cursor::draw()
+{
+	Surface::draw();
+	Uint8 color = _color;
+	int x1 = 0, y1 = 0, x2 = getWidth() - 1, y2 = getHeight() - 1;
+
+	lock();
+	for (int i = 0; i < 4; ++i)
+	{
+		drawLine(x1, y1, x1, y2, color);
+		drawLine(x1, y1, x2, getWidth() - 1, color);
+		x1++;
+		y1 += 2;
+		y2--;
+		x2--;
+		color++;
+	}
+	this->setPixel(4, 8, --color);
+	unlock();
+}
+
+}
+⟦/FILE⟧
+⟦FILE:Cursor.h;encoding=utf8;sha256=cc3e857d8bdbaca8069ab3de7b848827bccac78d3c2ff18cceb64d4a7f806740;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/Surface.h"
+
+namespace OpenXcom
+{
+
+class Action;
+
+/**
+ * Mouse cursor that replaces the system cursor.
+ * Drawn as a shaded triangle-like shape, automatically
+ * matches the mouse coordinates.
+ */
+class Cursor : public Surface
+{
+private:
+	Uint8 _color;
+
+public:
+	/// Creates a new cursor with the specified size and position.
+	Cursor(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the cursor.
+	~Cursor();
+	/// Handles mouse events.
+	void handle(Action *action);
+	/// Sets the cursor's color.
+	void setColor(Uint8 color);
+	/// Gets the cursor's color.
+	Uint8 getColor() const;
+	/// Draws the cursor.
+	void draw();
+};
+
+}
+⟦/FILE⟧
+⟦FILE:FpsCounter.cpp;encoding=utf8;sha256=fa687fc69dee872a1ef9ba0bae3aa6c5c3b765493322e520e59079b71c670931;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "FpsCounter.h"
+#include <cmath>
+#include "../Engine/Action.h"
+#include "../Engine/Timer.h"
+#include "../Engine/Options.h"
+#include "NumberText.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Creates a FPS counter of the specified size.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+FpsCounter::FpsCounter(int width, int height, int x, int y) : Surface(width, height, x, y), _frames(0)
+{
+	_visible = Options::fpsCounter;
+
+	_timer = new Timer(1000);
+	_timer->onTimer((SurfaceHandler)&FpsCounter::update);
+	_timer->start();
+
+	_text = new NumberText(width, height, x, y);
+}
+
+/**
+ * Deletes FPS counter content.
+ */
+FpsCounter::~FpsCounter()
+{
+	delete _text;
+	delete _timer;
+}
+
+/**
+ * Replaces a certain amount of colors in the FPS counter palette.
+ * @param colors Pointer to the set of colors.
+ * @param firstcolor Offset of the first color to replace.
+ * @param ncolors Amount of colors to replace.
+ */
+void FpsCounter::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+{
+	Surface::setPalette(colors, firstcolor, ncolors);
+	_text->setPalette(colors, firstcolor, ncolors);
+}
+
+/**
+ * Sets the text color of the counter.
+ * @param color The color to set.
+ */
+void FpsCounter::setColor(Uint8 color)
+{
+	_text->setColor(color);
+}
+
+/**
+ * Shows / hides the FPS counter.
+ * @param action Pointer to an action.
+ */
+void FpsCounter::handle(Action *action)
+{
+	if (action->getDetails()->type == SDL_KEYDOWN && action->getDetails()->key.keysym.sym == Options::keyFps)
+	{
+		_visible = !_visible;
+		Options::fpsCounter = _visible;
+	}
+}
+
+/**
+ * Advances frame counter.
+ */
+void FpsCounter::think()
+{
+	_timer->think(0, this);
+}
+
+/**
+ * Updates the amount of Frames per Second.
+ */
+void FpsCounter::update()
+{
+	int fps = (int)floor((double)_frames / _timer->getTime() * 1000);
+	_text->setValue(fps);
+	_frames = 0;
+	_redraw = true;
+}
+
+/**
+ * Draws the FPS counter.
+ */
+void FpsCounter::draw()
+{
+	Surface::draw();
+	_text->blit(this);
+}
+
+void FpsCounter::addFrame()
+{
+	_frames++;
+}
+
+}
+⟦/FILE⟧
+⟦FILE:FpsCounter.h;encoding=utf8;sha256=dac368dfc8d0102d8dcc0690945c860b07d32156864dbdfbe79218a8cb7840de;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/Surface.h"
+
+namespace OpenXcom
+{
+
+class NumberText;
+class Timer;
+class Action;
+
+/**
+ * Counts the amount of frames each second
+ * and displays them in a NumberText surface.
+ */
+class FpsCounter : public Surface
+{
+private:
+	NumberText *_text;
+	Timer *_timer;
+	int _frames;
+public:
+	/// Creates a new FPS counter linked to a game.
+	FpsCounter(int width, int height, int x, int y);
+	/// Cleans up all the FPS counter resources.
+	~FpsCounter();
+	/// Sets the FPS counter's palette.
+	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	/// Sets the FpsCounter's color.
+	void setColor(Uint8 color);
+	/// Handles keyboard events.
+	void handle(Action *action);
+	/// Advances frame counter.
+	void think();
+	// Updates FPS counter.
+	void update();
+	/// Draws the FPS counter.
+	void draw();
+	void addFrame();
+};
+
+}
+⟦/FILE⟧
+⟦FILE:Frame.cpp;encoding=utf8;sha256=d05b52c226a2d16ec2dfbe7b403e0d894f3ff967b856838f6f7e4cb36ee42e0d;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "Frame.h"
+#include "../Engine/Palette.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a blank frame with the specified size and position.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+Frame::Frame(int width, int height, int x, int y) : Surface(width, height, x, y), _color(0), _bg(0), _thickness(5), _contrast(false)
+{
+}
+
+/**
+ *
+ */
+Frame::~Frame()
+{
+}
+
+/**
+ * Changes the color used to draw the shaded border.
+ * @param color Color value.
+ */
+void Frame::setColor(Uint8 color)
+{
+	_color = color;
+	_redraw = true;
+}
+
+/**
+ * Changes the color used to draw the shaded border.
+ * only really to be used in conjunction with the State add()
+ * function as a convenience wrapper to avoid ugly hacks on that end
+ * better to have them here!
+ * @param color Color value.
+ */
+void Frame::setBorderColor(Uint8 color)
+{
+	setColor(color);
+}
+
+/**
+ * Returns the color used to draw the shaded border.
+ * @return Color value.
+ */
+Uint8 Frame::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Changes the color used to draw the background.
+ * @param bg Color value.
+ */
+void Frame::setSecondaryColor(Uint8 bg)
+{
+	_bg = bg;
+	_redraw = true;
+}
+
+/**
+ * Returns the color used to draw the background.
+ * @return Color value.
+ */
+Uint8 Frame::getSecondaryColor() const
+{
+	return _bg;
+}
+
+/**
+ * Enables/disables high contrast color. Mostly used for
+ * Battlescape UI.
+ * @param contrast High contrast setting.
+ */
+void Frame::setHighContrast(bool contrast)
+{
+	_contrast = contrast;
+	_redraw = true;
+}
+
+/**
+ * Changes the thickness of the border to draw.
+ * @param thickness Thickness in pixels.
+ */
+void Frame::setThickness(int thickness)
+{
+	_thickness = thickness;
+	_redraw = true;
+}
+
+/**
+ * Draws the bordered frame with a graphic background.
+ * The background never moves with the frame, it's
+ * always aligned to the top-left corner of the screen
+ * and cropped to fit the inside area.
+ */
+void Frame::draw()
+{
+	Surface::draw();
+	SDL_Rect square;
+
+	square.x = 0;
+	square.w = getWidth();
+	square.y = 0;
+	square.h = getHeight();
+
+	int mul = 1;
+	if (_contrast)
+	{
+		mul = 2;
+	}
+
+	// _color denotes our middle line color, so we start (half the thickness times the multiplier) steps darker and build up
+	Uint8 color = _color + ((1 + _thickness) * mul) / 2;
+	// we want the darkest version of this colour to outline any thick borders
+	Uint8 darkest = Palette::blockOffset(_color / 16) + 15;
+	for (int i = 0; i < _thickness; ++i)
+	{
+		if (_thickness > 5 && (!i || i == _thickness -1))
+			drawRect(&square, darkest);
+		else
+			drawRect(&square, color);
+		if (i < _thickness / 2)
+			color -= 1 * mul;
+		else
+			color += 1 * mul;
+		square.x++;
+		square.y++;
+		if (square.w >= 2)
+			square.w -= 2;
+		else
+			square.w = 1;
+
+		if (square.h >= 2)
+			square.h -= 2;
+		else
+			square.h = 1;
+	}
+	drawRect(&square, _bg);
+}
+
+}
+⟦/FILE⟧
+⟦FILE:Frame.h;encoding=utf8;sha256=190e27cbfcc2ab84a73f6e4f4808cb7dde940b504f75446434dca7ce47f25763;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/Surface.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Fancy frame border thing used for windows and other elements.
+ */
+class Frame : public Surface
+{
+private:
+	Uint8 _color, _bg;
+	int _thickness;
+	bool _contrast;
+public:
+	/// Creates a new frame with the specified size and position.
+	Frame(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the frame.
+	~Frame();
+	/// Sets the border color.
+	void setColor(Uint8 color);
+	/// Gets the border color.
+	Uint8 getColor() const;
+	void setBorderColor(Uint8 color);
+	/// Sets the background color.
+	void setSecondaryColor(Uint8 bg);
+	/// Gets the background color.
+	Uint8 getSecondaryColor() const;
+	/// Sets the high contrast color setting.
+	void setHighContrast(bool contrast);
+	/// Sets the border thickness.
+	void setThickness(int thickness);
+	/// Draws the frame.
+	void draw();
+};
+
+}
+⟦/FILE⟧
+⟦FILE:ImageButton.cpp;encoding=utf8;sha256=21942cf3eb038347ee1fd6f71147671d2cb7ff33af6cf36b2ab1d5e4b79046a7;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ImageButton.h"
+#include "../Engine/Action.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up an image button with the specified size and position.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+ImageButton::ImageButton(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _color(0), _group(0), _inverted(false)
+{
+}
+
+/**
+ *
+ */
+ImageButton::~ImageButton()
+{
+
+}
+
+/**
+ * Changes the color for the image button.
+ * @param color Color value.
+ */
+void ImageButton::setColor(Uint8 color)
+{
+	_color = color;
+}
+
+/**
+ * Returns the color for the image button.
+ * @return Color value.
+ */
+Uint8 ImageButton::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Changes the button group this image button belongs to.
+ * @param group Pointer to the pressed button pointer in the group.
+ * Null makes it a regular button.
+ */
+void ImageButton::setGroup(ImageButton **group)
+{
+	_group = group;
+	if (_group != 0 && *_group == this)
+		invert(_color + 3);
+}
+
+/**
+ * Sets the button as the pressed button if it's part of a group,
+ * and inverts the colors when pressed.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void ImageButton::mousePress(Action *action, State *state)
+{
+	if (_group != 0)
+	{
+		if (action->getDetails()->button.button == SDL_BUTTON_LEFT)
+		{
+			(*_group)->invert((*_group)->getColor() + 3);
+			*_group = this;
+			invert(_color + 3);
+		}
+	}
+	else if (!_inverted && isButtonPressed() && isButtonHandled(action->getDetails()->button.button))
+	{
+		_inverted = true;
+		invert(_color + 3);
+	}
+	InteractiveSurface::mousePress(action, state);
+}
+
+/*
+ * Sets the button as the released button if it's part of a group.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void ImageButton::mouseRelease(Action *action, State *state)
+{
+	if (_inverted && isButtonHandled(action->getDetails()->button.button))
+	{
+		_inverted = false;
+		invert(_color + 3);
+	}
+	InteractiveSurface::mouseRelease(action, state);
+}
+
+/**
+ * Invert a button explicitly either ON or OFF and keep track of the state using our internal variables.
+ * @param press Set this button as pressed.
+ */
+void ImageButton::toggle(bool press)
+{
+	if (_inverted != press)
+	{
+		_inverted = !_inverted;
+		invert(_color + 3);
+	}
+}
+
+}
+⟦/FILE⟧
+⟦FILE:ImageButton.h;encoding=utf8;sha256=96b773c39f0910708e267bec9eb28dd635e52552dacc606e720fc9b6d7025e5d;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/InteractiveSurface.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Regular image that works like a button.
+ * Unlike the TextButton, this button doesn't draw
+ * anything on its own. It takes an existing graphic and
+ * treats it as a button, inverting colors when necessary.
+ * This is necessary for special buttons like in the Geoscape.
+ */
+class ImageButton : public InteractiveSurface
+{
+protected:
+	Uint8 _color;
+	ImageButton **_group;
+	bool _inverted;
+public:
+	/// Creates a new image button with the specified size and position.
+	ImageButton(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the image button.
+	virtual ~ImageButton();
+	/// Sets the image button's color.
+	void setColor(Uint8 color);
+	/// Gets the image button's color.
+	Uint8 getColor() const;
+	/// Sets the image button's group.
+	void setGroup(ImageButton **group);
+	/// Special handling for mouse presses.
+	void mousePress(Action *action, State *state);
+	/// Special handling for mouse releases.
+	void mouseRelease(Action *action, State *state);
+	/// Invert a button explicitly either ON or OFF.
+	void toggle(bool invert);
+};
+
+}
+⟦/FILE⟧
+⟦FILE:NumberText.cpp;encoding=utf8;sha256=e057f9140014e05c742a1a382427bc40a8131c0fa9f7bfd35f64d00e5bed81a7;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "NumberText.h"
+#include <sstream>
+#include <string>
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a blank number text.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+NumberText::NumberText(int width, int height, int x, int y) : Surface(width, height, x, y), _value(0), _bordered(false), _color(0)
+{
+	_chars[0] = new Surface(3, 5);
+	_chars[0]->lock();
+	_chars[0]->setPixel(0, 0, 1);
+	_chars[0]->setPixel(1, 0, 1);
+	_chars[0]->setPixel(2, 0, 1);
+	_chars[0]->setPixel(0, 1, 1);
+	_chars[0]->setPixel(0, 2, 1);
+	_chars[0]->setPixel(0, 3, 1);
+	_chars[0]->setPixel(2, 1, 1);
+	_chars[0]->setPixel(2, 2, 1);
+	_chars[0]->setPixel(2, 3, 1);
+	_chars[0]->setPixel(0, 4, 1);
+	_chars[0]->setPixel(1, 4, 1);
+	_chars[0]->setPixel(2, 4, 1);
+	_chars[0]->unlock();
+
+	_chars[1] = new Surface(3, 5);
+	_chars[1]->lock();
+	_chars[1]->setPixel(1, 0, 1);
+	_chars[1]->setPixel(1, 1, 1);
+	_chars[1]->setPixel(1, 2, 1);
+	_chars[1]->setPixel(1, 3, 1);
+	_chars[1]->setPixel(0, 4, 1);
+	_chars[1]->setPixel(1, 4, 1);
+	_chars[1]->setPixel(2, 4, 1);
+	_chars[1]->setPixel(0, 1, 1);
+	_chars[1]->unlock();
+
+	_chars[2] = new Surface(3, 5);
+	_chars[2]->lock();
+	_chars[2]->setPixel(0, 0, 1);
+	_chars[2]->setPixel(1, 0, 1);
+	_chars[2]->setPixel(2, 0, 1);
+	_chars[2]->setPixel(2, 1, 1);
+	_chars[2]->setPixel(0, 2, 1);
+	_chars[2]->setPixel(1, 2, 1);
+	_chars[2]->setPixel(2, 2, 1);
+	_chars[2]->setPixel(0, 3, 1);
+	_chars[2]->setPixel(0, 4, 1);
+	_chars[2]->setPixel(1, 4, 1);
+	_chars[2]->setPixel(2, 4, 1);
+	_chars[2]->unlock();
+
+	_chars[3] = new Surface(3, 5);
+	_chars[3]->lock();
+	_chars[3]->setPixel(0, 0, 1);
+	_chars[3]->setPixel(1, 0, 1);
+	_chars[3]->setPixel(2, 0, 1);
+	_chars[3]->setPixel(2, 1, 1);
+	_chars[3]->setPixel(2, 2, 1);
+	_chars[3]->setPixel(2, 3, 1);
+	_chars[3]->setPixel(0, 2, 1);
+	_chars[3]->setPixel(1, 2, 1);
+	_chars[3]->setPixel(0, 4, 1);
+	_chars[3]->setPixel(1, 4, 1);
+	_chars[3]->setPixel(2, 4, 1);
+	_chars[3]->unlock();
+
+	_chars[4] = new Surface(3, 5);
+	_chars[4]->lock();
+	_chars[4]->setPixel(0, 0, 1);
+	_chars[4]->setPixel(0, 1, 1);
+	_chars[4]->setPixel(0, 2, 1);
+	_chars[4]->setPixel(1, 2, 1);
+	_chars[4]->setPixel(2, 0, 1);
+	_chars[4]->setPixel(2, 1, 1);
+	_chars[4]->setPixel(2, 2, 1);
+	_chars[4]->setPixel(2, 3, 1);
+	_chars[4]->setPixel(2, 4, 1);
+	_chars[4]->unlock();
+
+	_chars[5] = new Surface(3, 5);
+	_chars[5]->lock();
+	_chars[5]->setPixel(0, 0, 1);
+	_chars[5]->setPixel(1, 0, 1);
+	_chars[5]->setPixel(2, 0, 1);
+	_chars[5]->setPixel(0, 1, 1);
+	_chars[5]->setPixel(0, 2, 1);
+	_chars[5]->setPixel(1, 2, 1);
+	_chars[5]->setPixel(2, 2, 1);
+	_chars[5]->setPixel(2, 3, 1);
+	_chars[5]->setPixel(0, 4, 1);
+	_chars[5]->setPixel(1, 4, 1);
+	_chars[5]->setPixel(2, 4, 1);
+	_chars[5]->unlock();
+
+	_chars[6] = new Surface(3, 5);
+	_chars[6]->lock();
+	_chars[6]->setPixel(0, 0, 1);
+	_chars[6]->setPixel(1, 0, 1);
+	_chars[6]->setPixel(2, 0, 1);
+	_chars[6]->setPixel(0, 1, 1);
+	_chars[6]->setPixel(0, 2, 1);
+	_chars[6]->setPixel(1, 2, 1);
+	_chars[6]->setPixel(2, 2, 1);
+	_chars[6]->setPixel(0, 3, 1);
+	_chars[6]->setPixel(2, 3, 1);
+	_chars[6]->setPixel(0, 4, 1);
+	_chars[6]->setPixel(1, 4, 1);
+	_chars[6]->setPixel(2, 4, 1);
+	_chars[6]->unlock();
+
+	_chars[7] = new Surface(3, 5);
+	_chars[7]->lock();
+	_chars[7]->setPixel(0, 0, 1);
+	_chars[7]->setPixel(1, 0, 1);
+	_chars[7]->setPixel(2, 0, 1);
+	_chars[7]->setPixel(2, 1, 1);
+	_chars[7]->setPixel(2, 2, 1);
+	_chars[7]->setPixel(2, 3, 1);
+	_chars[7]->setPixel(2, 4, 1);
+	_chars[7]->unlock();
+
+	_chars[8] = new Surface(3, 5);
+	_chars[8]->lock();
+	_chars[8]->setPixel(0, 0, 1);
+	_chars[8]->setPixel(1, 0, 1);
+	_chars[8]->setPixel(2, 0, 1);
+	_chars[8]->setPixel(0, 1, 1);
+	_chars[8]->setPixel(0, 2, 1);
+	_chars[8]->setPixel(0, 3, 1);
+	_chars[8]->setPixel(2, 1, 1);
+	_chars[8]->setPixel(2, 2, 1);
+	_chars[8]->setPixel(2, 3, 1);
+	_chars[8]->setPixel(1, 2, 1);
+	_chars[8]->setPixel(0, 4, 1);
+	_chars[8]->setPixel(1, 4, 1);
+	_chars[8]->setPixel(2, 4, 1);
+	_chars[8]->unlock();
+
+	_chars[9] = new Surface(3, 5);
+	_chars[9]->lock();
+	_chars[9]->setPixel(0, 0, 1);
+	_chars[9]->setPixel(1, 0, 1);
+	_chars[9]->setPixel(2, 0, 1);
+	_chars[9]->setPixel(0, 1, 1);
+	_chars[9]->setPixel(0, 2, 1);
+	_chars[9]->setPixel(2, 1, 1);
+	_chars[9]->setPixel(2, 2, 1);
+	_chars[9]->setPixel(2, 3, 1);
+	_chars[9]->setPixel(1, 2, 1);
+	_chars[9]->setPixel(0, 4, 1);
+	_chars[9]->setPixel(1, 4, 1);
+	_chars[9]->setPixel(2, 4, 1);
+	_chars[9]->unlock();
+
+	for (int i = 0; i < 10; ++i)
+	{
+		_borderedChars[i] = new Surface(5, 7);
+		// give it a border
+		// this is the "darker" shade that goes in the corners.
+		for (int j = 0; j <= 2; j += 2)
+		{
+			for (int k = 0; k <= 2; k += 2)
+			{
+				_chars[i]->blitNShade(_borderedChars[i], j, k, 11);
+			}
+		}
+		// this is the "slightly darker" version that goes in four cardinals.
+		for (int z = 0; z <= 2; z += 2)
+		{
+			_chars[i]->blitNShade(_borderedChars[i], z, 1, 8);
+			_chars[i]->blitNShade(_borderedChars[i], 1, z, 8);
+		}
+		// and finally the number itself
+		_chars[i]->blitNShade(_borderedChars[i], 1, 1, 0);
+	}
+}
+
+/**
+ *
+ */
+NumberText::~NumberText()
+{
+	for (int i = 0; i < 10; ++i)
+	{
+		delete _chars[i];
+		delete _borderedChars[i];
+	}
+}
+
+/**
+ * Changes the value used to render the number.
+ * @param value Number value.
+ */
+void NumberText::setValue(unsigned int value)
+{
+	_value = value;
+	_redraw = true;
+}
+
+/**
+ * Returns the value used to render the number.
+ * @return Number value.
+ */
+unsigned int NumberText::getValue() const
+{
+	return _value;
+}
+
+/**
+ * Changes the color used to render the number.
+ * @param color Color value.
+ */
+void NumberText::setColor(Uint8 color)
+{
+	_color = color;
+	_redraw = true;
+}
+
+/**
+ * Returns the color used to render the number.
+ * @return Color value.
+ */
+Uint8 NumberText::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Replaces a certain amount of colors in the number text palette.
+ * @param colors Pointer to the set of colors.
+ * @param firstcolor Offset of the first color to replace.
+ * @param ncolors Amount of colors to replace.
+ */
+void NumberText::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+{
+	Surface::setPalette(colors, firstcolor, ncolors);
+	for (int i = 0; i < 10; ++i)
+	{
+		_chars[i]->setPalette(colors, firstcolor, ncolors);
+		_borderedChars[i]->setPalette(colors, firstcolor, ncolors);
+	}
+}
+
+/**
+ * Draws all the digits in the number.
+ */
+void NumberText::draw()
+{
+	Surface::draw();
+	std::ostringstream ss;
+	ss << _value;
+	std::string s = ss.str();
+	int x = 0;
+	if (!_bordered)
+	{
+		for (std::string::iterator i = s.begin(); i != s.end(); ++i)
+		{
+			_chars[*i - '0']->setX(x);
+			_chars[*i - '0']->setY(0);
+			_chars[*i - '0']->blit(this);
+			x += _chars[*i - '0']->getWidth() + 1;
+		}
+	}
+	else
+	{
+		for (std::string::iterator i = s.begin(); i != s.end(); ++i)
+		{
+			_borderedChars[*i - '0']->setX(x);
+			_borderedChars[*i - '0']->setY(0);
+			_borderedChars[*i - '0']->blit(this);
+			x += _chars[*i - '0']->getWidth() + 1; // no this isn't a typo, i want to use the same spacing regardless.
+		}
+	}
+
+	this->offset(_color);
+}
+
+void NumberText::setBordered(bool bordered)
+{
+	_bordered = bordered;
+}
+
+}
+⟦/FILE⟧
+⟦FILE:NumberText.h;encoding=utf8;sha256=63f26f0a70da87bdca3175c5d8ffebd0c2409c8995eabeff6888f209610f2b5b;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/Surface.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Number digits displayed on the screen.
+ * Takes a number and displays it using a simple hard-coded font.
+ */
+class NumberText : public Surface
+{
+private:
+	unsigned int _value;
+	Surface *_chars[10];
+	Surface *_borderedChars[10];
+	bool _bordered;
+	Uint8 _color;
+public:
+	/// Creates a new number text with the specified size and position.
+	NumberText(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the number text.
+	~NumberText();
+	/// Sets the number text's value.
+	void setValue(unsigned int value);
+	/// Gets the number text's value.
+	unsigned int getValue() const;
+	/// Sets the number text's color.
+	void setColor(Uint8 color);
+	/// Gets the number text's color.
+	Uint8 getColor() const;
+	/// Sets the number text's palette.
+	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	/// Draws the number text.
+	void draw();
+	/// sets this numbertext to have a border or not
+	void setBordered(bool bordered);
+
+};
+
+}
+⟦/FILE⟧
+⟦FILE:ScrollBar.cpp;encoding=utf8;sha256=176daf7f14668614041d6e5140c1ca1e0bd2c95cd7e21a670377cc4387ea54e2;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ScrollBar.h"
+#include "../fmath.h"
+#include <algorithm>
+#include "../Engine/Action.h"
+#include "TextList.h"
+#include "../Engine/Palette.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a scrollbar with the specified size and position.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+ScrollBar::ScrollBar(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _list(0), _color(0), _pressed(false), _contrast(false), _offset(0), _bg(0)
+{
+	_track = new Surface(width-2, height, x+1, y);
+	_thumb = new Surface(width, height, x, y);
+	_thumbRect.x = 0;
+	_thumbRect.y = 0;
+	_thumbRect.w = 0;
+	_thumbRect.h = 0;
+}
+
+/**
+ * Deletes contents.
+ */
+ScrollBar::~ScrollBar()
+{
+	delete _track;
+	delete _thumb;
+}
+
+/**
+ * Changes the position of the surface in the X axis.
+ * @param x X position in pixels.
+ */
+void ScrollBar::setX(int x)
+{
+	Surface::setX(x);
+	_track->setX(x+1);
+	_thumb->setX(x);
+}
+
+/**
+ * Changes the position of the surface in the Y axis.
+ * @param y Y position in pixels.
+ */
+void ScrollBar::setY(int y)
+{
+	Surface::setY(y);
+	_track->setY(y);
+	_thumb->setY(y);
+}
+
+/**
+ * Changes the height of the scrollbar.
+ * @param height New height in pixels.
+ */
+void ScrollBar::setHeight(int height)
+{
+	Surface::setHeight(height);
+	_track->setHeight(height);
+	_thumb->setHeight(height);
+	_redraw = true;
+}
+
+/**
+ * Changes the color used to render the scrollbar.
+ * @param color Color value.
+ */
+void ScrollBar::setColor(Uint8 color)
+{
+	_color = color;
+}
+
+/**
+ * Returns the color used to render the scrollbar.
+ * @return Color value.
+ */
+Uint8 ScrollBar::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Enables/disables high contrast color. Mostly used for
+ * Battlescape text.
+ * @param contrast High contrast setting.
+ */
+void ScrollBar::setHighContrast(bool contrast)
+{
+	_contrast = contrast;
+}
+
+/**
+ * Changes the list associated with the scrollbar.
+ * This makes the button scroll that list.
+ * @param list Pointer to text list.
+ */
+void ScrollBar::setTextList(TextList *list)
+{
+	_list = list;
+}
+
+/**
+ * Changes the surface used to draw the background of the track.
+ * @param bg New background.
+ */
+void ScrollBar::setBackground(Surface *bg)
+{
+	_bg = bg;
+}
+
+/**
+ * Replaces a certain amount of colors in the scrollbar's palette.
+ * @param colors Pointer to the set of colors.
+ * @param firstcolor Offset of the first color to replace.
+ * @param ncolors Amount of colors to replace.
+ */
+void ScrollBar::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+{
+	Surface::setPalette(colors, firstcolor, ncolors);
+	_track->setPalette(colors, firstcolor, ncolors);
+	_thumb->setPalette(colors, firstcolor, ncolors);
+}
+
+/**
+ * Automatically updates the scrollbar
+ * when the mouse moves.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void ScrollBar::handle(Action *action, State *state)
+{
+	InteractiveSurface::handle(action, state);
+	if (_pressed && (action->getDetails()->type == SDL_MOUSEMOTION || action->getDetails()->type == SDL_MOUSEBUTTONDOWN))
+	{
+		int cursorY = action->getAbsoluteYMouse() - getY();
+		int y = Clamp(cursorY + _offset, 0, getHeight() - _thumbRect.h + 1);
+		double scale = (double)_list->getRows() / getHeight();
+		int scroll = (int)Round(y * scale);
+		_list->scrollTo(scroll);
+	}
+}
+
+/**
+ * Blits the scrollbar contents.
+ * @param surface Pointer to surface to blit onto.
+ */
+void ScrollBar::blit(Surface *surface)
+{
+	Surface::blit(surface);
+	if (_visible && !_hidden)
+	{
+		_track->blit(surface);
+		_thumb->blit(surface);
+		invalidate();
+	}
+}
+
+/**
+ * The scrollbar only moves while the button is pressed.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void ScrollBar::mousePress(Action *action, State *state)
+{
+	InteractiveSurface::mousePress(action, state);
+	if (action->getDetails()->button.button == SDL_BUTTON_LEFT)
+	{
+		int cursorY = action->getAbsoluteYMouse() - getY();
+		if (cursorY >= _thumbRect.y && cursorY < _thumbRect.y + _thumbRect.h)
+		{
+			_offset = _thumbRect.y - cursorY;
+		}
+		else
+		{
+			_offset = -_thumbRect.h / 2;
+		}
+		_pressed = true;
+	}
+	else if (action->getDetails()->button.button == SDL_BUTTON_WHEELUP)
+	{
+		_list->scrollUp(false, true);
+	}
+	else if (action->getDetails()->button.button == SDL_BUTTON_WHEELDOWN)
+	{
+		_list->scrollDown(false, true);
+	}
+}
+
+/**
+ * The scrollbar stops moving when the button is released.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void ScrollBar::mouseRelease(Action *action, State *state)
+{
+	InteractiveSurface::mouseRelease(action, state);
+	if (action->getDetails()->button.button == SDL_BUTTON_LEFT)
+	{
+		_pressed = false;
+		_offset = 0;
+	}
+}
+
+/**
+ * Updates the thumb according to the current list position.
+ */
+void ScrollBar::draw()
+{
+	Surface::draw();
+	drawTrack();
+	drawThumb();
+}
+
+/**
+ * Draws the track (background bar) semi-transparent.
+ */
+void ScrollBar::drawTrack()
+{
+	if (_bg)
+	{
+		_track->copy(_bg);
+		if (_list->getComboBox())
+		{
+			_track->offset(+1, Palette::backPos);
+		}
+		else
+		{
+			_track->offsetBlock(-5);
+		}
+	}
+}
+
+/**
+ * Draws the thumb (button) as a hollow square.
+ */
+void ScrollBar::drawThumb()
+{
+	double scale = (double)getHeight() / _list->getRows();
+	_thumbRect.x = 0;
+	_thumbRect.y = (int)floor(_list->getScroll() * scale);
+	_thumbRect.w = _thumb->getWidth();
+	_thumbRect.h = (int)ceil(_list->getVisibleRows() * scale);
+
+	// Draw base button
+	_thumb->clear();
+	_thumb->lock();
+
+	SDL_Rect square = _thumbRect;
+	int color = _color + 2;
+
+	square.w--;
+	square.h--;
+
+	_thumb->drawRect(&square, color);
+
+	square.x++;
+	square.y++;
+	color = _color + 5;
+
+	_thumb->drawRect(&square, color);
+
+	square.w--;
+	square.h--;
+	color = _color + 4;
+
+	_thumb->drawRect(&square, color);
+
+	_thumb->setPixel(_thumbRect.x, _thumbRect.y, _color + 1);
+	_thumb->setPixel(_thumbRect.x, _thumbRect.y + _thumbRect.h - 1, _color + 4);
+	_thumb->setPixel(_thumbRect.x + _thumbRect.w - 1, _thumbRect.y, _color + 4);
+
+	// Hollow it out
+	if ((int)square.h - 4 > 0)
+	{
+		color = _color + 5;
+
+		square.x++;
+		square.y++;
+		square.w -= 3;
+		square.h -= 3;
+
+		_thumb->drawRect(&square, color);
+
+		square.x++;
+		square.y++;
+		color = _color + 2;
+
+		_thumb->drawRect(&square, color);
+
+		square.w--;
+		square.h--;
+		color = 0;
+
+		_thumb->drawRect(&square, color);
+
+		_thumb->setPixel(_thumbRect.x + 2 + _thumbRect.w - 1 - 4, _thumbRect.y + 2 + _thumbRect.h - 1 - 4, _color + 1);
+		_thumb->setPixel(_thumbRect.x + 2, _thumbRect.y + 2 + _thumbRect.h - 1 - 4, _color + 4);
+		_thumb->setPixel(_thumbRect.x + 2 + _thumbRect.w - 1 - 4, _thumbRect.y + 2, _color + 4);
+	}
+	_thumb->unlock();
+}
+
+}
+⟦/FILE⟧
+⟦FILE:ScrollBar.h;encoding=utf8;sha256=543e71d2088c007b5bef420736c33826a348469b5b0f0f9538a02fb18c3094d5;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/InteractiveSurface.h"
+
+namespace OpenXcom
+{
+
+class TextList;
+
+/**
+ * Horizontal scrollbar control to select from a range of values.
+ */
+class ScrollBar : public InteractiveSurface
+{
+private:
+	TextList *_list;
+	Uint8 _color;
+	bool _pressed, _contrast;
+	Surface *_track, *_thumb;
+	SDL_Rect _thumbRect;
+	int _offset;
+	Surface *_bg;
+	/// Draws the scrollbar track.
+	void drawTrack();
+	/// Draws the scrollbar thumb.
+	void drawThumb();
+public:
+	/// Creates a new scrollbar with the specified size and position.
+	ScrollBar(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the scrollbar.
+	~ScrollBar();
+	/// Sets the X position of the surface.
+	void setX(int x);
+	/// Sets the Y position of the surface.
+	void setY(int y);
+	/// Sets the height of the surface.
+	void setHeight(int height);
+	/// Sets the scrollbar's color.
+	void setColor(Uint8 color);
+	/// Gets the scrollbar's color.
+	Uint8 getColor() const;
+	/// Sets the scrollbar's high contrast color setting.
+	void setHighContrast(bool contrast);
+	/// Sets the scrollbar's list.
+	void setTextList(TextList *list);
+	/// Sets the background for the track.
+	void setBackground(Surface *bg);
+	/// Sets the scrollbar's palette.
+	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	/// Blits the scrollbar onto another surface.
+	void blit(Surface *surface);
+	/// Moves the scrollbar.
+	void handle(Action *action, State *state);
+	/// Special handling for mouse presses.
+	void mousePress(Action *action, State *state);
+	/// Special handling for mouse releases.
+	void mouseRelease(Action *action, State *state);
+	/// Draws the scrollbar contents.
+	void draw();
+};
+
+}
+⟦/FILE⟧
+⟦FILE:Slider.cpp;encoding=utf8;sha256=f843cc9da48d8b3e61030a8f42622903001cb3d58a178c1108530edfc504814e;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "Slider.h"
+#include "../fmath.h"
+#include <algorithm>
+#include "../Engine/Action.h"
+#include "TextButton.h"
+#include "Text.h"
+#include "Frame.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a slider with the specified size and position.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+Slider::Slider(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _pos(0.0), _min(0), _max(100), _pressed(false), _change(0), _offsetX(0)
+{
+	_thickness = 5;
+	_textness = 8;
+	_txtMinus = new Text(_textness, height - 2, x - 1, y);
+	_txtPlus = new Text(_textness, height - 2, x + width - _textness, y);
+	_frame = new Frame(width - _textness*2, _thickness, x + _textness, y + (height - _thickness) / 2);
+	_button = new TextButton(10, height, x, y);
+
+	_frame->setThickness(_thickness);
+
+	_txtMinus->setAlign(ALIGN_CENTER);
+	_txtMinus->setVerticalAlign(ALIGN_MIDDLE);
+	_txtMinus->setText("-");
+
+	_txtPlus->setAlign(ALIGN_CENTER);
+	_txtPlus->setVerticalAlign(ALIGN_MIDDLE);
+	_txtPlus->setText("+");
+
+	_minX = _frame->getX();
+	_maxX = _frame->getX() + _frame->getWidth() - _button->getWidth();
+
+	setValue(_pos);
+}
+
+/**
+ * Deletes contents.
+ */
+Slider::~Slider()
+{
+	delete _txtMinus;
+	delete _txtPlus;
+	delete _frame;
+	delete _button;
+}
+
+/**
+ * Changes the position of the surface in the X axis.
+ * @param x X position in pixels.
+ */
+void Slider::setX(int x)
+{
+	Surface::setX(x);
+	_txtMinus->setX(x - 1);
+	_txtPlus->setX(x + getWidth() - _textness);
+	_frame->setX(getX() + _textness);
+
+	_minX = _frame->getX();
+	_maxX = _frame->getX() + _frame->getWidth() - _button->getWidth();
+	setValue(_pos);
+}
+
+/**
+ * Changes the position of the surface in the Y axis.
+ * @param y Y position in pixels.
+ */
+void Slider::setY(int y)
+{
+	Surface::setY(y);
+	_txtMinus->setY(y);
+	_txtPlus->setY(y);
+	_frame->setY(getY() + (getHeight() - _thickness) / 2);
+	_button->setY(getY());
+}
+
+/**
+ * Changes the various resources needed for text rendering.
+ * The different fonts need to be passed in advance since the
+ * text size can change mid-text, and the language affects
+ * how the text is rendered.
+ * @param big Pointer to large-size font.
+ * @param small Pointer to small-size font.
+ * @param lang Pointer to current language.
+ */
+void Slider::initText(Font *big, Font *small, Language *lang)
+{
+	_txtMinus->initText(big, small, lang);
+	_txtPlus->initText(big, small, lang);
+	_button->initText(big, small, lang);
+}
+
+/**
+ * Enables/disables high contrast color. Mostly used for
+ * Battlescape.
+ * @param contrast High contrast setting.
+ */
+void Slider::setHighContrast(bool contrast)
+{
+	_txtMinus->setHighContrast(contrast);
+	_txtPlus->setHighContrast(contrast);
+	_frame->setHighContrast(contrast);
+	_button->setHighContrast(contrast);
+}
+
+/**
+ * Changes the color used to render the slider.
+ * @param color Color value.
+ */
+void Slider::setColor(Uint8 color)
+{
+	_txtMinus->setColor(color);
+	_txtPlus->setColor(color);
+	_frame->setColor(color);
+	_button->setColor(color);
+}
+
+/**
+ * Returns the color used to render the slider.
+ * @return Color value.
+ */
+Uint8 Slider::getColor() const
+{
+	return _button->getColor();
+}
+
+/**
+ * Replaces a certain amount of colors in the slider's palette.
+ * @param colors Pointer to the set of colors.
+ * @param firstcolor Offset of the first color to replace.
+ * @param ncolors Amount of colors to replace.
+ */
+void Slider::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+{
+	Surface::setPalette(colors, firstcolor, ncolors);
+	_txtMinus->setPalette(colors, firstcolor, ncolors);
+	_txtPlus->setPalette(colors, firstcolor, ncolors);
+	_frame->setPalette(colors, firstcolor, ncolors);
+	_button->setPalette(colors, firstcolor, ncolors);
+}
+
+/**
+ * Automatically updates the slider
+ * when the mouse moves.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void Slider::handle(Action *action, State *state)
+{
+	InteractiveSurface::handle(action, state);
+	//_button->handle(action, state);
+	if (_pressed && (action->getDetails()->type == SDL_MOUSEMOTION || action->getDetails()->type == SDL_MOUSEBUTTONDOWN))
+	{
+		int cursorX = action->getAbsoluteXMouse();
+		double buttonX = Clamp(cursorX + _offsetX, _minX, _maxX);
+		double pos = (buttonX - _minX) / (_maxX - _minX);
+		int value = _min + (int)Round((_max - _min) * pos);
+		setValue(value);
+		if (_change)
+		{
+			(state->*_change)(action);
+		}
+	}
+}
+
+/**
+ * Moves the slider to the new position.
+ * @param value New value.
+ */
+void Slider::setPosition(double pos)
+{
+	_pos = pos;
+	_button->setX((int)floor(_minX + (_maxX - _minX) * _pos));
+}
+
+/**
+ * Changes the range of values the slider
+ * can contain.
+ * @param min Minimum value.
+ * @param max Maximum value.
+ */
+void Slider::setRange(int min, int max)
+{
+	_min = min;
+	_max = max;
+	setValue(_value);
+}
+
+/**
+ * Changes the current value of the slider and
+ * positions it appropriately.
+ * @param value New value.
+ */
+void Slider::setValue(int value)
+{
+	if (_min < _max)
+	{
+		_value = Clamp(value, _min, _max);
+	}
+	else
+	{
+		_value = Clamp(value, _max, _min);
+	}
+	double pos = (double)(_value - _min) / (double)(_max - _min);
+	setPosition(pos);
+}
+
+/**
+ * Returns the current value of the slider.
+ * @return Value.
+ */
+int Slider::getValue() const
+{
+	return _value;
+}
+
+/**
+ * Blits the slider contents
+ * @param surface Pointer to surface to blit onto.
+ */
+void Slider::blit(Surface *surface)
+{
+	Surface::blit(surface);
+	if (_visible && !_hidden)
+	{
+		_txtMinus->blit(surface);
+		_txtPlus->blit(surface);
+		_frame->blit(surface);
+		_button->blit(surface);
+	}
+}
+
+/**
+ * The slider only moves while the button is pressed.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void Slider::mousePress(Action *action, State *state)
+{
+	InteractiveSurface::mousePress(action, state);
+	if (action->getDetails()->button.button == SDL_BUTTON_LEFT)
+	{
+		_pressed = true;
+		int cursorX = action->getAbsoluteXMouse();
+		if (cursorX >= _button->getX() && cursorX < _button->getX() + _button->getWidth())
+		{
+			_offsetX = _button->getX() - cursorX;
+		}
+		else
+		{
+			_offsetX = -_button->getWidth() / 2;
+		}
+	}
+}
+
+/**
+ * The slider stops moving when the button is released.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void Slider::mouseRelease(Action *action, State *state)
+{
+	InteractiveSurface::mouseRelease(action, state);
+	if (action->getDetails()->button.button == SDL_BUTTON_LEFT)
+	{
+		_pressed = false;
+		_offsetX = 0;
+	}
+}
+
+/**
+ * Sets a function to be called every time the slider's value changes.
+ * @param handler Action handler.
+ */
+void Slider::onChange(ActionHandler handler)
+{
+	_change = handler;
+}
+
+}
+⟦/FILE⟧
+⟦FILE:Slider.h;encoding=utf8;sha256=dc65114614322af2bd7827b9533faff2696f6399b36638a3dd4d74553f730d11;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/InteractiveSurface.h"
+
+namespace OpenXcom
+{
+
+class Font;
+class Language;
+class Frame;
+class TextButton;
+class Text;
+
+/**
+ * Horizontal slider control to select from a range of values.
+ */
+class Slider : public InteractiveSurface
+{
+private:
+	Frame *_frame;
+	Text *_txtMinus, *_txtPlus;
+	TextButton *_button;
+	double _pos;
+	int _min, _max, _value;
+	bool _pressed;
+	ActionHandler _change;
+	int _thickness, _textness, _minX, _maxX, _offsetX;
+
+	/// Sets the slider's position.
+	void setPosition(double pos);
+public:
+	/// Creates a new slider with the specified size and position.
+	Slider(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the slider.
+	~Slider();
+	/// Sets the X position of the surface.
+	void setX(int x);
+	/// Sets the Y position of the surface.
+	void setY(int y);
+	/// Initializes the slider's resources.
+	void initText(Font *big, Font *small, Language *lang);
+	/// Sets the slider's high contrast color setting.
+	void setHighContrast(bool contrast);
+	/// Sets the slider's color.
+	void setColor(Uint8 color);
+	/// Gets the slider's color.
+	Uint8 getColor() const;
+	/// Sets the slider's palette.
+	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	/// Sets the slider's range.
+	void setRange(int min, int max);
+	/// Sets the slider's value.
+	void setValue(int value);
+	/// Gets the slider's value.
+	int getValue() const;
+	/// Blits the slider onto another surface.
+	void blit(Surface *surface);
+	/// Moves the slider.
+	void handle(Action *action, State *state);
+	/// Special handling for mouse presses.
+	void mousePress(Action *action, State *state);
+	/// Special handling for mouse releases.
+	void mouseRelease(Action *action, State *state);
+	/// Hooks an action handler to when the slider changes.
+	void onChange(ActionHandler handler);
+};
+
+}
+⟦/FILE⟧
+⟦FILE:Text.cpp;encoding=utf8;sha256=88a40c23fda6db9bdb657c29bde122982c216e299fa8aa153f27437a34b04acd;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "Text.h"
+#include "../fmath.h"
+#include "../Engine/Font.h"
+#include "../Engine/Options.h"
+#include "../Engine/Language.h"
+#include "../Engine/Unicode.h"
+#include "../Engine/ShaderDraw.h"
+#include "../Engine/ShaderMove.h"
+#include "../Engine/Action.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a blank text with the specified size and position.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+Text::Text(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _big(0), _small(0), _font(0), _fontOrig(0), _lang(0), _wrap(false), _invert(false), _contrast(false), _indent(false), _scroll(false),_align(ALIGN_LEFT), _valign(ALIGN_TOP), _color(0), _color2(0), _scrollY(0)
+{
+}
+
+/**
+ *
+ */
+Text::~Text()
+{
+
+}
+
+/**
+ * Changes the text to use the big-size font.
+ */
+void Text::setBig()
+{
+	_font = _big;
+	_fontOrig = _big;
+	processText();
+}
+
+/**
+ * Changes the text to use the small-size font.
+ */
+void Text::setSmall()
+{
+	_font = _small;
+	_fontOrig = _small;
+	processText();
+}
+
+/**
+ * Returns the font currently used by the text.
+ * @return Pointer to font.
+ */
+Font *Text::getFont() const
+{
+	return _font;
+}
+
+/**
+ * Changes the various resources needed for text rendering.
+ * The different fonts need to be passed in advance since the
+ * text size can change mid-text, and the language affects
+ * how the text is rendered.
+ * @param big Pointer to large-size font.
+ * @param small Pointer to small-size font.
+ * @param lang Pointer to current language.
+ */
+void Text::initText(Font *big, Font *small, Language *lang)
+{
+	_big = big;
+	_small = small;
+	_lang = lang;
+	setSmall();
+}
+
+/**
+ * Changes the string displayed on screen.
+ * @param text Text string.
+ */
+void Text::setText(const std::string &text)
+{
+	_text = text;
+	_font = _fontOrig;
+	processText();
+	// If big text won't fit the space, try small text
+	if (!_text.empty())
+	{
+		if (_font == _big && (getTextWidth() > getWidth() || getTextHeight() > getHeight()) && _text[_text.size() - 1] != '.')
+		{
+			_font = _small;
+			processText();
+		}
+	}
+}
+
+/**
+ * Returns the string displayed on screen.
+ * @return Text string.
+ */
+std::string Text::getText() const
+{
+	return _text;
+}
+
+/**
+ * Enables/disables text wordwrapping. When enabled, lines of
+ * text are automatically split to ensure they stay within the
+ * drawing area, otherwise they simply go off the edge.
+ * @param wrap Wordwrapping setting.
+ * @param indent Indent wrapped text.
+ */
+void Text::setWordWrap(bool wrap, bool indent)
+{
+	if (wrap != _wrap || indent != _indent)
+	{
+		_wrap = wrap;
+		_indent = indent;
+		processText();
+	}
+}
+
+/**
+ * Enables/disables color inverting. Mostly used to make
+ * button text look pressed along with the button.
+ * @param invert Invert setting.
+ */
+void Text::setInvert(bool invert)
+{
+	_invert = invert;
+	_redraw = true;
+}
+
+/**
+ * Enables/disables high contrast color. Mostly used for
+ * Battlescape UI.
+ * @param contrast High contrast setting.
+ */
+void Text::setHighContrast(bool contrast)
+{
+	_contrast = contrast;
+	_redraw = true;
+}
+
+/**
+ * Changes the way the text is aligned horizontally
+ * relative to the drawing area.
+ * @param align Horizontal alignment.
+ */
+void Text::setAlign(TextHAlign align)
+{
+	_align = align;
+	_redraw = true;
+}
+
+/**
+ * Returns the way the text is aligned horizontally
+ * relative to the drawing area.
+ * @return Horizontal alignment.
+ */
+TextHAlign Text::getAlign() const
+{
+	return _align;
+}
+
+/**
+ * Changes the way the text is aligned vertically
+ * relative to the drawing area.
+ * @param valign Vertical alignment.
+ */
+void Text::setVerticalAlign(TextVAlign valign)
+{
+	_valign = valign;
+	_redraw = true;
+}
+
+/**
+ * Returns the way the text is aligned vertically
+ * relative to the drawing area.
+ * @return Horizontal alignment.
+ */
+TextVAlign Text::getVerticalAlign() const
+{
+	return _valign;
+}
+
+/**
+ * Changes the color used to render the text. Unlike regular graphics,
+ * fonts are greyscale so they need to be assigned a specific position
+ * in the palette to be displayed.
+ * @param color Color value.
+ */
+void Text::setColor(Uint8 color)
+{
+	_color = color;
+	_color2 = color;
+	_redraw = true;
+}
+
+/**
+ * Returns the color used to render the text.
+ * @return Color value.
+ */
+Uint8 Text::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Changes the secondary color used to render the text. The text
+ * switches between the primary and secondary color whenever there's
+ * a 0x01 in the string.
+ * @param color Color value.
+ */
+void Text::setSecondaryColor(Uint8 color)
+{
+	_color2 = color;
+	_redraw = true;
+}
+
+/**
+ * Returns the secondary color used to render the text.
+ * @return Color value.
+ */
+Uint8 Text::getSecondaryColor() const
+{
+	return _color2;
+}
+
+int Text::getNumLines() const
+{
+	return _wrap ? _lineHeight.size() : 1;
+}
+
+/**
+ * Returns the rendered text's height. Useful to check if wordwrap applies.
+ * @param line Line to get the height, or -1 to get whole text height.
+ * @return Height in pixels.
+ */
+int Text::getTextHeight(int line) const
+{
+	if (line == -1)
+	{
+		int height = 0;
+		for (std::vector<int>::const_iterator i = _lineHeight.begin(); i != _lineHeight.end(); ++i)
+		{
+			height += *i;
+		}
+		return height;
+	}
+	else
+	{
+		return _lineHeight[line];
+	}
+}
+
+/**
+ * Returns the rendered text's width.
+ * @param line Line to get the width, or -1 to get whole text width.
+ * @return Width in pixels.
+ */
+int Text::getTextWidth(int line) const
+{
+	if (line == -1)
+	{
+		int width = 0;
+		for (std::vector<int>::const_iterator i = _lineWidth.begin(); i != _lineWidth.end(); ++i)
+		{
+			if (*i > width)
+			{
+				width = *i;
+			}
+		}
+		return width;
+	}
+	else
+	{
+		return _lineWidth[line];
+	}
+}
+
+/**
+ * Takes care of any text post-processing like converting
+ * encoded text to individual codepoints and calculating
+ * line metrics for alignment and wordwrapping.
+ */
+void Text::processText()
+{
+	if (_font == 0 || _lang == 0)
+	{
+		return;
+	}
+
+	_processedText = Unicode::convUtf8ToUtf32(_text);
+	_lineWidth.clear();
+	_lineHeight.clear();
+	_scrollY = 0;
+
+	int width = 0, word = 0;
+	size_t space = 0, textIndentation = 0;
+	bool start = true;
+	Font *font = _font;
+	UString &str = _processedText;
+
+	// Go through the text character by character
+	for (size_t c = 0; c <= str.size(); ++c)
+	{
+		// End of the line
+		if (c == str.size() || Unicode::isLinebreak(str[c]))
+		{
+			// Add line measurements for alignment later
+			_lineWidth.push_back(width);
+			_lineHeight.push_back(font->getCharSize('\n').h);
+			width = 0;
+			word = 0;
+			start = true;
+
+			if (c == str.size())
+				break;
+			else if (str[c] == Unicode::TOK_NL_SMALL)
+				font = _small;
+		}
+		// Keep track of spaces for wordwrapping
+		else if (Unicode::isSpace(str[c]) || Unicode::isSeparator(str[c]))
+		{
+			// Store existing indentation
+			if (c == textIndentation)
+			{
+				textIndentation++;
+			}
+			space = c;
+			width += font->getCharSize(str[c]).w;
+			word = 0;
+			start = false;
+		}
+		// Keep track of the width of the last line and word
+		else if (str[c] != Unicode::TOK_COLOR_FLIP)
+		{
+			int charWidth = font->getCharSize(str[c]).w;
+
+			width += charWidth;
+			word += charWidth;
+
+			// Wordwrap if the last word doesn't fit the line
+			if (_wrap && width >= getWidth() && (!start || _lang->getTextWrapping() == WRAP_LETTERS))
+			{
+				size_t indentLocation = c;
+				if (_lang->getTextWrapping() == WRAP_WORDS || Unicode::isSpace(str[c]))
+				{
+					// Go back to the last space and put a linebreak there
+					width -= word;
+					indentLocation = space;
+					if (Unicode::isSpace(str[space]))
+					{
+						width -= font->getCharSize(str[space]).w;
+						str[space] = '\n';
+					}
+					else
+					{
+						str.insert(space+1, 1, '\n');
+						indentLocation++;
+					}
+				}
+				else if (_lang->getTextWrapping() == WRAP_LETTERS)
+				{
+					// Go back to the last letter and put a linebreak there
+					str.insert(c, 1, '\n');
+					width -= charWidth;
+				}
+
+				// Keep initial indentation of text
+				if (textIndentation > 0)
+				{
+					str.insert(indentLocation+1, textIndentation, '\t');
+					indentLocation += textIndentation;
+				}
+				// Indent due to word wrap.
+				if (_indent)
+				{
+					str.insert(indentLocation+1, 1, '\t');
+					width += font->getCharSize('\t').w;
+				}
+
+				_lineWidth.push_back(width);
+				_lineHeight.push_back(font->getCharSize('\n').h);
+				if (_lang->getTextWrapping() == WRAP_WORDS)
+				{
+					width = word;
+				}
+				else if (_lang->getTextWrapping() == WRAP_LETTERS)
+				{
+					width = 0;
+				}
+				start = true;
+			}
+		}
+	}
+
+	_redraw = true;
+}
+
+/**
+ * Calculates the starting X position for a line of text.
+ * @param line The line number (0 = first, etc).
+ * @return The X position in pixels.
+ */
+int Text::getLineX(int line) const
+{
+	int x = 0;
+	switch (_lang->getTextDirection())
+	{
+	case DIRECTION_LTR:
+		switch (_align)
+		{
+		case ALIGN_LEFT:
+			break;
+		case ALIGN_CENTER:
+			x = (int)ceil((getWidth() + _font->getSpacing() - _lineWidth[line]) / 2.0);
+			break;
+		case ALIGN_RIGHT:
+			x = getWidth() - 1 - _lineWidth[line];
+			break;
+		}
+		break;
+	case DIRECTION_RTL:
+		switch (_align)
+		{
+		case ALIGN_LEFT:
+			x = getWidth() - 1;
+			break;
+		case ALIGN_CENTER:
+			x = getWidth() - (int)ceil((getWidth() + _font->getSpacing() - _lineWidth[line]) / 2.0);
+			break;
+		case ALIGN_RIGHT:
+			x = _lineWidth[line];
+			break;
+		}
+		break;
+	}
+	return x;
+}
+
+namespace
+{
+
+struct PaletteShift
+{
+	static inline void func(Uint8& dest, Uint8& src, int off, int mul, int mid)
+	{
+		if (src)
+		{
+			int inverseOffset = mid ? 2 * (mid - src) : 0;
+			dest = off + src * mul + inverseOffset;
+		}
+	}
+};
+
+} //namespace
+
+/**
+ * Draws all the characters in the text with a really
+ * nasty complex gritty text rendering algorithm logic stuff.
+ */
+void Text::draw()
+{
+	Surface::draw();
+	if (_text.empty() || _font == 0)
+	{
+		return;
+	}
+
+	// Show text borders for debugging
+	if (Options::debugUi)
+	{
+		SDL_Rect r;
+		r.w = getWidth();
+		r.h = getHeight();
+		r.x = 0;
+		r.y = 0;
+		this->drawRect(&r, 5);
+		r.w-=2;
+		r.h-=2;
+		r.x++;
+		r.y++;
+		this->drawRect(&r, 0);
+	}
+
+	int x = 0, y = 0, line = 0, height = 0;
+	Font *font = _font;
+	int color = _color;
+	const UString &s = _processedText;
+
+	height = getTextHeight();
+
+	if (_scroll)
+	{
+		y = _scrollY;
+	}
+	else
+	{
+		switch (_valign)
+		{
+		case ALIGN_TOP:
+			y = 0;
+			break;
+		case ALIGN_MIDDLE:
+			y = (int)ceil((getHeight() - height) / 2.0);
+			break;
+		case ALIGN_BOTTOM:
+			y = getHeight() - height;
+			break;
+		}
+	}
+
+	x = getLineX(line);
+
+	// Set up text color
+	int mul = 1;
+	if (_contrast)
+	{
+		mul = 3;
+	}
+
+	// Set up text direction
+	int dir = 1;
+	if (_lang->getTextDirection() == DIRECTION_RTL)
+	{
+		dir = -1;
+	}
+
+	// Invert text by inverting the font palette on index 3 (font palettes use indices 1-5)
+	int mid = _invert ? 3 : 0;
+
+	// Draw each letter one by one
+	for (UString::const_iterator c = s.begin(); c != s.end(); ++c)
+	{
+		if (Unicode::isSpace(*c) || *c == '\t')
+		{
+			x += dir * font->getCharSize(*c).w;
+		}
+		else if (Unicode::isLinebreak(*c))
+		{
+			line++;
+			y += font->getCharSize(*c).h;
+			x = getLineX(line);
+			if (*c == Unicode::TOK_NL_SMALL)
+			{
+				font = _small;
+			}
+		}
+		else if (*c == Unicode::TOK_COLOR_FLIP)
+		{
+			color = (color == _color ? _color2 : _color);
+		}
+		else
+		{
+			if (dir < 0)
+				x += dir * font->getCharSize(*c).w;
+			Surface* chr = font->getChar(*c);
+			chr->setX(x);
+			chr->setY(y);
+			ShaderDraw<PaletteShift>(ShaderSurface(this, 0, 0), ShaderCrop(chr), ShaderScalar(color), ShaderScalar(mul), ShaderScalar(mid));
+			if (dir > 0)
+				x += dir * font->getCharSize(*c).w;
+		}
+	}
+}
+
+/**
+ * Allows the text to be scrollable via mouse wheel.
+ */
+void Text::setScrollable(bool scroll)
+{
+	_scroll = scroll;
+}
+
+/**
+ * Handles scrolling.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void Text::mousePress(Action* action, State* state)
+{
+	InteractiveSurface::mousePress(action, state);
+	if (_scroll &&
+		(action->getDetails()->button.button == SDL_BUTTON_WHEELUP ||
+		action->getDetails()->button.button == SDL_BUTTON_WHEELDOWN))
+	{
+		int scrollArea = getHeight() - getTextHeight();
+		if (scrollArea < 0)
+		{
+			int scrollAmount = _font->getHeight() + _font->getSpacing();
+			if (action->getDetails()->button.button == SDL_BUTTON_WHEELDOWN)
+				scrollAmount = -scrollAmount;
+
+			_scrollY = Clamp(_scrollY + scrollAmount, scrollArea, 0);
+			_redraw = true;
+		}
+	}
+}
+
+}
+⟦/FILE⟧
+⟦FILE:Text.h;encoding=utf8;sha256=c7601498df82ab8d9ea63d874a534dbf569d051339fa0f2eb2fa1d68771e4b12;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/InteractiveSurface.h"
+#include <vector>
+#include <string>
+#include "../Engine/Unicode.h"
+
+namespace OpenXcom
+{
+
+class Font;
+class Language;
+
+enum TextHAlign { ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT };
+enum TextVAlign { ALIGN_TOP, ALIGN_MIDDLE, ALIGN_BOTTOM };
+
+/**
+ * Text string displayed on screen.
+ * Takes the characters from a Font and puts them together on screen
+ * to display a string of text, taking care of any required aligning
+ * or wrapping.
+ */
+class Text : public InteractiveSurface
+{
+private:
+	Font *_big, *_small, *_font, *_fontOrig;
+	Language *_lang;
+	std::string _text;
+	UString _processedText;
+	std::vector<int> _lineWidth, _lineHeight;
+	bool _wrap, _invert, _contrast, _indent, _scroll;
+	TextHAlign _align;
+	TextVAlign _valign;
+	Uint8 _color, _color2;
+	int _scrollY;
+
+	/// Processes the contained text.
+	void processText();
+	/// Gets the X position of a text line.
+	int getLineX(int line) const;
+public:
+	/// Creates a new text with the specified size and position.
+	Text(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the text.
+	~Text();
+	/// Sets the text size to big.
+	void setBig();
+	/// Sets the text size to small.
+	void setSmall();
+	/// Gets the text's current font.
+	Font *getFont() const;
+	/// Initializes the resources for the text.
+	void initText(Font *big, Font *small, Language *lang);
+	/// Sets the text's string.
+	void setText(const std::string &text);
+	/// Gets the text's string.
+	std::string getText() const;
+	/// Sets the text's wordwrap setting.
+	void setWordWrap(bool wrap, bool indent = false);
+	/// Sets the text's color invert setting.
+	void setInvert(bool invert);
+	/// Sets the text's high contrast color setting.
+	void setHighContrast(bool contrast);
+	/// Sets the text's horizontal alignment.
+	void setAlign(TextHAlign align);
+	/// Gets the text's horizontal alignment.
+	TextHAlign getAlign() const;
+	/// Sets the text's vertical alignment.
+	void setVerticalAlign(TextVAlign valign);
+	/// Gets the text's vertical alignment.
+	TextVAlign getVerticalAlign() const;
+	/// Sets the text's color.
+	void setColor(Uint8 color);
+	/// Gets the text's color.
+	Uint8 getColor() const;
+	/// Sets the text's secondary color.
+	void setSecondaryColor(Uint8 color);
+	/// Gets the text's secondary color.
+	Uint8 getSecondaryColor() const;
+	/// Gets the number of lines in the (wrapped, if wrapping is enabled) text
+	int getNumLines() const;
+	/// Gets the rendered text's width.
+	int getTextWidth(int line = -1) const;
+	/// Gets the rendered text's height.
+	int getTextHeight(int line = -1) const;
+	/// Draws the text.
+	void draw();
+	/// Sets the text's scrollable setting.
+	void setScrollable(bool scroll);
+	/// Special handling for mouse presses.
+	void mousePress(Action* action, State* state);
+};
+
+}
+⟦/FILE⟧
+⟦FILE:TextButton.cpp;encoding=utf8;sha256=2a576ab84de16704117b082b20ea42b7ab0e988bdcb453251ea4563984b1d97d;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "TextButton.h"
+#include <SDL.h>
+#include <SDL_mixer.h>
+#include "Text.h"
+#include "../Engine/Sound.h"
+#include "../Engine/Action.h"
+#include "ComboBox.h"
+
+namespace OpenXcom
+{
+
+Sound *TextButton::soundPress;
+
+/**
+ * Sets up a text button with the specified size and position.
+ * The text is centered on the button.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+TextButton::TextButton(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _color(0), _group(0), _contrast(false), _geoscapeButton(false), _comboBox(0)
+{
+	_text = new Text(width, height, 0, 0);
+	_text->setSmall();
+	_text->setAlign(ALIGN_CENTER);
+	_text->setVerticalAlign(ALIGN_MIDDLE);
+	_text->setWordWrap(true);
+}
+
+/**
+ * Deletes the contained Text.
+ */
+TextButton::~TextButton()
+{
+	delete _text;
+}
+
+bool TextButton::isButtonHandled(Uint8 button)
+{
+	if (_comboBox != 0)
+	{
+		return (button == SDL_BUTTON_LEFT);
+	}
+	else
+	{
+		return InteractiveSurface::isButtonHandled(button);
+	}
+}
+
+/**
+ * Changes the color for the button and text.
+ * @param color Color value.
+ */
+void TextButton::setColor(Uint8 color)
+{
+	_color = color;
+	_text->setColor(color);
+	_redraw = true;
+}
+
+/**
+ * Returns the color for the button and text.
+ * @return Color value.
+ */
+Uint8 TextButton::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Changes the color for the text only.
+ * @param color Color value.
+ */
+void TextButton::setTextColor(Uint8 color)
+{
+	_text->setColor(color);
+	_redraw = true;
+}
+
+/**
+ * Changes the text to use the big-size font.
+ */
+void TextButton::setBig()
+{
+	_text->setBig();
+	_redraw = true;
+}
+
+/**
+ * Changes the text to use the small-size font.
+ */
+void TextButton::setSmall()
+{
+	_text->setSmall();
+	_redraw = true;
+}
+
+/**
+ * Returns the font currently used by the text.
+ * @return Pointer to font.
+ */
+Font *TextButton::getFont() const
+{
+	return _text->getFont();
+}
+
+/**
+ * Changes the various resources needed for text rendering.
+ * The different fonts need to be passed in advance since the
+ * text size can change mid-text, and the language affects
+ * how the text is rendered.
+ * @param big Pointer to large-size font.
+ * @param small Pointer to small-size font.
+ * @param lang Pointer to current language.
+ */
+void TextButton::initText(Font *big, Font *small, Language *lang)
+{
+	_text->initText(big, small, lang);
+	_redraw = true;
+}
+
+/**
+ * Enables/disables high contrast color. Mostly used for
+ * Battlescape UI.
+ * @param contrast High contrast setting.
+ */
+void TextButton::setHighContrast(bool contrast)
+{
+	_contrast = contrast;
+	_text->setHighContrast(contrast);
+	_redraw = true;
+}
+
+/**
+ * Changes the text of the button label.
+ * @param text Text string.
+ */
+void TextButton::setText(const std::string &text)
+{
+	_text->setText(text);
+	_redraw = true;
+}
+
+/**
+ * Returns the text of the button label.
+ * @return Text string.
+ */
+std::string TextButton::getText() const
+{
+	return _text->getText();
+}
+
+/**
+ * Changes the button group this button belongs to.
+ * @param group Pointer to the pressed button pointer in the group.
+ * Null makes it a regular button.
+ */
+void TextButton::setGroup(TextButton **group)
+{
+	_group = group;
+	_redraw = true;
+}
+
+/**
+ * Replaces a certain amount of colors in the surface's palette.
+ * @param colors Pointer to the set of colors.
+ * @param firstcolor Offset of the first color to replace.
+ * @param ncolors Amount of colors to replace.
+ */
+void TextButton::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+{
+	Surface::setPalette(colors, firstcolor, ncolors);
+	_text->setPalette(colors, firstcolor, ncolors);
+}
+
+/**
+ * Draws the labeled button.
+ * The colors are inverted if the button is pressed.
+ */
+void TextButton::draw()
+{
+	Surface::draw();
+	SDL_Rect square;
+
+	int mul = 1;
+	if (_contrast)
+	{
+		mul = 2;
+	}
+
+	int color = _color + 1 * mul;
+
+	square.x = 0;
+	square.y = 0;
+	square.w = getWidth();
+	square.h = getHeight();
+
+	for (int i = 0; i < 5; ++i)
+	{
+		drawRect(&square, color);
+
+		if (i % 2 == 0)
+		{
+			square.x++;
+			square.y++;
+		}
+		square.w--;
+		square.h--;
+
+		switch (i)
+		{
+		case 0:
+			color = _color + 5 * mul;
+			setPixel(square.w, 0, color);
+			break;
+		case 1:
+			color = _color + 2 * mul;
+			break;
+		case 2:
+			color = _color + 4 * mul;
+			setPixel(square.w+1, 1, color);
+			break;
+		case 3:
+			color = _color + 3 * mul;
+			break;
+		case 4:
+			if (_geoscapeButton)
+			{
+				setPixel(0, 0, _color);
+				setPixel(1, 1, _color);
+			}
+			break;
+		}
+	}
+
+	bool press;
+	if (_group == 0)
+		press = isButtonPressed();
+	else
+		press = (*_group == this);
+
+	if (press)
+	{
+		if (_geoscapeButton)
+		{
+			this->invert(_color + 2 * mul);
+		}
+		else
+		{
+			this->invert(_color + 3 * mul);
+		}
+	}
+	_text->setInvert(press);
+
+	_text->blit(this);
+}
+
+/**
+ * Sets the button as the pressed button if it's part of a group.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextButton::mousePress(Action *action, State *state)
+{
+	if (action->getDetails()->button.button == SDL_BUTTON_LEFT && _group != 0)
+	{
+		TextButton *old = *_group;
+		*_group = this;
+		if (old != 0)
+			old->draw();
+		draw();
+	}
+
+	if (isButtonHandled(action->getDetails()->button.button))
+	{
+		if (soundPress != 0 && _group == 0 &&
+			action->getDetails()->button.button != SDL_BUTTON_WHEELUP && action->getDetails()->button.button != SDL_BUTTON_WHEELDOWN)
+		{
+			soundPress->play(Mix_GroupAvailable(0));
+		}
+
+		if (_comboBox)
+		{
+			_comboBox->toggle();
+		}
+
+		draw();
+		//_redraw = true;
+	}
+	InteractiveSurface::mousePress(action, state);
+}
+
+/**
+ * Sets the button as the released button.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextButton::mouseRelease(Action *action, State *state)
+{
+	if (isButtonHandled(action->getDetails()->button.button))
+	{
+		draw();
+		//_redraw = true;
+	}
+	InteractiveSurface::mouseRelease(action, state);
+}
+
+/**
+ * Hooks up the button to work as part of an existing combobox,
+ * toggling its state when it's pressed.
+ * @param comboBox Pointer to ComboBox.
+ */
+void TextButton::setComboBox(ComboBox *comboBox)
+{
+	_comboBox = comboBox;
+	if (_comboBox)
+	{
+		_text->setX(-6);
+	}
+	else
+	{
+		_text->setX(0);
+	}
+}
+
+void TextButton::setWidth(int width)
+{
+	Surface::setWidth(width);
+	_text->setWidth(width);
+}
+
+void TextButton::setHeight(int height)
+{
+	Surface::setHeight(height);
+	_text->setHeight(height);
+}
+
+void TextButton::setGeoscapeButton(bool geo)
+{
+	_geoscapeButton = geo;
+}
+
+}
+⟦/FILE⟧
+⟦FILE:TextButton.h;encoding=utf8;sha256=e46ca5913b2b5f255c5a1ea1e7d8b9476fd6a06d749ac221c7c00d409c994837;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/InteractiveSurface.h"
+
+namespace OpenXcom
+{
+
+class Text;
+class Font;
+class Language;
+class Sound;
+class ComboBox;
+
+/**
+ * Coloured button with a text label.
+ * Drawn to look like a 3D-shaped box with text on top,
+ * responds to mouse clicks. Can be attached to a group of
+ * buttons to turn it into a radio button (only one button
+ * pushed at a time).
+ */
+class TextButton : public InteractiveSurface
+{
+private:
+	Uint8 _color;
+	Text *_text;
+	TextButton **_group;
+	bool _contrast, _geoscapeButton;
+	ComboBox *_comboBox;
+	// for use by RuleInterface
+	void setSecondaryColor(Uint8 color) { setTextColor(color); }
+protected:
+	bool isButtonHandled(Uint8 button = 0);
+public:
+	static Sound *soundPress;
+	/// Creates a new text button with the specified size and position.
+	TextButton(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the text button.
+	~TextButton();
+	/// Sets the text button's color.
+	void setColor(Uint8 color);
+	/// Gets the text button's color.
+	Uint8 getColor() const;
+	/// Sets the text button's text color.
+	void setTextColor(Uint8 color);
+	/// Sets the text size to big.
+	void setBig();
+	/// Sets the text size to small.
+	void setSmall();
+	/// Gets the text button's current font.
+	Font *getFont() const;
+	/// Initializes the text edit's resources.
+	void initText(Font *big, Font *small, Language *lang);
+	/// Sets the text button's high contrast color setting.
+	void setHighContrast(bool contrast);
+	/// Sets the text button's text.
+	void setText(const std::string &text);
+	/// Gets the text button's text.
+	std::string getText() const;
+	/// Sets the text button's group.
+	void setGroup(TextButton **group);
+	/// Sets the text button's palette.
+	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	/// Draws the text button.
+	void draw();
+	/// Special handling for mouse presses.
+	void mousePress(Action *action, State *state);
+	/// Special handling for mouse releases.
+	void mouseRelease(Action *action, State *state);
+	/// Attaches this button to a combobox.
+	void setComboBox(ComboBox *comboBox);
+	void setWidth(int width);
+	void setHeight(int height);
+	void setGeoscapeButton(bool geo);
+};
+
+}
+⟦/FILE⟧
+⟦FILE:TextEdit.cpp;encoding=utf8;sha256=102f0c86f93384d931569feef219fa9ab0961ae8e23896ee9e5c227a90b2f1f3;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "TextEdit.h"
+#include <cmath>
+#include "../Engine/Action.h"
+#include "../Engine/Font.h"
+#include "../Engine/Timer.h"
+#include "../Engine/Options.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a blank text edit with the specified size and position.
+ * @param state Pointer to state the text edit belongs to.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+TextEdit::TextEdit(State *state, int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _blink(true), _modal(true), _char('A'), _caretPos(0), _textEditConstraint(TEC_NONE), _change(0), _state(state)
+{
+	_isFocused = false;
+	_text = new Text(width, height, 0, 0);
+	_timer = new Timer(100);
+	_timer->onTimer((SurfaceHandler)&TextEdit::blink);
+	_caret = new Text(16, 17, 0, 0);
+	_caret->setText("|");
+}
+
+/**
+ * Deletes contents.
+ */
+TextEdit::~TextEdit()
+{
+	delete _text;
+	delete _caret;
+	delete _timer;
+	// In case it was left focused
+	SDL_EnableKeyRepeat(0, SDL_DEFAULT_REPEAT_INTERVAL);
+	_state->setModal(0);
+}
+
+/**
+ * Passes events to internal components.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextEdit::handle(Action *action, State *state)
+{
+	InteractiveSurface::handle(action, state);
+	if (_isFocused && _modal && action->getDetails()->type == SDL_MOUSEBUTTONDOWN &&
+		(action->getAbsoluteXMouse() < getX() || action->getAbsoluteXMouse() >= getX() + getWidth() ||
+		 action->getAbsoluteYMouse() < getY() || action->getAbsoluteYMouse() >= getY() + getHeight()))
+	{
+		setFocus(false);
+	}
+}
+
+/**
+ * Controls the blinking animation when
+ * the text edit is focused.
+ * @param focus True if focused, false otherwise.
+ * @param modal True to lock input to this control, false otherwise.
+ */
+void TextEdit::setFocus(bool focus, bool modal)
+{
+	_modal = modal;
+	if (focus != _isFocused)
+	{
+		_redraw = true;
+		InteractiveSurface::setFocus(focus);
+		if (_isFocused)
+		{
+			SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+			_caretPos = _value.length();
+			_blink = true;
+			_timer->start();
+			if (_modal)
+				_state->setModal(this);
+		}
+		else
+		{
+			_blink = false;
+			_timer->stop();
+			SDL_EnableKeyRepeat(0, SDL_DEFAULT_REPEAT_INTERVAL);
+			if (_modal)
+				_state->setModal(0);
+		}
+	}
+}
+
+/**
+ * Changes the text edit to use the big-size font.
+ */
+void TextEdit::setBig()
+{
+	_text->setBig();
+	_caret->setBig();
+}
+
+/**
+ * Changes the text edit to use the small-size font.
+ */
+void TextEdit::setSmall()
+{
+	_text->setSmall();
+	_caret->setSmall();
+}
+
+/**
+ * Changes the various fonts for the text edit to use.
+ * The different fonts need to be passed in advance since the
+ * text size can change mid-text.
+ * @param big Pointer to large-size font.
+ * @param small Pointer to small-size font.
+ * @param lang Pointer to current language.
+ */
+void TextEdit::initText(Font *big, Font *small, Language *lang)
+{
+	_text->initText(big, small, lang);
+	_caret->initText(big, small, lang);
+}
+
+/**
+ * Changes the string displayed on screen.
+ * @param text Text string.
+ */
+void TextEdit::setText(const std::string &text)
+{
+	_value = Unicode::convUtf8ToUtf32(text);
+	_caretPos = _value.length();
+	_redraw = true;
+}
+
+/**
+ * Returns the string displayed on screen.
+ * @return Text string.
+ */
+std::string TextEdit::getText() const
+{
+	return Unicode::convUtf32ToUtf8(_value);
+}
+
+/**
+ * Enables/disables text wordwrapping. When enabled, lines of
+ * text are automatically split to ensure they stay within the
+ * drawing area, otherwise they simply go off the edge.
+ * @param wrap Wordwrapping setting.
+ */
+void TextEdit::setWordWrap(bool wrap)
+{
+	_text->setWordWrap(wrap);
+}
+
+/**
+ * Enables/disables color inverting. Mostly used to make
+ * button text look pressed along with the button.
+ * @param invert Invert setting.
+ */
+void TextEdit::setInvert(bool invert)
+{
+	_text->setInvert(invert);
+	_caret->setInvert(invert);
+}
+
+/**
+ * Enables/disables high contrast color. Mostly used for
+ * Battlescape text.
+ * @param contrast High contrast setting.
+ */
+void TextEdit::setHighContrast(bool contrast)
+{
+	_text->setHighContrast(contrast);
+	_caret->setHighContrast(contrast);
+}
+
+/**
+ * Changes the way the text is aligned horizontally
+ * relative to the drawing area.
+ * @param align Horizontal alignment.
+ */
+void TextEdit::setAlign(TextHAlign align)
+{
+	_text->setAlign(align);
+}
+
+/**
+ * Changes the way the text is aligned vertically
+ * relative to the drawing area.
+ * @param valign Vertical alignment.
+ */
+void TextEdit::setVerticalAlign(TextVAlign valign)
+{
+	_text->setVerticalAlign(valign);
+}
+
+/**
+ * Restricts the text to only numerical input or signed numerical input.
+ * @param constraint TextEditConstraint to be applied.
+ */
+void TextEdit::setConstraint(TextEditConstraint constraint)
+{
+	_textEditConstraint = constraint;
+}
+
+/**
+ * Changes the color used to render the text. Unlike regular graphics,
+ * fonts are greyscale so they need to be assigned a specific position
+ * in the palette to be displayed.
+ * @param color Color value.
+ */
+void TextEdit::setColor(Uint8 color)
+{
+	_text->setColor(color);
+	_caret->setColor(color);
+}
+
+/**
+ * Returns the color used to render the text.
+ * @return Color value.
+ */
+Uint8 TextEdit::getColor() const
+{
+	return _text->getColor();
+}
+
+/**
+ * Changes the secondary color used to render the text. The text
+ * switches between the primary and secondary color whenever there's
+ * a 0x01 in the string.
+ * @param color Color value.
+ */
+void TextEdit::setSecondaryColor(Uint8 color)
+{
+	_text->setSecondaryColor(color);
+}
+
+/**
+ * Returns the secondary color used to render the text.
+ * @return Color value.
+ */
+Uint8 TextEdit::getSecondaryColor() const
+{
+	return _text->getSecondaryColor();
+}
+
+/**
+ * Replaces a certain amount of colors in the text edit's palette.
+ * @param colors Pointer to the set of colors.
+ * @param firstcolor Offset of the first color to replace.
+ * @param ncolors Amount of colors to replace.
+ */
+void TextEdit::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+{
+	Surface::setPalette(colors, firstcolor, ncolors);
+	_text->setPalette(colors, firstcolor, ncolors);
+	_caret->setPalette(colors, firstcolor, ncolors);
+}
+
+/**
+ * Keeps the animation timers running.
+ */
+void TextEdit::think()
+{
+	_timer->think(0, this);
+}
+
+/**
+ * Plays the blinking animation when the
+ * text edit is focused.
+ */
+void TextEdit::blink()
+{
+	_blink = !_blink;
+	_redraw = true;
+}
+
+/**
+ * Adds a flashing | caret to the text
+ * to show when it's focused and editable.
+ */
+void TextEdit::draw()
+{
+	Surface::draw();
+	UString newValue = _value;
+	if (Options::keyboardMode == KEYBOARD_OFF)
+	{
+		if (_isFocused && _blink)
+		{
+			newValue += _char;
+		}
+	}
+	_text->setText(Unicode::convUtf32ToUtf8(newValue));
+	clear();
+	_text->blit(this);
+	if (Options::keyboardMode == KEYBOARD_ON)
+	{
+		if (_isFocused && _blink)
+		{
+			int x = 0;
+			switch (_text->getAlign())
+			{
+			case ALIGN_LEFT:
+				x = 0;
+				break;
+			case ALIGN_CENTER:
+				x = (_text->getWidth() - _text->getTextWidth()) / 2;
+				break;
+			case ALIGN_RIGHT:
+				x = _text->getWidth() - _text->getTextWidth();
+				break;
+			}
+			for (size_t i = 0; i < _caretPos; ++i)
+			{
+				x += _text->getFont()->getCharSize(_value[i]).w;
+			}
+			_caret->setX(x);
+			int y = 0;
+			switch (_text->getVerticalAlign())
+			{
+			case ALIGN_TOP:
+				y = 0;
+				break;
+			case ALIGN_MIDDLE:
+				y = (int)ceil((getHeight() - _text->getTextHeight()) / 2.0);
+				break;
+			case ALIGN_BOTTOM:
+				y = getHeight() - _text->getTextHeight();
+				break;
+			}
+			_caret->setY(y);
+			_caret->blit(this);
+		}
+	}
+}
+
+/**
+ * Checks if adding a certain character to
+ * the text edit will exceed the maximum width.
+ * Used to make sure user input stays within bounds.
+ * @param c Character to add.
+ * @return True if it exceeds, False if it doesn't.
+ */
+bool TextEdit::exceedsMaxWidth(UCode c) const
+{
+	int w = 0;
+	UString s = _value;
+
+	s += c;
+	for (UString::const_iterator i = s.begin(); i < s.end(); ++i)
+	{
+		w += _text->getFont()->getCharSize(*i).w;
+	}
+
+	return (w > getWidth());
+}
+
+/**
+ * Checks if input key character is valid to
+ * be inserted at caret position in the text edit
+ * without breaking the text edit constraint.
+ * @param c Character to validate.
+ * @return True if character can be inserted, False if it cannot.
+ */
+bool TextEdit::isValidChar(UCode c) const
+{
+	switch (_textEditConstraint)
+	{
+	case TEC_NUMERIC_POSITIVE:
+		return c >= '0' && c <= '9';
+
+	// If constraint is "(signed) numeric", need to check:
+	// - user does not input a character before '-' or '+'
+	// - user enter either figure anywhere, or a sign at first position
+	case TEC_NUMERIC:
+		if (_caretPos > 0)
+		{
+			return c >= '0' && c <= '9';
+		}
+		else
+		{
+			return ((c >= '0' && c <= '9') || c == '+' || c == '-') &&
+					(_value.empty() || (_value[0] != '+' && _value[0] != '-'));
+		}
+
+	case TEC_NONE:
+		return (c >= ' ' && c <= '~') || c >= 160;
+
+	default:
+		return false;
+	}
+}
+
+/**
+ * Focuses the text edit when it's pressed on.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextEdit::mousePress(Action *action, State *state)
+{
+	if (action->getDetails()->button.button == SDL_BUTTON_LEFT)
+	{
+		if (!_isFocused)
+		{
+			setFocus(true);
+		}
+		else
+		{
+			double mouseX = action->getRelativeXMouse();
+			double scaleX = action->getXScale();
+			double w = 0;
+			int c = 0;
+			for (UString::iterator i = _value.begin(); i < _value.end(); ++i)
+			{
+				if (mouseX <= w)
+				{
+					break;
+				}
+				w += (double)_text->getFont()->getCharSize(*i).w / 2 * scaleX;
+				if (mouseX <= w)
+				{
+					break;
+				}
+				c++;
+				w += (double) _text->getFont()->getCharSize(*i).w / 2 * scaleX;
+			}
+			_caretPos = c;
+		}
+	}
+	InteractiveSurface::mousePress(action, state);
+}
+
+/**
+ * Changes the text edit according to keyboard input, and
+ * unfocuses the text if Enter is pressed.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextEdit::keyboardPress(Action *action, State *state)
+{
+	if (Options::keyboardMode == KEYBOARD_OFF)
+	{
+		switch (action->getDetails()->key.keysym.sym)
+		{
+		case SDLK_UP:
+			_char++;
+			if (_char > '~')
+			{
+				_char = ' ';
+			}
+			break;
+		case SDLK_DOWN:
+			_char--;
+			if (_char < ' ')
+			{
+				_char = '~';
+			}
+			break;
+		case SDLK_LEFT:
+			if (!_value.empty())
+			{
+				_value.resize(_value.length() - 1);
+			}
+			break;
+		case SDLK_RIGHT:
+			if (!exceedsMaxWidth(_char))
+			{
+				_value += _char;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	else if (Options::keyboardMode == KEYBOARD_ON)
+	{
+		switch (action->getDetails()->key.keysym.sym)
+		{
+		case SDLK_LEFT:
+			if (_caretPos > 0)
+			{
+				_caretPos--;
+			}
+			break;
+		case SDLK_RIGHT:
+			if (_caretPos < _value.length())
+			{
+				_caretPos++;
+			}
+			break;
+		case SDLK_HOME:
+			_caretPos = 0;
+			break;
+		case SDLK_END:
+			_caretPos = _value.length();
+			break;
+		case SDLK_BACKSPACE:
+			if (_caretPos > 0)
+			{
+				_value.erase(_caretPos - 1, 1);
+				_caretPos--;
+			}
+			break;
+		case SDLK_DELETE:
+			if (_caretPos < _value.length())
+			{
+				_value.erase(_caretPos, 1);
+			}
+			break;
+		case SDLK_RETURN:
+		case SDLK_KP_ENTER:
+			if (!_value.empty())
+			{
+				setFocus(false);
+			}
+			break;
+		default:
+			UCode c = action->getDetails()->key.keysym.unicode;
+			if (isValidChar(c) && !exceedsMaxWidth(c))
+			{
+				_value.insert(_caretPos, 1, c);
+				_caretPos++;
+			}
+			break;
+		}
+	}
+	_redraw = true;
+	if (_change)
+	{
+		(state->*_change)(action);
+	}
+
+	InteractiveSurface::keyboardPress(action, state);
+}
+
+/**
+ * Sets a function to be called every time the text changes.
+ * @param handler Action handler.
+ */
+void TextEdit::onChange(ActionHandler handler)
+{
+	_change = handler;
+}
+
+}
+⟦/FILE⟧
+⟦FILE:TextEdit.h;encoding=utf8;sha256=f7150a4b064e9c05f0520458006def177306df990f93c9546d33cd42fbc8e7c8;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/InteractiveSurface.h"
+#include "Text.h"
+#include "../Engine/Unicode.h"
+
+namespace OpenXcom
+{
+
+class Timer;
+enum TextEditConstraint { TEC_NONE, TEC_NUMERIC_POSITIVE, TEC_NUMERIC };
+
+/**
+ * Editable version of Text.
+ * Receives keyboard input to allow the player
+ * to change the text himself.
+ */
+class TextEdit : public InteractiveSurface
+{
+private:
+	Text *_text, *_caret;
+	UString _value;
+	bool _blink, _modal;
+	Timer *_timer;
+	UCode _char;
+	size_t _caretPos;
+	TextEditConstraint _textEditConstraint;
+	ActionHandler _change;
+	State *_state;
+	/// Checks if a character will exceed the maximum width.
+	bool exceedsMaxWidth(UCode c) const;
+	/// Checks if character is valid to be inserted at caret position.
+	bool isValidChar(UCode c) const;
+public:
+	/// Creates a new text edit with the specified size and position.
+	TextEdit(State *state, int width, int height, int x = 0, int y = 0);
+	/// Cleans up the text edit.
+	~TextEdit();
+	/// Handle focus.
+	void handle(Action *action, State *state) override;
+	/// Sets focus on this text edit.
+	void setFocus(bool focus, bool modal);
+	// Override the base class' method properly.
+	void setFocus(bool focus) override { setFocus(focus, true); };
+	/// Sets the text size to big.
+	void setBig();
+	/// Sets the text size to small.
+	void setSmall();
+	/// Initializes the text edit's resources.
+	void initText(Font *big, Font *small, Language *lang) override;
+	/// Sets the text's string.
+	void setText(const std::string &text);
+	/// Gets the text edit's string.
+	std::string getText() const;
+	/// Sets the text edit's wordwrap setting.
+	void setWordWrap(bool wrap);
+	/// Sets the text edit's color invert setting.
+	void setInvert(bool invert);
+	/// Sets the text edit's high contrast color setting.
+	void setHighContrast(bool contrast) override;
+	/// Sets the text edit's horizontal alignment.
+	void setAlign(TextHAlign align);
+	/// Sets the text edit's vertical alignment.
+	void setVerticalAlign(TextVAlign valign);
+	/// Sets the text edit constraint.
+	void setConstraint(TextEditConstraint constraint);
+	/// Sets the text edit's color.
+	void setColor(Uint8 color) override;
+	/// Gets the text edit's color.
+	Uint8 getColor() const;
+	/// Sets the text edit's secondary color.
+	void setSecondaryColor(Uint8 color) override;
+	/// Gets the text edit's secondary color.
+	Uint8 getSecondaryColor() const;
+	/// Sets the text edit's palette.
+	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256) override;
+	/// Handles the timers.
+	void think() override;
+	/// Plays the blinking animation.
+	void blink();
+	/// Draws the text edit.
+	void draw() override;
+	/// Special handling for mouse presses.
+	void mousePress(Action *action, State *state) override;
+	/// Special handling for keyboard presses.
+	void keyboardPress(Action *action, State *state) override;
+	/// Hooks an action handler to when the text changes.
+	void onChange(ActionHandler handler);
+};
+
+}
+⟦/FILE⟧
+⟦FILE:TextList.cpp;encoding=utf8;sha256=1239c5a90a75d1eecd05d4266c25846127e26a358cf114e9b306fa56abc6119f;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "TextList.h"
+#include <cstdarg>
+#include <cmath>
+#include <algorithm>
+#include "../Engine/Action.h"
+#include "../Engine/Font.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Options.h"
+#include "ArrowButton.h"
+#include "ComboBox.h"
+#include "ScrollBar.h"
+#include "../fmath.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a blank list with the specified size and position.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+TextList::TextList(int width, int height, int x, int y) : InteractiveSurface(width, height, x, y), _big(0), _small(0), _font(0), _scroll(0), _visibleRows(0), _selRow(0), _color(0), _dot(false), _selectable(false), _condensed(false), _contrast(false), _wrap(false), _flooding(false),
+																								   _bg(0), _selector(0), _margin(0), _scrolling(true), _arrowPos(-1), _scrollPos(4), _arrowType(ARROW_VERTICAL),
+																								   _leftClick(0), _leftPress(0), _leftRelease(0), _rightClick(0), _rightPress(0), _rightRelease(0), _arrowsLeftEdge(0), _arrowsRightEdge(0), _comboBox(0)
+{
+	_up = new ArrowButton(ARROW_BIG_UP, 13, 14, getX() + getWidth() + _scrollPos, getY());
+	_up->setVisible(false);
+	_up->setTextList(this);
+	_down = new ArrowButton(ARROW_BIG_DOWN, 13, 14, getX() + getWidth() + _scrollPos, getY() + getHeight() - 14);
+	_down->setVisible(false);
+	_down->setTextList(this);
+	int h = std::max(_down->getY() - _up->getY() - _up->getHeight(), 1);
+	_scrollbar = new ScrollBar(_up->getWidth(), h, getX() + getWidth() + _scrollPos, _up->getY() + _up->getHeight());
+	_scrollbar->setVisible(false);
+	_scrollbar->setTextList(this);
+}
+
+/**
+ * Deletes all the stuff contained in the list.
+ */
+TextList::~TextList()
+{
+	for (std::vector< std::vector<Text*> >::iterator u = _texts.begin(); u < _texts.end(); ++u)
+	{
+		for (std::vector<Text*>::iterator v = (*u).begin(); v < (*u).end(); ++v)
+		{
+			delete *v;
+		}
+	}
+	for (std::vector<ArrowButton*>::iterator i = _arrowLeft.begin(); i < _arrowLeft.end(); ++i)
+	{
+		delete *i;
+	}
+	for (std::vector<ArrowButton*>::iterator i = _arrowRight.begin(); i < _arrowRight.end(); ++i)
+	{
+		delete *i;
+	}
+	delete _selector;
+	delete _up;
+	delete _down;
+	delete _scrollbar;
+}
+
+/**
+ * Changes the position of the surface in the X axis.
+ * @param x X position in pixels.
+ */
+void TextList::setX(int x)
+{
+	Surface::setX(x);
+	_up->setX(getX() + getWidth() + _scrollPos);
+	_down->setX(getX() + getWidth() + _scrollPos);
+	_scrollbar->setX(getX() + getWidth() + _scrollPos);
+	if (_selector != 0)
+		_selector->setX(getX());
+}
+
+/**
+ * Changes the position of the surface in the Y axis.
+ * @param y Y position in pixels.
+ */
+void TextList::setY(int y)
+{
+	Surface::setY(y);
+	_up->setY(getY());
+	_down->setY(getY() + getHeight() - 14);
+	_scrollbar->setY(_up->getY() + _up->getHeight());
+	if (_selector != 0)
+		_selector->setY(getY());
+}
+
+/**
+ * Gets the arrowsLeftEdge.
+ * @return arrowsLeftEdge.
+ */
+int TextList::getArrowsLeftEdge()
+{
+	return _arrowsLeftEdge;
+}
+
+/**
+ * Gets the arrowsRightEdge.
+ * @return arrowsRightEdge.
+ */
+int TextList::getArrowsRightEdge()
+{
+	return _arrowsRightEdge;
+}
+
+/**
+ * Unpresses all the arrow buttons.
+ * @param state Pointer to running state.
+ */
+void TextList::unpress(State *state)
+{
+	InteractiveSurface::unpress(state);
+	for (std::vector<ArrowButton*>::iterator i = _arrowLeft.begin(); i < _arrowLeft.end(); ++i)
+	{
+		(*i)->unpress(state);
+	}
+	for (std::vector<ArrowButton*>::iterator i = _arrowRight.begin(); i < _arrowRight.end(); ++i)
+	{
+		(*i)->unpress(state);
+	}
+}
+
+/**
+ * Changes the color of a specific Text object in the list.
+ * @param row Row number.
+ * @param column Column number.
+ * @param color Text color.
+ */
+void TextList::setCellColor(size_t row, size_t column, Uint8 color)
+{
+	_texts[row][column]->setColor(color);
+	_redraw = true;
+}
+
+/**
+ * Changes the text color of a whole row in the list.
+ * @param row Row number.
+ * @param color Text color.
+ */
+void TextList::setRowColor(size_t row, Uint8 color)
+{
+	for (std::vector<Text*>::iterator i = _texts[row].begin(); i < _texts[row].end(); ++i)
+	{
+		(*i)->setColor(color);
+	}
+	_redraw = true;
+}
+
+/**
+ * Returns the text of a specific Text object in the list.
+ * @param row Row number.
+ * @param column Column number.
+ * @return Text string.
+ */
+std::string TextList::getCellText(size_t row, size_t column) const
+{
+	return _texts[row][column]->getText();
+}
+
+/**
+ * Changes the text of a specific Text object in the list.
+ * @param row Row number.
+ * @param column Column number.
+ * @param text Text string.
+ */
+void TextList::setCellText(size_t row, size_t column, const std::string &text)
+{
+	_texts[row][column]->setText(text);
+	_redraw = true;
+}
+
+/**
+ * Returns the X position of a specific text column in the list.
+ * @param column Column number.
+ * @return X position in pixels.
+ */
+int TextList::getColumnX(size_t column) const
+{
+	return getX() + _texts[0][column]->getX();
+}
+
+/**
+ * Returns the Y position of a specific text row in the list.
+ * @param row Row number.
+ * @return Y position in pixels.
+ */
+int TextList::getRowY(size_t row) const
+{
+	return getY() + _texts[row][0]->getY();
+}
+
+/**
+ * Returns the height of a specific text row in the list.
+ * @param row Row number.
+ * @return height in pixels.
+ */
+int TextList::getTextHeight(size_t row) const
+{
+	return _texts[row].front()->getTextHeight();
+}
+
+/**
+ * Returns the height of a specific text row in the list.
+ * @param row Row number.
+ * @return height in pixels.
+ */
+int TextList::getNumTextLines(size_t row) const
+{
+	return _texts[row].front()->getNumLines();
+}
+
+/**
+ * Returns the amount of text rows stored in the list.
+ * @return Number of rows.
+ */
+size_t TextList::getTexts() const
+{
+	return _texts.size();
+}
+
+/**
+ * Returns the amount of physical rows stored in the list.
+ * @return Number of rows.
+ */
+size_t TextList::getRows() const
+{
+	return _rows.size();
+}
+
+/**
+ * Returns the amount of visible rows stored in the list.
+ * @return Number of rows.
+ */
+size_t TextList::getVisibleRows() const
+{
+	return _visibleRows;
+}
+
+/**
+ * Adds a new row of text to the list, automatically creating
+ * the required Text objects lined up where they need to be.
+ * @param cols Number of columns.
+ * @param ... Text for each cell in the new row.
+ */
+void TextList::addRow(int cols, ...)
+{
+	va_list args;
+	int ncols;
+	va_start(args, cols);
+	if (cols > 0)
+	{
+		ncols = cols;
+	}
+	else
+	{
+		ncols = 1;
+	}
+
+	std::vector<Text*> temp;
+	// Positions are relative to list surface.
+	int rowX = 0, rowY = 0, rows = 1, rowHeight = 0;
+	if (!_texts.empty())
+	{
+		rowY = _texts.back().front()->getY() + _texts.back().front()->getHeight() + _font->getSpacing();
+	}
+
+	for (int i = 0; i < ncols; ++i)
+	{
+		int width;
+		// Place text
+		if (_flooding)
+		{
+			width = 340;
+		}
+		else
+		{
+			width = _columns[i];
+		}
+		Text* txt = new Text(width, _font->getHeight(), _margin + rowX, rowY);
+		txt->setPalette(this->getPalette());
+		txt->initText(_big, _small, _lang);
+		txt->setColor(_color);
+		txt->setSecondaryColor(_color2);
+		if (_align[i])
+		{
+			txt->setAlign(_align[i]);
+		}
+		txt->setHighContrast(_contrast);
+		if (_font == _big)
+		{
+			txt->setBig();
+		}
+		else
+		{
+			txt->setSmall();
+		}
+		if (cols > 0)
+			txt->setText(va_arg(args, char*));
+		// grab this before we enable word wrapping so we can use it to calculate
+		// the total row height below
+		int vmargin = _font->getHeight() - txt->getTextHeight();
+		// Wordwrap text if necessary
+		if (_wrap && txt->getTextWidth() > txt->getWidth())
+		{
+			txt->setWordWrap(true, true);
+			rows = std::max(rows, txt->getNumLines());
+		}
+		rowHeight = std::max(rowHeight, txt->getTextHeight() + vmargin);
+
+		// Places dots between text
+		if (_dot && i < cols - 1)
+		{
+			std::string buf = txt->getText();
+			unsigned int w = txt->getTextWidth();
+			while (w < _columns[i])
+			{
+				if (_align[i] != ALIGN_RIGHT)
+				{
+				w += _font->getChar('.')->getCrop()->w + _font->getSpacing();
+				buf += '.';
+			}
+				if (_align[i] != ALIGN_LEFT)
+				{
+					w += _font->getChar('.')->getCrop()->w + _font->getSpacing();
+					buf.insert(0, 1, '.');
+				}
+			}
+			txt->setText(buf);
+		}
+
+		temp.push_back(txt);
+		if (_condensed)
+		{
+			rowX += txt->getTextWidth();
+		}
+		else
+		{
+			rowX += _columns[i];
+		}
+	}
+
+	// ensure all elements in this row are the same height
+	for (int i = 0; i < cols; ++i)
+	{
+		temp[i]->setHeight(rowHeight);
+	}
+
+	_texts.push_back(temp);
+	for (int i = 0; i < rows; ++i)
+	{
+		_rows.push_back(_texts.size() - 1);
+	}
+
+	// Place arrow buttons
+	// Position defined w.r.t. main window, NOT TextList.
+	if (_arrowPos != -1)
+	{
+		ArrowShape shape1, shape2;
+		if (_arrowType == ARROW_VERTICAL)
+		{
+			shape1 = ARROW_SMALL_UP;
+			shape2 = ARROW_SMALL_DOWN;
+		}
+		else
+		{
+			shape1 = ARROW_SMALL_LEFT;
+			shape2 = ARROW_SMALL_RIGHT;
+		}
+		ArrowButton *a1 = new ArrowButton(shape1, 11, 8, getX() + _arrowPos, getY());
+		a1->setListButton();
+		a1->setPalette(this->getPalette());
+		a1->setColor(_up->getColor());
+		a1->onMouseClick(_leftClick, 0);
+		a1->onMousePress(_leftPress);
+		a1->onMouseRelease(_leftRelease);
+		_arrowLeft.push_back(a1);
+		ArrowButton *a2 = new ArrowButton(shape2, 11, 8, getX() + _arrowPos + 12, getY());
+		a2->setListButton();
+		a2->setPalette(this->getPalette());
+		a2->setColor(_up->getColor());
+		a2->onMouseClick(_rightClick, 0);
+		a2->onMousePress(_rightPress);
+		a2->onMouseRelease(_rightRelease);
+		_arrowRight.push_back(a2);
+	}
+
+	_redraw = true;
+	va_end(args);
+	updateArrows();
+}
+
+/**
+ * Changes the columns that the list contains.
+ * While rows can be unlimited, columns need to be specified
+ * since they can have various widths for lining up the text.
+ * @param cols Number of columns.
+ * @param ... Width of each column.
+ */
+void TextList::setColumns(int cols, ...)
+{
+	va_list args;
+	va_start(args, cols);
+
+	for (int i = 0; i < cols; ++i)
+	{
+		_columns.push_back(va_arg(args, int));
+	}
+
+	va_end(args);
+}
+
+/**
+ * Replaces a certain amount of colors in the palette of all
+ * the text contained in the list.
+ * @param colors Pointer to the set of colors.
+ * @param firstcolor Offset of the first color to replace.
+ * @param ncolors Amount of colors to replace.
+ */
+void TextList::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+{
+	Surface::setPalette(colors, firstcolor, ncolors);
+	for (std::vector< std::vector<Text*> >::iterator u = _texts.begin(); u < _texts.end(); ++u)
+	{
+		for (std::vector<Text*>::iterator v = u->begin(); v < u->end(); ++v)
+		{
+			(*v)->setPalette(colors, firstcolor, ncolors);
+		}
+	}
+	for (std::vector<ArrowButton*>::iterator i = _arrowLeft.begin(); i < _arrowLeft.end(); ++i)
+	{
+		(*i)->setPalette(colors, firstcolor, ncolors);
+	}
+	for (std::vector<ArrowButton*>::iterator i = _arrowRight.begin(); i < _arrowRight.end(); ++i)
+	{
+		(*i)->setPalette(colors, firstcolor, ncolors);
+	}
+	if (_selector != 0)
+	{
+		_selector->setPalette(colors, firstcolor, ncolors);
+	}
+	_up->setPalette(colors, firstcolor, ncolors);
+	_down->setPalette(colors, firstcolor, ncolors);
+	_scrollbar->setPalette(colors, firstcolor, ncolors);
+}
+
+/**
+ * Changes the resources for the text in the list
+ * and calculates the selector and visible amount of rows.
+ * @param big Pointer to large-size font.
+ * @param small Pointer to small-size font.
+ * @param lang Pointer to current language.
+ */
+void TextList::initText(Font *big, Font *small, Language *lang)
+{
+	_big = big;
+	_small = small;
+	_font = small;
+	_lang = lang;
+
+	delete _selector;
+	_selector = new Surface(getWidth(), _font->getHeight() + _font->getSpacing(), getX(), getY());
+	_selector->setPalette(getPalette());
+	_selector->setVisible(false);
+
+	updateVisible();
+
+}
+
+/**
+ * Changes the height of the text list.
+ * @param height New height in pixels.
+ */
+void TextList::setHeight(int height)
+{
+	Surface::setHeight(height);
+	setY(getY());
+	int h = std::max(_down->getY() - _up->getY() - _up->getHeight(), 1);
+	_scrollbar->setHeight(h);
+	updateVisible();
+}
+
+/**
+ * Changes the color of the text in the list. This doesn't change
+ * the color of existing text, just the color of text added from then on.
+ * @param color Color value.
+ */
+void TextList::setColor(Uint8 color)
+{
+	_color = color;
+	_up->setColor(color);
+	_down->setColor(color);
+	_scrollbar->setColor(color);
+	for (std::vector< std::vector<Text*> >::iterator u = _texts.begin(); u < _texts.end(); ++u)
+	{
+		for (std::vector<Text*>::iterator v = u->begin(); v < u->end(); ++v)
+		{
+			(*v)->setColor(color);
+		}
+	}
+}
+
+/**
+ * Returns the color of the text in the list.
+ * @return Color value.
+ */
+Uint8 TextList::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Changes the secondary color of the text in the list.
+ * @param color Color value.
+ */
+void TextList::setSecondaryColor(Uint8 color)
+{
+	_color2 = color;
+}
+
+/**
+ * Returns the secondary color of the text in the list.
+ * @return Color value.
+ */
+Uint8 TextList::getSecondaryColor() const
+{
+	return _color2;
+}
+
+/**
+ * Enables/disables text wordwrapping. When enabled, rows can
+ * take up multiple lines of the list, otherwise every row
+ * is restricted to one line.
+ * @param wrap Wordwrapping setting.
+ */
+void TextList::setWordWrap(bool wrap)
+{
+	_wrap = wrap;
+}
+
+/**
+ * Enables/disables high contrast color. Mostly used for
+ * Battlescape text.
+ * @param contrast High contrast setting.
+ */
+void TextList::setHighContrast(bool contrast)
+{
+	_contrast = contrast;
+	for (std::vector< std::vector<Text*> >::iterator u = _texts.begin(); u < _texts.end(); ++u)
+	{
+		for (std::vector<Text*>::iterator v = u->begin(); v < u->end(); ++v)
+		{
+			(*v)->setHighContrast(contrast);
+		}
+	}
+	_scrollbar->setHighContrast(contrast);
+}
+
+/**
+ * Changes the horizontal alignment of the text in the list. This doesn't change
+ * the alignment of existing text, just the alignment of text added from then on.
+ * @param align Horizontal alignment.
+ * @param col the column to set the alignment for (defaults to -1, meaning "all")
+ */
+void TextList::setAlign(TextHAlign align, int col)
+{
+	if (col == -1)
+	{
+		for (size_t i = 0; i < _columns.size(); ++i)
+		{
+			_align[i] = align;
+		}
+	}
+	else
+	{
+		_align[col] = align;
+	}
+}
+
+/**
+ * If enabled, the text in different columns will be separated by dots.
+ * Otherwise, it will only be separated by blank space.
+ * @param dot True for dots, False for spaces.
+ */
+void TextList::setDot(bool dot)
+{
+	_dot = dot;
+}
+
+/**
+ * If enabled, the list will respond to player input,
+ * highlighting selected rows and receiving clicks.
+ * @param selectable Selectable setting.
+ */
+void TextList::setSelectable(bool selectable)
+{
+	_selectable = selectable;
+}
+
+/**
+ * Changes the text list to use the big-size font.
+ */
+void TextList::setBig()
+{
+	_font = _big;
+
+	delete _selector;
+	_selector = new Surface(getWidth(), _font->getHeight() + _font->getSpacing(), getX(), getY());
+	_selector->setPalette(getPalette());
+	_selector->setVisible(false);
+
+	updateVisible();
+}
+
+/**
+ * Changes the text list to use the small-size font.
+ */
+void TextList::setSmall()
+{
+	_font = _small;
+
+	delete _selector;
+	_selector = new Surface(getWidth(), _font->getHeight() + _font->getSpacing(), getX(), getY());
+	_selector->setPalette(getPalette());
+	_selector->setVisible(false);
+
+	updateVisible();
+}
+
+/**
+ * If enabled, the columns will match the text width.
+ * Otherwise, they will have a fixed width.
+ * @param condensed True for condensed layout, False for table layout.
+ */
+void TextList::setCondensed(bool condensed)
+{
+	_condensed = condensed;
+}
+
+/**
+ * Returns the currently selected row if the text
+ * list is selectable.
+ * @return Selected row, -1 if none.
+ */
+unsigned int TextList::getSelectedRow() const
+{
+	if (_rows.empty() || _selRow >= _rows.size())
+	{
+		return -1;
+	}
+	else
+	{
+		return _rows[_selRow];
+	}
+}
+
+/**
+ * Changes the surface used to draw the background of the selector.
+ * @param bg New background.
+ */
+void TextList::setBackground(Surface *bg)
+{
+	_bg = bg;
+	_scrollbar->setBackground(_bg);
+}
+
+/**
+ * Changes the horizontal margin placed around the text.
+ * @param margin Margin in pixels.
+ */
+void TextList::setMargin(int margin)
+{
+	_margin = margin;
+}
+
+/**
+ * Returns the margin of the text in the list.
+ * @return Margin in pixels.
+ */
+int TextList::getMargin() const
+{
+	return _margin;
+}
+
+/**
+ * Changes the color of the arrow buttons in the list.
+ * @param color Color value.
+ */
+void TextList::setArrowColor(Uint8 color)
+{
+	_up->setColor(color);
+	_down->setColor(color);
+	_scrollbar->setColor(color);
+}
+
+/**
+ * Sets the position of the column of arrow buttons
+ * in the text list.
+ * @param pos X in pixels (-1 to disable).
+ * @param type Arrow orientation type.
+ */
+void TextList::setArrowColumn(int pos, ArrowOrientation type)
+{
+	_arrowPos = pos;
+	_arrowType = type;
+	_arrowsLeftEdge = getX() + _arrowPos;
+	_arrowsRightEdge = _arrowsLeftEdge + 12 + 11;
+}
+
+/**
+ * Sets a function to be called every time the left arrows are mouse clicked.
+ * @param handler Action handler.
+ */
+void TextList::onLeftArrowClick(ActionHandler handler)
+{
+	_leftClick = handler;
+	for (std::vector<ArrowButton*>::iterator i = _arrowLeft.begin(); i < _arrowLeft.end(); ++i)
+	{
+		(*i)->onMouseClick(handler, 0);
+	}
+}
+
+/**
+ * Sets a function to be called every time the left arrows are mouse pressed.
+ * @param handler Action handler.
+ */
+void TextList::onLeftArrowPress(ActionHandler handler)
+{
+	_leftPress = handler;
+	for (std::vector<ArrowButton*>::iterator i = _arrowLeft.begin(); i < _arrowLeft.end(); ++i)
+	{
+		(*i)->onMousePress(handler);
+	}
+}
+
+/**
+ * Sets a function to be called every time the left arrows are mouse released.
+ * @param handler Action handler.
+ */
+void TextList::onLeftArrowRelease(ActionHandler handler)
+{
+	_leftRelease = handler;
+	for (std::vector<ArrowButton*>::iterator i = _arrowLeft.begin(); i < _arrowLeft.end(); ++i)
+	{
+		(*i)->onMouseRelease(handler);
+	}
+}
+
+/**
+ * Sets a function to be called every time the right arrows are mouse clicked.
+ * @param handler Action handler.
+ */
+void TextList::onRightArrowClick(ActionHandler handler)
+{
+	_rightClick = handler;
+	for (std::vector<ArrowButton*>::iterator i = _arrowRight.begin(); i < _arrowRight.end(); ++i)
+	{
+		(*i)->onMouseClick(handler, 0);
+	}
+}
+
+/**
+ * Sets a function to be called every time the right arrows are mouse pressed.
+ * @param handler Action handler.
+ */
+void TextList::onRightArrowPress(ActionHandler handler)
+{
+	_rightPress = handler;
+	for (std::vector<ArrowButton*>::iterator i = _arrowRight.begin(); i < _arrowRight.end(); ++i)
+	{
+		(*i)->onMousePress(handler);
+	}
+}
+
+/**
+ * Sets a function to be called every time the right arrows are mouse released.
+ * @param handler Action handler.
+ */
+void TextList::onRightArrowRelease(ActionHandler handler)
+{
+	_rightRelease = handler;
+	for (std::vector<ArrowButton*>::iterator i = _arrowRight.begin(); i < _arrowRight.end(); ++i)
+	{
+		(*i)->onMouseRelease(handler);
+	}
+}
+
+/**
+ * Removes all the rows currently stored in the list.
+ */
+void TextList::clearList()
+{
+	for (std::vector< std::vector<Text*> >::iterator u = _texts.begin(); u < _texts.end(); ++u)
+	{
+		for (std::vector<Text*>::iterator v = u->begin(); v < u->end(); ++v)
+		{
+			delete (*v);
+		}
+		u->clear();
+	}
+	scrollUp(true, false);
+	_texts.clear();
+	_rows.clear();
+	_redraw = true;
+}
+
+/**
+ * Scrolls the text in the list up by one row or to the top.
+ * @param toMax If true then scrolls to the top of the list. false => one row up
+ * @param scrollByWheel If true then use wheel scroll, otherwise scroll normally.
+ */
+void TextList::scrollUp(bool toMax, bool scrollByWheel)
+{
+	if (!_scrolling)
+		return;
+	if (_rows.size() > _visibleRows && _scroll > 0)
+	{
+		if (toMax)
+		{
+			scrollTo(0);
+		}
+		else
+		{
+			if (scrollByWheel)
+			{
+				scrollTo(_scroll - std::min((size_t)(Options::mousewheelSpeed), _scroll));
+			}
+			else
+			{
+				scrollTo(_scroll - 1);
+			}
+		}
+	}
+}
+
+/**
+ * Scrolls the text in the list down by one row or to the bottom.
+ * @param toMax If true then scrolls to the bottom of the list. false => one row down
+ * @param scrollByWheel If true then use wheel scroll, otherwise scroll normally.
+ */
+void TextList::scrollDown(bool toMax, bool scrollByWheel)
+{
+	if (!_scrolling)
+		return;
+	if (_rows.size() > _visibleRows && _scroll < _rows.size() - _visibleRows)
+	{
+		if (toMax)
+		{
+			scrollTo(_rows.size() - _visibleRows);
+		}
+		else
+		{
+			if (scrollByWheel)
+			{
+				scrollTo(_scroll + Options::mousewheelSpeed);
+			}
+			else
+			{
+				scrollTo(_scroll + 1);
+			}
+		}
+	}
+}
+
+/**
+ * Updates the visibility of the arrow buttons according to
+ * the current scroll position.
+ */
+void TextList::updateArrows()
+{
+	_up->setVisible(_rows.size() > _visibleRows /*&& _scroll > 0*/);
+	_down->setVisible(_rows.size() > _visibleRows /*&& _scroll < _rows.size() - _visibleRows*/);
+	_scrollbar->setVisible(_rows.size() > _visibleRows);
+	_scrollbar->invalidate();
+	_scrollbar->blit(this);
+}
+
+/**
+ * Updates the amount of visible rows according to the
+ * current list and font size.
+ */
+void TextList::updateVisible()
+{
+	_visibleRows = 0;
+	for (int y = 0; y < getHeight(); y += _font->getHeight() + _font->getSpacing())
+	{
+		_visibleRows++;
+	}
+	updateArrows();
+}
+
+/**
+ * Changes whether the list can be scrolled.
+ * @param scrolling True to allow scrolling, false otherwise.
+ * @param scrollPos Custom X position for the scroll buttons.
+ */
+void TextList::setScrolling(bool scrolling, int scrollPos)
+{
+	_scrolling = scrolling;
+	if (scrollPos != _scrollPos)
+	{
+		_scrollPos = scrollPos;
+		_up->setX(getX() + getWidth() + _scrollPos);
+		_down->setX(getX() + getWidth() + _scrollPos);
+		_scrollbar->setX(getX() + getWidth() + _scrollPos);
+	}
+}
+
+/**
+ * Draws the text list and all the text contained within.
+ */
+void TextList::draw()
+{
+	Surface::draw();
+	int y = 0;
+	if (!_rows.empty())
+	{
+		// for wrapped items, offset the draw height above the visible surface
+		// so that the correct row appears at the top
+		for (int row = _scroll; row > 0 && _rows[row] == _rows[row - 1]; --row)
+		{
+			y -= _font->getHeight() + _font->getSpacing();
+		}
+		for (size_t i = _rows[_scroll]; i < _texts.size() && i < _rows[_scroll] + _visibleRows; ++i)
+		{
+			for (std::vector<Text*>::iterator j = _texts[i].begin(); j < _texts[i].end(); ++j)
+			{
+				(*j)->setY(y);
+				(*j)->blit(this);
+			}
+			if (!_texts[i].empty())
+			{
+				y += _texts[i].front()->getHeight() + _font->getSpacing();
+			}
+			else
+			{
+				y += _font->getHeight() + _font->getSpacing();
+			}
+		}
+	}
+}
+
+/**
+ * Blits the text list and selector.
+ * @param surface Pointer to surface to blit onto.
+ */
+void TextList::blit(Surface *surface)
+{
+	if (_visible && !_hidden)
+	{
+		_selector->blit(surface);
+	}
+	Surface::blit(surface);
+	if (_visible && !_hidden)
+	{
+		if (_arrowPos != -1 && !_rows.empty())
+		{
+			int y = getY();
+			for (int row = _scroll; row > 0 && _rows[row] == _rows[row - 1]; --row)
+			{
+				y -= _font->getHeight() + _font->getSpacing();
+			}
+			int maxY = getY() + getHeight();
+			for (size_t i = _rows[_scroll]; i < _texts.size() && i < _rows[_scroll] + _visibleRows && y < maxY; ++i)
+			{
+				_arrowLeft[i]->setY(y);
+				_arrowRight[i]->setY(y);
+
+				if (y >= getY())
+				{
+					// only blit arrows that belong to texts that have their first row on-screen
+					_arrowLeft[i]->blit(surface);
+					_arrowRight[i]->blit(surface);
+				}
+
+				if (!_texts[i].empty())
+				{
+					y += _texts[i].front()->getHeight() + _font->getSpacing();
+				}
+				else
+				{
+					y += _font->getHeight() + _font->getSpacing();
+				}
+			}
+		}
+		_up->blit(surface);
+		_down->blit(surface);
+		_scrollbar->blit(surface);
+	}
+}
+
+/**
+ * Passes events to arrow buttons.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextList::handle(Action *action, State *state)
+{
+	InteractiveSurface::handle(action, state);
+	_up->handle(action, state);
+	_down->handle(action, state);
+	_scrollbar->handle(action, state);
+	if (_arrowPos != -1 && !_rows.empty())
+	{
+		size_t startArrowIdx = _rows[_scroll];
+		if (0 < _scroll && _rows[_scroll] == _rows[_scroll - 1])
+		{
+			// arrows for first partially-visible line of text are off-screen; don't process them
+			++startArrowIdx;
+		}
+		size_t endArrowIdx = _rows[_scroll] + 1;
+		size_t endRow = std::min(_rows.size(), _scroll + _visibleRows);
+		for (size_t i = _scroll + 1; i < endRow; ++i)
+		{
+			if (_rows[i] != _rows[i - 1])
+			{
+				++endArrowIdx;
+			}
+		}
+		for (size_t i = startArrowIdx; i < endArrowIdx; ++i)
+		{
+			_arrowLeft[i]->handle(action, state);
+			_arrowRight[i]->handle(action, state);
+		}
+	}
+}
+
+/**
+ * Passes ticks to arrow buttons.
+ */
+void TextList::think()
+{
+	InteractiveSurface::think();
+	_up->think();
+	_down->think();
+	_scrollbar->think();
+	for (std::vector<ArrowButton*>::iterator i = _arrowLeft.begin(); i < _arrowLeft.end(); ++i)
+	{
+		(*i)->think();
+	}
+	for (std::vector<ArrowButton*>::iterator i = _arrowRight.begin(); i < _arrowRight.end(); ++i)
+	{
+		(*i)->think();
+	}
+}
+
+/**
+ * Ignores any mouse clicks that aren't on a row.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextList::mousePress(Action *action, State *state)
+{
+	bool allowScroll = true;
+	if (Options::changeValueByMouseWheel != 0)
+	{
+		allowScroll = (action->getAbsoluteXMouse() < _arrowsLeftEdge || action->getAbsoluteXMouse() > _arrowsRightEdge);
+	}
+	if (allowScroll)
+	{
+		if (action->getDetails()->button.button == SDL_BUTTON_WHEELUP) scrollUp(false, true);
+		else if (action->getDetails()->button.button == SDL_BUTTON_WHEELDOWN) scrollDown(false, true);
+	}
+	if (_selectable)
+	{
+		if (_selRow < _rows.size())
+		{
+			InteractiveSurface::mousePress(action, state);
+		}
+	}
+	else
+	{
+		InteractiveSurface::mousePress(action, state);
+	}
+}
+
+/*
+ * Ignores any mouse clicks that aren't on a row.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextList::mouseRelease(Action *action, State *state)
+{
+	if (_selectable)
+	{
+		if (_selRow < _rows.size())
+		{
+			InteractiveSurface::mouseRelease(action, state);
+		}
+	}
+	else
+	{
+		InteractiveSurface::mouseRelease(action, state);
+	}
+}
+
+/**
+ * Ignores any mouse clicks that aren't on a row.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextList::mouseClick(Action *action, State *state)
+{
+	if (_selectable)
+	{
+		if (_selRow < _rows.size())
+		{
+			InteractiveSurface::mouseClick(action, state);
+			if (_comboBox && action->getDetails()->button.button == SDL_BUTTON_LEFT)
+			{
+				_comboBox->setSelected(_selRow);
+				_comboBox->toggle();
+			}
+		}
+	}
+	else
+	{
+		InteractiveSurface::mouseClick(action, state);
+	}
+}
+
+/**
+ * Selects the row the mouse is over.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextList::mouseOver(Action *action, State *state)
+{
+	if (_selectable)
+	{
+		int rowHeight = _font->getHeight() + _font->getSpacing(); //theoretical line height
+		_selRow = std::max(0, (int)(_scroll + (int)floor(action->getRelativeYMouse() / (rowHeight * action->getYScale()))));
+		if (_selRow < _rows.size())
+		{
+			Text *selText = _texts[_rows[_selRow]].front();
+			int y = getY() + selText->getY();
+			int actualHeight = selText->getHeight() + _font->getSpacing(); //current line height
+			if (y < getY() || y + actualHeight > getY() + getHeight())
+			{
+				actualHeight /= 2;
+			}
+			if (y < getY())
+			{
+				y = getY();
+			}
+			if (_selector->getHeight() != actualHeight)
+			{
+				// resizing doesn't work, but recreating does, so let's do that!
+				delete _selector;
+				_selector = new Surface(getWidth(), actualHeight, getX(), y);
+				_selector->setPalette(getPalette());
+			}
+			_selector->setY(y);
+			_selector->copy(_bg);
+			if (_contrast)
+			{
+				_selector->offsetBlock(-5);
+			}
+			else if (_comboBox)
+			{
+				_selector->offset(+1, Palette::backPos);
+			}
+			else
+			{
+				_selector->offsetBlock(-10);
+			}
+			_selector->setVisible(true);
+		}
+		else
+		{
+			_selector->setVisible(false);
+		}
+	}
+
+	InteractiveSurface::mouseOver(action, state);
+}
+
+/**
+ * Deselects the row.
+ * @param action Pointer to an action.
+ * @param state State that the action handlers belong to.
+ */
+void TextList::mouseOut(Action *action, State *state)
+{
+	if (_selectable)
+	{
+		_selector->setVisible(false);
+	}
+
+	InteractiveSurface::mouseOut(action, state);
+}
+
+/*
+ * get the scroll depth.
+ * @return scroll depth.
+ */
+size_t TextList::getScroll()
+{
+	return _scroll;
+}
+
+/*
+ * set the scroll depth.
+ * @param scroll set the scroll depth to this.
+ */
+void TextList::scrollTo(size_t scroll)
+{
+	if (!_scrolling)
+		return;
+	if (_rows.size() <= _visibleRows)
+		return;
+	_scroll = Clamp(scroll, (size_t)(0), _rows.size() - _visibleRows);
+	draw(); // can't just set _redraw here because reasons
+	updateArrows();
+}
+
+/**
+ * Hooks up the button to work as part of an existing combobox,
+ * updating the selection when it's pressed.
+ * @param comboBox Pointer to combobox.
+ */
+void TextList::setComboBox(ComboBox *comboBox)
+{
+	_comboBox = comboBox;
+}
+
+/**
+ * Gets the combobox that this list is attached to, if any.
+ * @return the attached combobox.
+ */
+ComboBox *TextList::getComboBox() const
+{
+	return _comboBox;
+}
+
+void TextList::setBorderColor(Uint8 color)
+{
+	_up->setColor(color);
+	_down->setColor(color);
+	_scrollbar->setColor(color);
+}
+
+int TextList::getScrollbarColor()
+{
+	return _scrollbar->getColor();
+}
+
+void TextList::setFlooding(bool flooding)
+{
+	_flooding = flooding;
+}
+
+}
+⟦/FILE⟧
+⟦FILE:TextList.h;encoding=utf8;sha256=7106009939e42a0a0e3a5482245fc62573722ea9aa6cfd2253fed90fe88732fe;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include <vector>
+#include <map>
+#include "../Engine/InteractiveSurface.h"
+#include "Text.h"
+
+namespace OpenXcom
+{
+
+enum ArrowOrientation { ARROW_VERTICAL, ARROW_HORIZONTAL };
+
+class ArrowButton;
+class ComboBox;
+class ScrollBar;
+
+/**
+ * List of Text's split into columns.
+ * Contains a set of Text's that are automatically lined up by
+ * rows and columns, like a big table, making it easy to manage
+ * them together.
+ */
+class TextList : public InteractiveSurface
+{
+private:
+	std::vector< std::vector<Text*> > _texts;
+	std::vector<size_t> _columns, _rows;
+	Font *_big, *_small, *_font;
+	Language *_lang;
+	size_t _scroll, _visibleRows, _selRow;
+	Uint8 _color, _color2;
+	std::map<int, TextHAlign> _align;
+	bool _dot, _selectable, _condensed, _contrast, _wrap, _flooding;
+	Surface *_bg, *_selector;
+	ArrowButton *_up, *_down;
+	ScrollBar *_scrollbar;
+	int _margin;
+	bool _scrolling;
+	std::vector<ArrowButton*> _arrowLeft, _arrowRight;
+	int _arrowPos, _scrollPos;
+	ArrowOrientation _arrowType;
+	ActionHandler _leftClick, _leftPress, _leftRelease, _rightClick, _rightPress, _rightRelease;
+	int _arrowsLeftEdge, _arrowsRightEdge;
+	ComboBox *_comboBox;
+
+	/// Updates the arrow buttons.
+	void updateArrows();
+	/// Updates the visible rows.
+	void updateVisible();
+public:
+	/// Creates a text list with the specified size and position.
+	TextList(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the text list.
+	~TextList();
+	/// Sets the X position of the surface.
+	void setX(int x);
+	/// Sets the Y position of the surface.
+	void setY(int y);
+	/// Gets the arrowsLeftEdge.
+	int getArrowsLeftEdge();
+	/// Gets the arrowsRightEdge.
+	int getArrowsRightEdge();
+	/// Unpresses the surface.
+	void unpress(State *state);
+	/// Sets the text color of a certain cell.
+	void setCellColor(size_t row, size_t column, Uint8 color);
+	/// Sets the text color of a certain row.
+	void setRowColor(size_t row, Uint8 color);
+	/// Gets the text of a certain cell.
+	std::string getCellText(size_t row, size_t column) const;
+	/// Sets the text of a certain cell.
+	void setCellText(size_t row, size_t column, const std::string &text);
+	/// Gets the X position of a certain column.
+	int getColumnX(size_t column) const;
+	/// Gets the Y position of a certain row.
+	int getRowY(size_t row) const;
+	/// Gets the height of the row text in pixels
+	int getTextHeight(size_t row) const;
+	/// Gets the number of lines in the wrapped text for the specified row
+	int getNumTextLines(size_t row) const;
+	/// Gets the amount of text in the list.
+	size_t getTexts() const;
+	/// Gets the amount of rows in the list.
+	size_t getRows() const;
+	/// Gets the amount of visible rows in the list.
+	size_t getVisibleRows() const;
+	/// Adds a new row to the text list.
+	void addRow(int cols, ...);
+	/// Sets the columns in the text list.
+	void setColumns(int cols, ...);
+	/// Sets the palette of the text list.
+	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	/// Initializes the resources for the text list.
+	void initText(Font *big, Font *small, Language *lang);
+	/// Sets the height of the surface.
+	void setHeight(int height);
+	/// Sets the text color of the text list.
+	void setColor(Uint8 color);
+	/// Gets the text color of the text list.
+	Uint8 getColor() const;
+	/// Sets the secondary color of the text list.
+	void setSecondaryColor(Uint8 color);
+	/// Gets the secondary color of the text list.
+	Uint8 getSecondaryColor() const;
+	/// Sets the text list's wordwrap setting.
+	void setWordWrap(bool wrap);
+	/// Sets the text list's high contrast color setting.
+	void setHighContrast(bool contrast);
+	/// Sets the text horizontal alignment of the text list.
+	void setAlign(TextHAlign align, int col = -1);
+	/// Sets whether to separate columns with dots.
+	void setDot(bool dot);
+	/// Sets whether the list is selectable.
+	void setSelectable(bool selectable);
+	/// Sets the text size to big.
+	void setBig();
+	/// Sets the text size to small.
+	void setSmall();
+	/// Sets whether to condense columns instead of a table like layout.
+	void setCondensed(bool condensed);
+	/// Sets the background for the selector.
+	void setBackground(Surface *bg);
+	/// Gets the selected row in the list.
+	unsigned int getSelectedRow() const;
+	/// Sets the margin of the text list.
+	void setMargin(int margin);
+	/// Gets the margin of the text list.
+	int getMargin() const;
+	/// Sets the arrow color of the text list.
+	void setArrowColor(Uint8 color);
+	/// Sets the arrow column of the text list.
+	void setArrowColumn(int pos, ArrowOrientation type);
+	/// Hooks an action handler to a mouse click on the left arrows.
+	void onLeftArrowClick(ActionHandler handler);
+	/// Hooks an action handler to a mouse press over the left arrows.
+	void onLeftArrowPress(ActionHandler handler);
+	/// Hooks an action handler to a mouse release over the left arrows.
+	void onLeftArrowRelease(ActionHandler handler);
+	/// Hooks an action handler to a mouse click on the right arrows.
+	void onRightArrowClick(ActionHandler handler);
+	/// Hooks an action handler to a mouse press over the right arrows.
+	void onRightArrowPress(ActionHandler handler);
+	/// Hooks an action handler to a mouse release over the right arrows.
+	void onRightArrowRelease(ActionHandler handler);
+	/// Clears the list.
+	void clearList();
+	/// Scrolls the list up.
+	void scrollUp(bool toMax, bool scrollByWheel = false);
+	/// Scrolls the list down.
+	void scrollDown(bool toMax, bool scrollByWheel = false);
+	/// Sets the list scrolling.
+	void setScrolling(bool scrolling, int scrollPos = 4);
+	/// Draws the text onto the text list.
+	void draw();
+	/// Blits the text list onto another surface.
+	void blit(Surface *surface);
+	/// Thinks arrow buttons.
+	void think();
+	/// Handles arrow buttons.
+	void handle(Action *action, State *state);
+	/// Special handling for mouse presses.
+	void mousePress(Action *action, State *state);
+	/// Special handling for mouse releases.
+	void mouseRelease(Action *action, State *state);
+	/// Special handling for mouse clicks.
+	void mouseClick(Action *action, State *state);
+	/// Special handling for mouse hovering.
+	void mouseOver(Action *action, State *state);
+	/// Special handling for mouse hovering out.
+	void mouseOut(Action *action, State *state);
+	/// get the scroll depth
+	size_t getScroll();
+	/// set the scroll depth
+	void scrollTo(size_t scroll);
+	/// Attaches this button to a combobox.
+	void setComboBox(ComboBox *comboBox);
+	/// Check for a combobox.
+	ComboBox *getComboBox() const;
+	void setBorderColor(Uint8 color);
+	int getScrollbarColor();
+	/// Allows the cell to flood into other columns.
+	void setFlooding(bool flooding);
+};
+
+}
+⟦/FILE⟧
+⟦FILE:ToggleTextButton.cpp;encoding=utf8;sha256=1dd295d5b38ec7ac036d418b0ea6db14df709fa96cf187f955820976f5e99857;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "ToggleTextButton.h"
+#include "TextButton.h"
+
+
+namespace OpenXcom
+{
+
+ToggleTextButton::ToggleTextButton(int width, int height, int x, int y) : TextButton(width, height, x, y), _originalColor(-1), _invertedColor(-1), _fakeGroup(0)
+{
+	_isPressed = false;
+	TextButton::setGroup(&_fakeGroup);
+}
+
+
+ToggleTextButton::~ToggleTextButton(void)
+{
+}
+
+/// handle mouse clicks by toggling the button state; use _fakeGroup to trick TextButton into drawing the right thing
+void ToggleTextButton::mousePress(Action *action, State *state)
+{
+	if (action->getDetails()->button.button == SDL_BUTTON_LEFT || action->getDetails()->button.button == SDL_BUTTON_RIGHT)
+	{
+		_isPressed = !_isPressed;
+		_fakeGroup = _isPressed ? this : 0; // this is the trick that makes TextButton stick
+		if (_isPressed && _invertedColor > -1) TextButton::setColor(_invertedColor);
+		else TextButton::setColor(_originalColor);
+	}
+
+	InteractiveSurface::mousePress(action, state); // skip TextButton's code as it will try to set *_group
+	draw();
+}
+
+/// set the _isPressed state of the button and force it to redraw
+void ToggleTextButton::setPressed(bool pressed)
+{
+	_isPressed = pressed;
+	_fakeGroup = _isPressed ? this : 0;
+	if (_isPressed && _invertedColor > -1) TextButton::setColor(_invertedColor);
+	else TextButton::setColor(_originalColor);
+	_redraw = true;
+}
+
+void ToggleTextButton::setColor(Uint8 color)
+{
+	_originalColor = color;
+	TextButton::setColor(color);
+}
+
+/// When this is set, Surface::invert() is called with the value from mid when it's time to invert the button
+void ToggleTextButton::setInvertColor(Uint8 color)
+{
+	_invertedColor = color;
+	_fakeGroup = 0;
+	_redraw = true;
+}
+
+/// handle draw() in case we need to paint the button a garish color
+void ToggleTextButton::draw()
+{
+	if (_invertedColor > -1) _fakeGroup = 0; // nevermind, TextButton. We'll invert the surface ourselves.
+	TextButton::draw();
+
+	if (_invertedColor > -1 && _isPressed)
+	{
+		this->invert(_invertedColor + 4);
+	}
+}
+
+
+
+
+}
+⟦/FILE⟧
+⟦FILE:ToggleTextButton.h;encoding=utf8;sha256=c998a45788dce1579c0f5638599e00a023a032aa937032f02d0ee7151f35b041;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "TextButton.h"
+#include "../Engine/Action.h"
+#include "../Engine/State.h"
+
+namespace OpenXcom
+{
+
+class ToggleTextButton :
+    public TextButton
+{
+private:
+    bool _isPressed;
+    int _originalColor, _invertedColor;
+    TextButton *_fakeGroup;
+
+public:
+
+    void draw();
+    void mousePress(Action *action, State *state);
+    void setPressed(bool pressed);
+    bool getPressed() const { return _isPressed; }
+	void setColor(Uint8 color);
+    void setInvertColor(Uint8 color);
+    ToggleTextButton(int width, int height, int x, int y);
+    ~ToggleTextButton(void);
+};
+
+}
+⟦/FILE⟧
+⟦FILE:Window.cpp;encoding=utf8;sha256=0fb4ee296097f4eb66dab2a2bab4dd316f87301ad69f97b1033f0d2a74e7fbf8;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "Window.h"
+#include <SDL.h>
+#include <SDL_mixer.h>
+#include "../fmath.h"
+#include "../Engine/Timer.h"
+#include "../Engine/Sound.h"
+#include "../Engine/RNG.h"
+
+namespace OpenXcom
+{
+
+const double Window::POPUP_SPEED = 0.05;
+
+Sound *Window::soundPopup[3];
+
+/**
+ * Sets up a blank window with the specified size and position.
+ * @param state Pointer to state the window belongs to.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ * @param popup Popup animation.
+ */
+Window::Window(State *state, int width, int height, int x, int y, WindowPopup popup) : Surface(width, height, x, y), _dx(-x), _dy(-y), _bg(0), _color(0), _popup(popup), _popupStep(0.0), _state(state), _contrast(false), _screen(false), _thinBorder(false)
+{
+	_timer = new Timer(10);
+	_timer->onTimer((SurfaceHandler)&Window::popup);
+
+	if (_popup == POPUP_NONE)
+	{
+		_popupStep = 1.0;
+	}
+	else
+	{
+		setHidden(true);
+		_timer->start();
+		if (_state != 0)
+		{
+			_screen = state->isScreen();
+			if (_screen)
+				_state->toggleScreen();
+		}
+	}
+}
+
+/**
+ * Deletes timers.
+ */
+Window::~Window()
+{
+	delete _timer;
+}
+
+/**
+ * Changes the surface used to draw the background of the window.
+ * @param bg New background.
+ */
+void Window::setBackground(Surface *bg)
+{
+	_bg = bg;
+	_redraw = true;
+}
+
+/**
+ * Changes the color used to draw the shaded border.
+ * @param color Color value.
+ */
+void Window::setColor(Uint8 color)
+{
+	_color = color;
+	_redraw = true;
+}
+
+/**
+ * Returns the color used to draw the shaded border.
+ * @return Color value.
+ */
+Uint8 Window::getColor() const
+{
+	return _color;
+}
+
+/**
+ * Enables/disables high contrast color. Mostly used for
+ * Battlescape UI.
+ * @param contrast High contrast setting.
+ */
+void Window::setHighContrast(bool contrast)
+{
+	_contrast = contrast;
+	_redraw = true;
+}
+
+/**
+ * Keeps the animation timers running.
+ */
+void Window::think()
+{
+	if (_hidden && _popupStep < 1.0)
+	{
+		_state->hideAll();
+		setHidden(false);
+	}
+
+	_timer->think(0, this);
+}
+
+/**
+ * Plays the window popup animation.
+ */
+void Window::popup()
+{
+	if (AreSame(_popupStep, 0.0))
+	{
+		int sound = RNG::seedless(0,2);
+		if (soundPopup[sound] != 0)
+		{
+			soundPopup[sound]->play(Mix_GroupAvailable(0));
+		}
+	}
+	if (_popupStep < 1.0)
+	{
+		_popupStep += POPUP_SPEED;
+	}
+	else
+	{
+		if (_screen)
+		{
+			_state->toggleScreen();
+		}
+		_state->showAll();
+		_popupStep = 1.0;
+		_timer->stop();
+	}
+	_redraw = true;
+}
+
+/**
+ * Draws the bordered window with a graphic background.
+ * The background never moves with the window, it's
+ * always aligned to the top-left corner of the screen
+ * and cropped to fit the inside area.
+ */
+void Window::draw()
+{
+	Surface::draw();
+	SDL_Rect square;
+
+	if (_popup == POPUP_HORIZONTAL || _popup == POPUP_BOTH)
+	{
+		square.x = (int)((getWidth() - getWidth() * _popupStep) / 2);
+		square.w = (int)(getWidth() * _popupStep);
+	}
+	else
+	{
+		square.x = 0;
+		square.w = getWidth();
+	}
+	if (_popup == POPUP_VERTICAL || _popup == POPUP_BOTH)
+	{
+		square.y = (int)((getHeight() - getHeight() * _popupStep) / 2);
+		square.h = (int)(getHeight() * _popupStep);
+	}
+	else
+	{
+		square.y = 0;
+		square.h = getHeight();
+	}
+
+	int mul = 1;
+	if (_contrast)
+	{
+		mul = 2;
+	}
+	Uint8 color = _color + 3 * mul;
+
+	if (_thinBorder)
+	{
+		color = _color + 1 * mul;
+		for (int i = 0; i < 5; ++i)
+		{
+			drawRect(&square, color);
+
+			if (i % 2 == 0)
+			{
+				square.x++;
+				square.y++;
+			}
+			square.w--;
+			square.h--;
+
+			switch (i)
+			{
+			case 0:
+				color = _color + 5 * mul;
+				setPixel(square.w, 0, color);
+				break;
+			case 1:
+				color = _color + 2 * mul;
+				break;
+			case 2:
+				color = _color + 4 * mul;
+				setPixel(square.w+1, 1, color);
+				break;
+			case 3:
+				color = _color + 3 * mul;
+				break;
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < 5; ++i)
+		{
+			drawRect(&square, color);
+			if (i < 2)
+				color -= 1 * mul;
+			else
+				color += 1 * mul;
+			square.x++;
+			square.y++;
+			if (square.w >= 2)
+				square.w -= 2;
+			else
+				square.w = 1;
+
+			if (square.h >= 2)
+				square.h -= 2;
+			else
+				square.h = 1;
+		}
+	}
+
+	if (_bg != 0)
+	{
+		_bg->getCrop()->x = square.x - _dx;
+		_bg->getCrop()->y = square.y - _dy;
+		_bg->getCrop()->w = square.w ;
+		_bg->getCrop()->h = square.h ;
+		_bg->setX(square.x);
+		_bg->setY(square.y);
+		_bg->blit(this);
+	}
+}
+
+/**
+ * Changes the horizontal offset of the surface in the X axis.
+ * @param dx X position in pixels.
+ */
+void Window::setDX(int dx)
+{
+	_dx = dx;
+}
+
+/**
+ * Changes the vertical offset of the surface in the Y axis.
+ * @param dy Y position in pixels.
+ */
+void Window::setDY(int dy)
+{
+	_dy = dy;
+}
+
+/**
+ * Changes the window to have a thin border.
+ */
+void Window::setThinBorder()
+{
+	_thinBorder = true;
+}
+
+}
+⟦/FILE⟧
+⟦FILE:Window.h;encoding=utf8;sha256=9b84bca66b0d967a4a2833daf0d38d358389e6aa886a98ae0c7e3821cc1c10a8;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/Surface.h"
+
+namespace OpenXcom
+{
+
+class Timer;
+class State;
+class Sound;
+
+/**
+ * Enumeration for the type of animation when a window pops up.
+ */
+enum WindowPopup { POPUP_NONE, POPUP_HORIZONTAL, POPUP_VERTICAL, POPUP_BOTH };
+
+/**
+ * Box with a coloured border and custom background.
+ * Pretty much used as the background in most of the interface. In fact
+ * it's also used in screens, so it's not really much of a window, just a... box.
+ * But box sounds lame.
+ */
+class Window : public Surface
+{
+private:
+	static const double POPUP_SPEED;
+	int _dx, _dy;
+	Surface *_bg;
+	Uint8 _color;
+	WindowPopup _popup;
+	double _popupStep;
+	Timer *_timer;
+	State *_state;
+	bool _contrast, _screen, _thinBorder;
+public:
+	static Sound *soundPopup[3];
+	/// Creates a new window with the specified size and position.
+	Window(State *state, int width, int height, int x = 0, int y = 0, WindowPopup popup = POPUP_NONE);
+	/// Cleans up the window.
+	~Window();
+	/// Sets the background surface.
+	void setBackground(Surface *bg);
+	/// Sets the border color.
+	void setColor(Uint8 color);
+	/// Gets the border color.
+	Uint8 getColor() const;
+	/// Sets the high contrast color setting.
+	void setHighContrast(bool contrast);
+	/// Handles the timers.
+	void think();
+	/// Popups the window.
+	void popup();
+	/// Draws the window.
+	void draw();
+	/// sets the X delta.
+	void setDX(int dx);
+	/// sets the Y delta.
+	void setDY(int dy);
+	/// Give this window a thin border.
+	void setThinBorder();
+};
+
+}
+⟦/FILE⟧
+⟦/BUNDLE⟧

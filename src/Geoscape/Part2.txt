@@ -1,0 +1,405 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦INDEX⟧
+{"batch":2,"files":["AllocatePsiTrainingState.pas","BaseDefenseState.pas"],"total_batches":18}
+⟦/INDEX⟧
+⟦FILE:AllocatePsiTrainingState.pas;encoding=utf8;eol=lf;sha256=⟧
+unit AllocatePsiTrainingState;
+
+interface
+
+uses
+  Engine.State, Engine.Game, Engine.Mod, Engine.LocalizedText,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.SavedGame, Savegame.Base, Savegame.Soldier,
+  Engine.Action, Engine.Options;
+
+type
+  TAllocatePsiTrainingState = class(TState)
+  private
+    FBase: TBase;
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtTraining, FTxtName, FTxtRemaining: TText;
+    FTxtPsiStrength, FTxtPsiSkill: TText;
+    FLstSoldiers: TTextList;
+    FSoldiers: array of TSoldier; // vector replacement
+    FSel: Integer;
+    FLabSpace: Integer;
+    procedure BtnOkClick(AAction: TAction);
+    procedure LstSoldiersClick(AAction: TAction);
+  public
+    constructor Create(ABase: TBase);
+    destructor Destroy; override;
+  end;
+
+implementation
+
+uses
+  System.SysUtils, System.Classes;
+
+{ TAllocatePsiTrainingState }
+
+constructor TAllocatePsiTrainingState.Create(ABase: TBase);
+var
+  i: Integer;
+  soldier: TSoldier;
+  ssStr, ssSkl: string;
+  row: Integer;
+begin
+  inherited Create(nil);
+  FBase := ABase;
+  FSel := 0;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FTxtTitle := TText.Create(300, 17, 10, 8);
+  FTxtRemaining := TText.Create(300, 10, 10, 24);
+  FTxtName := TText.Create(64, 10, 10, 40);
+  FTxtPsiStrength := TText.Create(80, 20, 124, 32);
+  FTxtPsiSkill := TText.Create(80, 20, 188, 32);
+  FTxtTraining := TText.Create(48, 20, 270, 32);
+  FBtnOk := TTextButton.Create(160, 14, 80, 174);
+  FLstSoldiers := TTextList.Create(290, 112, 8, 52);
+
+  SetInterface('allocatePsi');
+
+  Add(FWindow, 'window', 'allocatePsi');
+  Add(FBtnOk, 'button', 'allocatePsi');
+  Add(FTxtName, 'text', 'allocatePsi');
+  Add(FTxtTitle, 'text', 'allocatePsi');
+  Add(FTxtRemaining, 'text', 'allocatePsi');
+  Add(FTxtPsiStrength, 'text', 'allocatePsi');
+  Add(FTxtPsiSkill, 'text', 'allocatePsi');
+  Add(FTxtTraining, 'text', 'allocatePsi');
+  Add(FLstSoldiers, 'list', 'allocatePsi');
+
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(Game.Mod.GetSurface('BACK01.SCR'));
+
+  FBtnOk.Text := Tr('STR_OK');
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress(Options.keyCancel, BtnOkClick);
+
+  FTxtTitle.Big := True;
+  FTxtTitle.Align := ALIGN_CENTER;
+  FTxtTitle.Text := Tr('STR_PSIONIC_TRAINING');
+
+  FLabSpace := FBase.AvailablePsiLabs - FBase.UsedPsiLabs;
+  FTxtRemaining.Text := Tr('STR_REMAINING_PSI_LAB_CAPACITY').Arg(FLabSpace);
+
+  FTxtName.Text := Tr('STR_NAME');
+  FTxtPsiStrength.Text := Tr('STR_PSIONIC__STRENGTH');
+  FTxtPsiSkill.Text := Tr('STR_PSIONIC_SKILL_IMPROVEMENT');
+  FTxtTraining.Text := Tr('STR_IN_TRAINING');
+
+  FLstSoldiers.Align := ALIGN_RIGHT;
+  FLstSoldiers.SetColumns(4, 114, 80, 62, 30);
+  FLstSoldiers.Selectable := True;
+  FLstSoldiers.Background := FWindow;
+  FLstSoldiers.Margin := 2;
+  FLstSoldiers.OnMouseClick := LstSoldiersClick;
+
+  SetLength(FSoldiers, 0);
+  row := 0;
+  for i := 0 to FBase.Soldiers.Count - 1 do
+  begin
+    soldier := FBase.Soldiers[i];
+    SetLength(FSoldiers, Length(FSoldiers) + 1);
+    FSoldiers[High(FSoldiers)] := soldier;
+
+    // Build strength string
+    if (soldier.CurrentStats.PsiSkill > 0) or (Options.PsiStrengthEval and Game.SavedGame.IsResearched(Game.Mod.PsiRequirements)) then
+      ssStr := '   ' + IntToStr(soldier.CurrentStats.PsiStrength) +
+               IIf(Options.AllowPsiStrengthImprovement, '/+' + IntToStr(soldier.PsiStrImprovement), '')
+    else
+      ssStr := Tr('STR_UNKNOWN');
+
+    // Build skill string
+    if soldier.CurrentStats.PsiSkill > 0 then
+      ssSkl := IntToStr(soldier.CurrentStats.PsiSkill) + '/+' + IntToStr(soldier.Improvement)
+    else
+      ssSkl := '0/+0';
+
+    if soldier.IsInPsiTraining then
+    begin
+      FLstSoldiers.AddRow(4, [soldier.Name(True), ssStr, ssSkl, Tr('STR_YES')]);
+      FLstSoldiers.SetRowColor(row, FLstSoldiers.SecondaryColor);
+    end
+    else
+    begin
+      FLstSoldiers.AddRow(4, [soldier.Name(True), ssStr, ssSkl, Tr('STR_NO')]);
+      FLstSoldiers.SetRowColor(row, FLstSoldiers.Color);
+    end;
+    Inc(row);
+  end;
+end;
+
+destructor TAllocatePsiTrainingState.Destroy;
+begin
+  // no dynamic allocations
+  inherited;
+end;
+
+procedure TAllocatePsiTrainingState.BtnOkClick(AAction: TAction);
+var
+  i: Integer;
+begin
+  for i := 0 to FBase.Soldiers.Count - 1 do
+    FBase.Soldiers[i].CalcStatString(Game.Mod.StatStrings,
+      (Options.PsiStrengthEval and Game.SavedGame.IsResearched(Game.Mod.PsiRequirements)));
+  Game.PopState;
+end;
+
+procedure TAllocatePsiTrainingState.LstSoldiersClick(AAction: TAction);
+var
+  sel: Integer;
+  soldier: TSoldier;
+begin
+  sel := FLstSoldiers.SelectedRow;
+  if sel < 0 then Exit;
+  if AAction.Details.button.button = SDL_BUTTON_LEFT then
+  begin
+    soldier := FBase.Soldiers[sel];
+    if not soldier.IsInPsiTraining then
+    begin
+      if FBase.UsedPsiLabs < FBase.AvailablePsiLabs then
+      begin
+        FLstSoldiers.SetCellText(sel, 3, Tr('STR_YES'));
+        FLstSoldiers.SetRowColor(sel, FLstSoldiers.SecondaryColor);
+        Dec(FLabSpace);
+        FTxtRemaining.Text := Tr('STR_REMAINING_PSI_LAB_CAPACITY').Arg(FLabSpace);
+        soldier.SetPsiTraining(True);
+      end;
+    end
+    else
+    begin
+      FLstSoldiers.SetCellText(sel, 3, Tr('STR_NO'));
+      FLstSoldiers.SetRowColor(sel, FLstSoldiers.Color);
+      Inc(FLabSpace);
+      FTxtRemaining.Text := Tr('STR_REMAINING_PSI_LAB_CAPACITY').Arg(FLabSpace);
+      soldier.SetPsiTraining(False);
+    end;
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:BaseDefenseState.pas;encoding=utf8;eol=lf;sha256=⟧
+unit BaseDefenseState;
+
+interface
+
+uses
+  Engine.State, Engine.Game, Engine.Mod, Engine.LocalizedText,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Base, Savegame.BaseFacility, Mod.RuleBaseFacility,
+  Savegame.Ufo, Geoscape.GeoscapeState, Engine.Action,
+  Engine.Timer, Engine.Sound, Engine.RNG, Engine.Options;
+
+type
+  TBaseDefenseActionType = (BDA_NONE, BDA_FIRE, BDA_RESOLVE, BDA_DESTROY, BDA_END);
+
+  TBaseDefenseState = class(TState)
+  private
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtInit: TText;
+    FLstDefenses: TTextList;
+    FBase: TBase;
+    FUfo: TUfo;
+    FThinkCycles, FRow, FPasses, FGravShields, FDefenses, FAttacks, FExplosionCount: Integer;
+    FAction: TBaseDefenseActionType;
+    FTimer: TTimer;
+    FState: TGeoscapeState;
+    procedure BtnOkClick(AAction: TAction);
+    procedure NextStep;
+  public
+    constructor Create(ABase: TBase; AUfo: TUfo; AState: TGeoscapeState);
+    destructor Destroy; override;
+    procedure Think; override;
+  end;
+
+implementation
+
+uses
+  System.SysUtils;
+
+{ TBaseDefenseState }
+
+constructor TBaseDefenseState.Create(ABase: TBase; AUfo: TUfo; AState: TGeoscapeState);
+begin
+  inherited Create(nil);
+  FState := AState;
+  FBase := ABase;
+  FAction := BDA_NONE;
+  FRow := -1;
+  FPasses := 0;
+  FAttacks := 0;
+  FThinkCycles := 0;
+  FUfo := AUfo;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FTxtTitle := TText.Create(300, 17, 16, 6);
+  FTxtInit := TText.Create(300, 10, 16, 24);
+  FLstDefenses := TTextList.Create(300, 128, 16, 40);
+  FBtnOk := TTextButton.Create(120, 18, 100, 170);
+
+  SetInterface('baseDefense');
+
+  Add(FWindow, 'window', 'baseDefense');
+  Add(FBtnOk, 'button', 'baseDefense');
+  Add(FTxtTitle, 'text', 'baseDefense');
+  Add(FTxtInit, 'text', 'baseDefense');
+  Add(FLstDefenses, 'text', 'baseDefense');
+
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(Game.Mod.GetSurface('BACK04.SCR'));
+
+  FBtnOk.Text := Tr('STR_OK');
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress(Options.keyOk, BtnOkClick);
+  FBtnOk.OnKeyboardPress(Options.keyCancel, BtnOkClick);
+  FBtnOk.Visible := False;
+
+  FTxtTitle.Big := True;
+  FTxtTitle.Text := Tr('STR_BASE_UNDER_ATTACK').Arg(FBase.Name);
+
+  FTxtInit.Visible := False;
+  FTxtInit.Text := Tr('STR_BASE_DEFENSES_INITIATED');
+
+  FLstDefenses.SetColumns(3, 134, 70, 50);
+
+  FGravShields := FBase.GravShields;
+  FDefenses := FBase.Defenses.Count;
+
+  FTimer := TTimer.Create(250);
+  FTimer.OnTimer := NextStep;
+  FTimer.Start;
+
+  FExplosionCount := 0;
+end;
+
+destructor TBaseDefenseState.Destroy;
+begin
+  FTimer.Free;
+  inherited;
+end;
+
+procedure TBaseDefenseState.Think;
+begin
+  inherited;
+  if Assigned(FTimer) then
+    FTimer.Think(Self, 0);
+end;
+
+procedure TBaseDefenseState.NextStep;
+var
+  def: TBaseFacility;
+  dmg: Integer;
+begin
+  if FThinkCycles = -1 then Exit;
+
+  Inc(FThinkCycles);
+
+  if FThinkCycles = 1 then
+  begin
+    FTxtInit.Visible := True;
+    Exit;
+  end;
+
+  if FThinkCycles > 1 then
+  begin
+    case FAction of
+      BDA_DESTROY:
+        begin
+          if FExplosionCount = 0 then
+          begin
+            FLstDefenses.AddRow(2, [Tr('STR_UFO_DESTROYED'), ' ', ' ']);
+            Inc(FRow);
+            if FRow > 14 then FLstDefenses.ScrollDown(True);
+          end;
+          Game.Mod.GetSound('GEO.CAT', Mod.UFO_EXPLODE).Play;
+          Inc(FExplosionCount);
+          if FExplosionCount = 3 then
+            FAction := BDA_END;
+          Exit;
+        end;
+      BDA_END:
+        begin
+          FBtnOk.Visible := True;
+          FThinkCycles := -1;
+          Exit;
+        end;
+    end;
+
+    if (FAttacks = FDefenses) and (FPasses = FGravShields) then
+    begin
+      FAction := BDA_END;
+      Exit;
+    end
+    else if (FAttacks = FDefenses) and (FPasses < FGravShields) then
+    begin
+      FLstDefenses.AddRow(3, [Tr('STR_GRAV_SHIELD_REPELS_UFO'), ' ', ' ']);
+      if FRow > 14 then FLstDefenses.ScrollDown(True);
+      Inc(FRow);
+      Inc(FPasses);
+      FAttacks := 0;
+      Exit;
+    end;
+
+    def := FBase.Defenses[FAttacks];
+
+    case FAction of
+      BDA_NONE:
+        begin
+          FLstDefenses.AddRow(3, [Tr(def.Rules.TypeName), ' ', ' ']);
+          Inc(FRow);
+          FAction := BDA_FIRE;
+          if FRow > 14 then FLstDefenses.ScrollDown(True);
+          Exit;
+        end;
+      BDA_FIRE:
+        begin
+          FLstDefenses.SetCellText(FRow, 1, Tr('STR_FIRING'));
+          Game.Mod.GetSound('GEO.CAT', def.Rules.FireSound).Play;
+          FTimer.Interval := 333;
+          FAction := BDA_RESOLVE;
+          Exit;
+        end;
+      BDA_RESOLVE:
+        begin
+          if not RNG.Percent(def.Rules.HitRatio) then
+            FLstDefenses.SetCellText(FRow, 2, Tr('STR_MISSED'))
+          else
+          begin
+            FLstDefenses.SetCellText(FRow, 2, Tr('STR_HIT'));
+            Game.Mod.GetSound('GEO.CAT', def.Rules.HitSound).Play;
+            dmg := def.Rules.DefenseValue;
+            FUfo.Damage := FUfo.Damage + (dmg div 2 + RNG.Generate(0, dmg));
+          end;
+          if FUfo.Status = TUfoStatus.DESTROYED then
+            FAction := BDA_DESTROY
+          else
+            FAction := BDA_NONE;
+          Inc(FAttacks);
+          FTimer.Interval := 250;
+          Exit;
+        end;
+    end;
+  end;
+end;
+
+procedure TBaseDefenseState.BtnOkClick(AAction: TAction);
+begin
+  FTimer.Stop;
+  Game.PopState;
+  if FUfo.Status <> TUfoStatus.DESTROYED then
+    FState.HandleBaseDefense(FBase, FUfo)
+  else
+    FBase.CleanupDefenses(True);
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

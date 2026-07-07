@@ -1,0 +1,1870 @@
+unit OpenXcom.States;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.Types,
+  SDL.Api, SDL.Mixer,
+  OpenXcom.Engine, OpenXcom.Interface, OpenXcom.Mod, OpenXcom.Savegame;
+
+type
+  { Base state class equivalent to C++ State }
+  TState = class
+  private
+    FGame: TGame;
+    FPalette: array[0..255] of TSDLColor;
+  protected
+    procedure SetPalette(const APalette: TSDLColorArray); overload;
+    procedure SetPalette(const APaletteName: string; Offset: Integer = 0); overload;
+    procedure ApplyBattlescapeTheme;
+    procedure CenterAllSurfaces;
+  public
+    constructor Create(AGame: TGame); virtual;
+    destructor Destroy; override;
+    procedure Init; virtual;
+    procedure Think; virtual;
+    procedure Handle(Action: TAction); virtual;
+    procedure Blit; virtual;
+    procedure Resize(var DX, DY: Integer); virtual;
+    property Game: TGame read FGame;
+  end;
+
+  { Origin of options }
+  TOptionsOrigin = (optMenu, optGeoscape, optBattlescape);
+
+  { Base for options states }
+  TOptionsBaseState = class(TState)
+  protected
+    FOrigin: TOptionsOrigin;
+    FWindow: TWindow;
+    FBtns: array[0..6] of TTextButton;
+    FBtnOk, FBtnCancel, FBtnDefault: TTextButton;
+    FTooltip: TText;
+    FGroup: TTextButton;
+    procedure SetCategory(Button: TTextButton);
+    class procedure Restart(Origin: TOptionsOrigin);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin); virtual;
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOkClick(Sender: TObject);
+    procedure BtnCancelClick(Sender: TObject);
+    procedure BtnDefaultClick(Sender: TObject);
+    procedure BtnGroupPress(Sender: TObject);
+    procedure TooltipIn(Sender: TObject);
+    procedure TooltipOut(Sender: TObject);
+    procedure Resize(var DX, DY: Integer); override;
+  end;
+
+  { Abandon game confirmation }
+  TAbandonGameState = class(TState)
+  private
+    FOrigin: TOptionsOrigin;
+    FBtnYes, FBtnNo: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle: TText;
+    procedure BtnYesClick(Sender: TObject);
+    procedure BtnNoClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+  end;
+
+  { Confirm load with missing content }
+  TConfirmLoadState = class(TState)
+  private
+    FOrigin: TOptionsOrigin;
+    FFileName: string;
+    FBtnYes, FBtnNo: TTextButton;
+    FWindow: TWindow;
+    FTxtText: TText;
+    procedure BtnYesClick(Sender: TObject);
+    procedure BtnNoClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin; const AFileName: string);
+    destructor Destroy; override;
+  end;
+
+  { Cutscene dispatcher }
+  TCutsceneState = class(TState)
+  private
+    FCutsceneId: string;
+  public
+    class var WinGame: string;
+    class var LoseGame: string;
+    class function InitDisplay: Boolean;
+    class procedure ResetDisplay(WasLetterboxed: Boolean);
+  public
+    constructor Create(AGame: TGame; const ACutsceneId: string);
+    destructor Destroy; override;
+    procedure Init; override;
+  end;
+
+  { Delete game confirmation }
+  TDeleteGameState = class(TState)
+  private
+    FOrigin: TOptionsOrigin;
+    FFileName: string;
+    FBtnYes, FBtnNo: TTextButton;
+    FWindow: TWindow;
+    FTxtMessage: TText;
+    procedure BtnYesClick(Sender: TObject);
+    procedure BtnNoClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin; const ASaveName: string);
+    destructor Destroy; override;
+  end;
+
+  { Error message popup }
+  TErrorMessageState = class(TState)
+  private
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtMessage: TText;
+    procedure CreateUI(const Msg: string; const APalette: TSDLColorArray; AColor: Byte; const ABg: string; ABgColor: Integer);
+    procedure BtnOkClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; const Msg: string; const APalette: TSDLColorArray; AColor: Byte; const ABg: string; ABgColor: Integer);
+    destructor Destroy; override;
+  end;
+
+  { Base list games }
+  TListGamesState = class(TState)
+  protected
+    FOrigin: TOptionsOrigin;
+    FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtName, FTxtDate, FTxtDelete, FTxtDetails: TText;
+    FLstSaves: TTextList;
+    FSortName, FSortDate: TArrowButton;
+    FSaves: TSaveInfoList;
+    FFirstValidRow: Integer;
+    FAutoQuick: Boolean;
+    FSortable: Boolean;
+    procedure UpdateArrows;
+    procedure SortList(ASort: TSaveSort);
+    procedure UpdateList; virtual;
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin; AFirstValidRow: Integer; AAutoQuick: Boolean);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnCancelClick(Sender: TObject);
+    procedure LstSavesMouseOver(Sender: TObject);
+    procedure LstSavesMouseOut(Sender: TObject);
+    procedure LstSavesPress(Sender: TObject); virtual;
+    procedure SortNameClick(Sender: TObject);
+    procedure SortDateClick(Sender: TObject);
+    procedure DisableSort;
+  end;
+
+  { Load game list }
+  TListLoadState = class(TListGamesState)
+  private
+    FBtnOld: TTextButton;
+    procedure BtnOldClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+    procedure LstSavesPress(Sender: TObject); override;
+  end;
+
+  { Load original X-Com saves }
+  TListLoadOriginalState = class(TState)
+  private
+    FOrigin: TOptionsOrigin;
+    FBtnNew, FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtName, FTxtTime, FTxtDate: TText;
+    FBtnSlot: array[0..9] of TTextButton;
+    FTxtSlotName, FTxtSlotTime, FTxtSlotDate: array[0..9] of TText;
+    FSaves: array[0..9] of TSaveOriginal;
+    procedure BtnSlotClick(Sender: TObject);
+    procedure BtnNewClick(Sender: TObject);
+    procedure BtnCancelClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+    procedure Init; override;
+  end;
+
+  { Save game list }
+  TListSaveState = class(TListGamesState)
+  private
+    FEditSave: TTextEdit;
+    FBtnSaveGame: TTextButton;
+    FSelected: string;
+    FPreviousSelectedRow, FSelectedRow: Integer;
+    procedure EdtSaveKeyPress(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure BtnSaveGameClick(Sender: TObject);
+    procedure SaveGame;
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+    procedure UpdateList; override;
+    procedure LstSavesPress(Sender: TObject); override;
+  end;
+
+  { Load game state (with loading screen) }
+  TLoadGameState = class(TState)
+  private
+    FFirstRun: Integer;
+    FOrigin: TOptionsOrigin;
+    FTxtStatus: TText;
+    FFileName: string;
+    procedure BuildUI(const APalette: TSDLColorArray);
+    procedure ShowError(const Msg: string; ASave: TSaveGame);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin; const AFileName: string; const APalette: TSDLColorArray); overload;
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin; AType: TSaveType; const APalette: TSDLColorArray); overload;
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure Think; override;
+  end;
+
+  { Main menu }
+  TMainMenuState = class(TState)
+  private
+    FBtnNewGame, FBtnNewBattle, FBtnLoad, FBtnOptions, FBtnMods, FBtnQuit: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle: TText;
+    procedure BtnNewGameClick(Sender: TObject);
+    procedure BtnNewBattleClick(Sender: TObject);
+    procedure BtnLoadClick(Sender: TObject);
+    procedure BtnOptionsClick(Sender: TObject);
+    procedure BtnModsClick(Sender: TObject);
+    procedure BtnQuitClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame);
+    destructor Destroy; override;
+    procedure Resize(var DX, DY: Integer); override;
+  end;
+
+  { Utility to go to main menu }
+  TGoToMainMenuState = class(TState)
+  public
+    procedure Init; override;
+  end;
+
+  { Mod confirmation for OXCE }
+  TModConfirmExtendedState = class(TState)
+  private
+    FState: TModListState;
+    FIsMaster: Boolean;
+    FBtnYes, FBtnNo: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle: TText;
+    procedure BtnYesClick(Sender: TObject);
+    procedure BtnNoClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AState: TModListState; AModInfo: TModInfo);
+    destructor Destroy; override;
+  end;
+
+  { Mod list and management }
+  TModListState = class(TState)
+  private
+    FWindow: TWindow;
+    FTxtMaster: TText;
+    FCbxMasters: TComboBox;
+    FLstMods: TTextList;
+    FBtnOk, FBtnCancel: TTextButton;
+    FTxtTooltip: TText;
+    FCurrentTooltip: string;
+    FMasters: array of TModInfo;
+    FCurMasterId: string;
+    FMods: array of TModPair;
+    FCurMasterIdx: Integer;
+    function MakeTooltip(const AModInfo: TModInfo): string;
+    procedure CbxMasterHover(Sender: TObject);
+    procedure CbxMasterChange(Sender: TObject);
+    procedure ChangeMasterMod;
+    procedure RevertMasterMod;
+    procedure LstModsRefresh(AScrollLoc: Integer);
+    procedure LstModsHover(Sender: TObject);
+    procedure LstModsClick(Sender: TObject);
+    procedure ToggleMod;
+    procedure LstModsLeftArrowClick(Sender: TObject);
+    procedure MoveModUp(Sender: TObject; ARow: Integer; AMax: Boolean = False);
+    procedure LstModsRightArrowClick(Sender: TObject);
+    procedure MoveModDown(Sender: TObject; ARow: Integer; AMax: Boolean = False);
+    procedure LstModsMousePress(Sender: TObject);
+    procedure TooltipIn(Sender: TObject);
+    procedure TooltipOut(Sender: TObject);
+    procedure BtnOkClick(Sender: TObject);
+    procedure BtnCancelClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame);
+    destructor Destroy; override;
+  end;
+
+  { New battle setup }
+  TNewBattleState = class(TState)
+  private
+    FWindow: TWindow;
+    FFrameLeft, FFrameRight: TFrame;
+    FTxtTitle, FTxtMapOptions, FTxtAlienOptions: TText;
+    FTxtMission, FTxtCraft, FTxtDarkness, FTxtTerrain, FTxtDifficulty, FTxtAlienRace, FTxtAlienTech, FTxtDepth: TText;
+    FCbxMission, FCbxCraft, FCbxTerrain, FCbxDifficulty, FCbxAlienRace: TComboBox;
+    FSlrDarkness, FSlrAlienTech, FSlrDepth: TSlider;
+    FBtnOk, FBtnCancel, FBtnEquip, FBtnRandom: TTextButton;
+    FMissionTypes, FTerrainTypes, FAlienRaces, FCrafts: TStringList;
+    FCraft: TCraft;
+    procedure LoadData(const AFileName: string = 'battle');
+    procedure SaveData(const AFileName: string = 'battle');
+    procedure InitSave;
+    procedure BtnOkClick(Sender: TObject);
+    procedure BtnCancelClick(Sender: TObject);
+    procedure BtnRandomClick(Sender: TObject);
+    procedure BtnEquipClick(Sender: TObject);
+    procedure CbxMissionChange(Sender: TObject);
+    procedure CbxCraftChange(Sender: TObject);
+    procedure CbxTerrainChange(Sender: TObject);
+  public
+    constructor Create(AGame: TGame);
+    destructor Destroy; override;
+    procedure Init; override;
+  end;
+
+  { New game difficulty selection }
+  TNewGameState = class(TState)
+  private
+    FBtnBeginner, FBtnExperienced, FBtnVeteran, FBtnGenius, FBtnSuperhuman: TTextButton;
+    FDifficulty: TTextButton;
+    FBtnIronman: TToggleTextButton;
+    FBtnOk, FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtIronman: TText;
+    procedure BtnOkClick(Sender: TObject);
+    procedure BtnCancelClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame);
+    destructor Destroy; override;
+  end;
+
+  { Advanced options }
+  TOptionsAdvancedState = class(TOptionsBaseState)
+  private
+    FLstOptions: TTextList;
+    FColorGroup: Byte;
+    FSettingsGeneral, FSettingsGeo, FSettingsBattle: TOptionInfoList;
+    procedure AddSettings(const ASettings: TOptionInfoList);
+    function GetSetting(ASel: Integer): TOptionInfo;
+    procedure LstOptionsClick(Sender: TObject);
+    procedure LstOptionsMouseOver(Sender: TObject);
+    procedure LstOptionsMouseOut(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+    procedure Init; override;
+  end;
+
+  { Audio options }
+  TOptionsAudioState = class(TOptionsBaseState)
+  private
+    FTxtMusicVolume, FTxtSoundVolume, FTxtUiVolume: TText;
+    FSlrMusicVolume, FSlrSoundVolume, FSlrUiVolume: TSlider;
+    FTxtMusicFormat, FTxtCurrentMusic, FTxtSoundFormat, FTxtCurrentSound, FTxtVideoFormat: TText;
+    FCbxMusicFormat, FCbxSoundFormat, FCbxVideoFormat: TComboBox;
+    FTxtOptions: TText;
+    FBtnBackgroundMute: TToggleTextButton;
+    procedure SlrMusicVolumeChange(Sender: TObject);
+    procedure SlrSoundVolumeChange(Sender: TObject);
+    procedure SlrSoundVolumeRelease(Sender: TObject);
+    procedure SlrUiVolumeChange(Sender: TObject);
+    procedure SlrUiVolumeRelease(Sender: TObject);
+    procedure CbxMusicFormatChange(Sender: TObject);
+    procedure CbxSoundFormatChange(Sender: TObject);
+    procedure CbxVideoFormatChange(Sender: TObject);
+    procedure BtnBackgroundMuteClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+  end;
+
+  { No audio hardware }
+  TOptionsNoAudioState = class(TOptionsBaseState)
+  private
+    FTxtError: TText;
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+  end;
+
+  { Folders display }
+  TOptionsFoldersState = class(TOptionsBaseState)
+  private
+    FTxtDataFolder, FTxtUserFolder, FTxtSaveFolder, FTxtConfigFolder: TText;
+    FTxtDataFolderPath1, FTxtDataFolderPath2, FTxtUserFolderPath, FTxtSaveFolderPath, FTxtConfigFolderPath: TText;
+    procedure TxtClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+  end;
+
+  { Battlescape options }
+  TOptionsBattlescapeState = class(TOptionsBaseState)
+  private
+    FTxtEdgeScroll, FTxtDragScroll: TText;
+    FCbxEdgeScroll, FCbxDragScroll: TComboBox;
+    FTxtScrollSpeed, FTxtFireSpeed, FTxtXcomSpeed, FTxtAlienSpeed: TText;
+    FSlrScrollSpeed, FSlrFireSpeed, FSlrXcomSpeed, FSlrAlienSpeed: TSlider;
+    FTxtPathPreview: TText;
+    FBtnArrows, FBtnTuCost: TToggleTextButton;
+    FTxtOptions: TText;
+    FBtnTooltips, FBtnDeaths: TToggleTextButton;
+    procedure CbxEdgeScrollChange(Sender: TObject);
+    procedure CbxDragScrollChange(Sender: TObject);
+    procedure SlrScrollSpeedChange(Sender: TObject);
+    procedure SlrFireSpeedChange(Sender: TObject);
+    procedure SlrXcomSpeedChange(Sender: TObject);
+    procedure SlrAlienSpeedChange(Sender: TObject);
+    procedure BtnPathPreviewClick(Sender: TObject);
+    procedure BtnTooltipsClick(Sender: TObject);
+    procedure BtnDeathsClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+  end;
+
+  { Confirm display options }
+  TOptionsConfirmState = class(TState)
+  private
+    FOrigin: TOptionsOrigin;
+    FBtnYes, FBtnNo: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtTimer: TText;
+    FTimer: TTimer;
+    FCountdown: Integer;
+    procedure Countdown(Sender: TObject);
+    procedure BtnYesClick(Sender: TObject);
+    procedure BtnNoClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+    procedure Think; override;
+  end;
+
+  { Controls options (key bindings) }
+  TOptionsControlsState = class(TOptionsBaseState)
+  private
+    FLstControls: TTextList;
+    FControlsGeneral, FControlsGeo, FControlsBattle: TOptionInfoList;
+    FSelected: Integer;
+    FSelKey: TOptionInfo;
+    FColorGroup, FColorSel, FColorNormal: Byte;
+    procedure AddControls(const AKeys: TOptionInfoList);
+    function GetControl(ASel: Integer): TOptionInfo;
+    function UcWords(const S: string): string;
+    procedure LstControlsClick(Sender: TObject);
+    procedure LstControlsKeyPress(Sender: TObject; var Key: Word; Shift: TShiftState);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+    procedure Init; override;
+  end;
+
+  { Restore defaults confirmation }
+  TOptionsDefaultsState = class(TState)
+  private
+    FOrigin: TOptionsOrigin;
+    FBtnYes, FBtnNo: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle: TText;
+    FBaseState: TOptionsBaseState;
+    procedure BtnYesClick(Sender: TObject);
+    procedure BtnNoClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin; ABaseState: TOptionsBaseState);
+    destructor Destroy; override;
+  end;
+
+  { Geoscape options }
+  TOptionsGeoscapeState = class(TOptionsBaseState)
+  private
+    FTxtDragScroll: TText;
+    FCbxDragScroll: TComboBox;
+    FTxtScrollSpeed, FTxtDogfightSpeed, FTxtClockSpeed: TText;
+    FSlrScrollSpeed, FSlrDogfightSpeed, FSlrClockSpeed: TSlider;
+    FTxtGlobeDetails: TText;
+    FBtnGlobeCountries, FBtnGlobeRadars, FBtnGlobePaths: TToggleTextButton;
+    FTxtOptions: TText;
+    FBtnShowFunds: TToggleTextButton;
+    procedure CbxDragScrollChange(Sender: TObject);
+    procedure SlrScrollSpeedChange(Sender: TObject);
+    procedure SlrDogfightSpeedChange(Sender: TObject);
+    procedure SlrClockSpeedChange(Sender: TObject);
+    procedure BtnGlobeCountriesClick(Sender: TObject);
+    procedure BtnGlobeRadarsClick(Sender: TObject);
+    procedure BtnGlobePathsClick(Sender: TObject);
+    procedure BtnShowFundsClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+  end;
+
+  { Video options }
+  TOptionsVideoState = class(TOptionsBaseState)
+  private
+    FDisplaySurface: TInteractiveSurface;
+    FTxtDisplayResolution, FTxtDisplayX: TText;
+    FTxtDisplayWidth, FTxtDisplayHeight: TTextEdit;
+    FBtnDisplayResolutionUp, FBtnDisplayResolutionDown: TArrowButton;
+    FTxtLanguage, FTxtFilter, FTxtGeoScale, FTxtBattleScale: TText;
+    FCbxLanguage, FCbxFilter, FCbxDisplayMode, FCbxGeoScale, FCbxBattleScale: TComboBox;
+    FTxtMode, FTxtOptions: TText;
+    FBtnLetterbox, FBtnLockMouse, FBtnRootWindowedMode: TToggleTextButton;
+    FResolutions: TSDL_RectArray;
+    FResAmount, FResCurrent: Integer;
+    FLangs, FFilters: TStringList;
+    function UcWords(const S: string): string;
+    procedure UpdateDisplayResolution;
+    procedure BtnDisplayResolutionUpClick(Sender: TObject);
+    procedure BtnDisplayResolutionDownClick(Sender: TObject);
+    procedure TxtDisplayWidthChange(Sender: TObject);
+    procedure TxtDisplayHeightChange(Sender: TObject);
+    procedure CbxLanguageChange(Sender: TObject);
+    procedure CbxFilterChange(Sender: TObject);
+    procedure UpdateDisplayMode(Sender: TObject);
+    procedure BtnLetterboxClick(Sender: TObject);
+    procedure BtnLockMouseClick(Sender: TObject);
+    procedure BtnRootWindowedModeClick(Sender: TObject);
+    procedure UpdateGeoscapeScale(Sender: TObject);
+    procedure UpdateBattlescapeScale(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+    procedure Resize(var DX, DY: Integer); override;
+    procedure Handle(Action: TAction); override;
+    procedure UnpressRootWindowedMode;
+  end;
+
+  { Pause menu }
+  TPauseState = class(TState)
+  private
+    FOrigin: TOptionsOrigin;
+    FBtnLoad, FBtnSave, FBtnAbandon, FBtnOptions, FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle: TText;
+    procedure BtnLoadClick(Sender: TObject);
+    procedure BtnSaveClick(Sender: TObject);
+    procedure BtnAbandonClick(Sender: TObject);
+    procedure BtnOptionsClick(Sender: TObject);
+    procedure BtnCancelClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin);
+    destructor Destroy; override;
+  end;
+
+  { Save game state (with saving screen) }
+  TSaveGameState = class(TState)
+  private
+    FFirstRun: Integer;
+    FOrigin: TOptionsOrigin;
+    FTxtStatus: TText;
+    FFileName: string;
+    FSaveType: TSaveType;
+    procedure BuildUI(const APalette: TSDLColorArray);
+    procedure ShowError(const Msg: string);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin; const AFileName: string; const APalette: TSDLColorArray); overload;
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin; AType: TSaveType; const APalette: TSDLColorArray); overload;
+    destructor Destroy; override;
+    procedure Think; override;
+  end;
+
+  { Set windowed root position }
+  TSetWindowedRootState = class(TState)
+  private
+    FOrigin: TOptionsOrigin;
+    FOptionsVideoState: TOptionsVideoState;
+    FBtnOk, FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtX, FTxtY: TText;
+    FEdtX, FEdtY: TTextEdit;
+    procedure BtnOkClick(Sender: TObject);
+    procedure BtnCancelClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; AOrigin: TOptionsOrigin; AOptionsVideoState: TOptionsVideoState);
+    destructor Destroy; override;
+  end;
+
+  { Slideshow state }
+  TSlideshowState = class(TState)
+  private
+    FSlideshowHeader: TSlideshowHeader;
+    FSlideshowSlides: TSlideshowSlideList;
+    FWasLetterboxed: Boolean;
+    FSlides: array of TInteractiveSurface;
+    FCaptions: array of TText;
+    FCurScreen: Integer;
+    FTransitionTimer: TTimer;
+    procedure ScreenTimer(Sender: TObject);
+    procedure ScreenClick(Sender: TObject);
+    procedure ScreenSkip(Sender: TObject);
+  public
+    constructor Create(AGame: TGame; const AHeader: TSlideshowHeader; const ASlides: TSlideshowSlideList);
+    destructor Destroy; override;
+    procedure Think; override;
+  end;
+
+  { Video (FLC) state }
+  TVideoState = class(TState)
+  private
+    FVideos: TStringList;
+    FTracks: TStringList;
+    FUseUfoAudioSequence: Boolean;
+  public
+    constructor Create(AGame: TGame; const AVideos, ATracks: TStringList; AUseUfoAudio: Boolean);
+    destructor Destroy; override;
+    procedure Init; override;
+  end;
+
+  { Start state (loading screen) }
+  TStartState = class(TState)
+  private
+    FText, FCursor: TText;
+    FFont: TFont;
+    FTimer: TTimer;
+    FLang: TLanguage;
+    FAnim: Integer;
+    FOldMaster: string;
+    FThread: TThread;
+    FOutput: TStringBuilder;
+    class var FLoadingPhase: TLoadingPhase;
+    class var FError: string;
+    procedure Animate(Sender: TObject);
+    procedure AddLine(const S: string);
+    class function Load(AGame: TGame): Integer; static;
+  public
+    constructor Create(AGame: TGame);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure Think; override;
+    procedure Handle(Action: TAction); override;
+  end;
+
+  { Statistics (end game) }
+  TStatisticsState = class(TState)
+  private
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle: TText;
+    FLstStats: TTextList;
+    function SumVector<T>(const Vec: array of T): T; // generic
+    procedure ListStats;
+    procedure BtnOkClick(Sender: TObject);
+  public
+    constructor Create(AGame: TGame);
+    destructor Destroy; override;
+  end;
+
+implementation
+
+{ TState }
+constructor TState.Create(AGame: TGame);
+begin
+  FGame := AGame;
+end;
+
+destructor TState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TState.SetPalette(const APalette: TSDLColorArray);
+begin
+  FPalette := APalette;
+end;
+
+procedure TState.SetPalette(const APaletteName: string; Offset: Integer = 0);
+begin
+  // Load palette from mod
+end;
+
+procedure TState.ApplyBattlescapeTheme;
+begin
+  // Apply battlescape colors
+end;
+
+procedure TState.CenterAllSurfaces;
+begin
+  // Center child surfaces on screen
+end;
+
+procedure TState.Init; begin end;
+procedure TState.Think; begin end;
+procedure TState.Handle(Action: TAction); begin end;
+procedure TState.Blit; begin end;
+procedure TState.Resize(var DX, DY: Integer); begin end;
+
+{ TOptionsBaseState }
+constructor TOptionsBaseState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  // Create common UI elements
+end;
+
+destructor TOptionsBaseState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TOptionsBaseState.SetCategory(Button: TTextButton);
+begin
+  FGroup := Button;
+end;
+
+class procedure TOptionsBaseState.Restart(Origin: TOptionsOrigin);
+begin
+  // Restart game state according to origin
+end;
+
+procedure TOptionsBaseState.Init;
+begin
+  inherited;
+  if FOrigin = optBattlescape then
+    ApplyBattlescapeTheme;
+end;
+
+procedure TOptionsBaseState.BtnOkClick(Sender: TObject);
+begin
+  // Save options and restart
+end;
+
+procedure TOptionsBaseState.BtnCancelClick(Sender: TObject);
+begin
+  // Revert and close
+end;
+
+procedure TOptionsBaseState.BtnDefaultClick(Sender: TObject);
+begin
+  // Push defaults confirmation
+end;
+
+procedure TOptionsBaseState.BtnGroupPress(Sender: TObject);
+begin
+  // Switch to sub-options
+end;
+
+procedure TOptionsBaseState.TooltipIn(Sender: TObject); begin end;
+procedure TOptionsBaseState.TooltipOut(Sender: TObject); begin end;
+procedure TOptionsBaseState.Resize(var DX, DY: Integer); begin end;
+
+{ TAbandonGameState }
+constructor TAbandonGameState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  // Create window and buttons
+end;
+
+destructor TAbandonGameState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TAbandonGameState.BtnYesClick(Sender: TObject);
+begin
+  // Handle abandon
+end;
+
+procedure TAbandonGameState.BtnNoClick(Sender: TObject);
+begin
+  Game.PopState;
+end;
+
+{ TConfirmLoadState }
+constructor TConfirmLoadState.Create(AGame: TGame; AOrigin: TOptionsOrigin; const AFileName: string);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  FFileName := AFileName;
+end;
+
+destructor TConfirmLoadState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TConfirmLoadState.BtnYesClick(Sender: TObject);
+begin
+  Game.PopState;
+  Game.PushState(TLoadGameState.Create(Game, FOrigin, FFileName, FPalette));
+end;
+
+procedure TConfirmLoadState.BtnNoClick(Sender: TObject);
+begin
+  Game.PopState;
+end;
+
+{ TCutsceneState }
+class function TCutsceneState.InitDisplay: Boolean;
+begin
+  Result := Options.KeepAspectRatio;
+  Options.KeepAspectRatio := True;
+  Options.BaseXResolution := 320;
+  Options.BaseYResolution := 200;
+  // reset screen
+end;
+
+class procedure TCutsceneState.ResetDisplay(WasLetterboxed: Boolean);
+begin
+  Options.KeepAspectRatio := WasLetterboxed;
+  // update scale
+end;
+
+constructor TCutsceneState.Create(AGame: TGame; const ACutsceneId: string);
+begin
+  inherited Create(AGame);
+  FCutsceneId := ACutsceneId;
+end;
+
+destructor TCutsceneState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TCutsceneState.Init;
+begin
+  inherited;
+  Game.PopState;
+  // Dispatch to video or slideshow
+end;
+
+{ TDeleteGameState }
+constructor TDeleteGameState.Create(AGame: TGame; AOrigin: TOptionsOrigin; const ASaveName: string);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  FFileName := Options.MasterUserFolder + ASaveName;
+end;
+
+destructor TDeleteGameState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TDeleteGameState.BtnYesClick(Sender: TObject);
+begin
+  Game.PopState;
+  if not DeleteFile(FFileName) then
+    // show error
+end;
+
+procedure TDeleteGameState.BtnNoClick(Sender: TObject);
+begin
+  Game.PopState;
+end;
+
+{ TErrorMessageState }
+procedure TErrorMessageState.CreateUI(const Msg: string; const APalette: TSDLColorArray; AColor: Byte; const ABg: string; ABgColor: Integer);
+begin
+  // Build window, message, OK button
+end;
+
+constructor TErrorMessageState.Create(AGame: TGame; const Msg: string; const APalette: TSDLColorArray; AColor: Byte; const ABg: string; ABgColor: Integer);
+begin
+  inherited Create(AGame);
+  CreateUI(Msg, APalette, AColor, ABg, ABgColor);
+end;
+
+destructor TErrorMessageState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TErrorMessageState.BtnOkClick(Sender: TObject);
+begin
+  Game.PopState;
+end;
+
+{ TListGamesState }
+constructor TListGamesState.Create(AGame: TGame; AOrigin: TOptionsOrigin; AFirstValidRow: Integer; AAutoQuick: Boolean);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  FFirstValidRow := AFirstValidRow;
+  FAutoQuick := AAutoQuick;
+  FSortable := True;
+end;
+
+destructor TListGamesState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TListGamesState.Init;
+begin
+  inherited;
+  // refresh save list
+end;
+
+procedure TListGamesState.UpdateArrows; begin end;
+procedure TListGamesState.SortList(ASort: TSaveSort); begin end;
+procedure TListGamesState.UpdateList; begin end;
+procedure TListGamesState.BtnCancelClick(Sender: TObject); begin Game.PopState; end;
+procedure TListGamesState.LstSavesMouseOver(Sender: TObject); begin end;
+procedure TListGamesState.LstSavesMouseOut(Sender: TObject); begin end;
+procedure TListGamesState.LstSavesPress(Sender: TObject); begin end;
+procedure TListGamesState.SortNameClick(Sender: TObject); begin end;
+procedure TListGamesState.SortDateClick(Sender: TObject); begin end;
+procedure TListGamesState.DisableSort; begin FSortable := False; end;
+
+{ TListLoadState }
+constructor TListLoadState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame, AOrigin, 0, True);
+  // add old button
+end;
+
+destructor TListLoadState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TListLoadState.BtnOldClick(Sender: TObject);
+begin
+  Game.PushState(TListLoadOriginalState.Create(Game, FOrigin));
+end;
+
+procedure TListLoadState.LstSavesPress(Sender: TObject);
+begin
+  inherited;
+  // check for missing mods and confirm
+end;
+
+{ TListLoadOriginalState }
+constructor TListLoadOriginalState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  // build UI with 10 slots
+end;
+
+destructor TListLoadOriginalState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TListLoadOriginalState.Init;
+begin
+  inherited;
+  if FOrigin = optBattlescape then ApplyBattlescapeTheme;
+end;
+
+procedure TListLoadOriginalState.BtnSlotClick(Sender: TObject);
+begin
+  // load original save
+end;
+
+procedure TListLoadOriginalState.BtnNewClick(Sender: TObject);
+begin
+  Game.PopState;
+end;
+
+procedure TListLoadOriginalState.BtnCancelClick(Sender: TObject);
+begin
+  Game.PopState;
+  Game.PopState;
+end;
+
+{ TListSaveState }
+constructor TListSaveState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame, AOrigin, 1, False);
+  FSelectedRow := -1;
+  FPreviousSelectedRow := -1;
+end;
+
+destructor TListSaveState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TListSaveState.UpdateList;
+begin
+  inherited;
+  // add "New Save" row
+end;
+
+procedure TListSaveState.LstSavesPress(Sender: TObject);
+begin
+  inherited;
+  // show edit box for name
+end;
+
+procedure TListSaveState.EdtSaveKeyPress(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if (Key = VK_RETURN) then SaveGame;
+end;
+
+procedure TListSaveState.BtnSaveGameClick(Sender: TObject);
+begin
+  SaveGame;
+end;
+
+procedure TListSaveState.SaveGame;
+begin
+  // rename and push save state
+end;
+
+{ TLoadGameState }
+constructor TLoadGameState.Create(AGame: TGame; AOrigin: TOptionsOrigin; const AFileName: string; const APalette: TSDLColorArray);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  FFileName := AFileName;
+  BuildUI(APalette);
+end;
+
+constructor TLoadGameState.Create(AGame: TGame; AOrigin: TOptionsOrigin; AType: TSaveType; const APalette: TSDLColorArray);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  case AType of
+    stQuick: FFileName := 'quicksave.sav';
+    stAutoGeoscape: FFileName := 'autosave_geoscape.sav';
+    stAutoBattlescape: FFileName := 'autosave_battlescape.sav';
+  end;
+  BuildUI(APalette);
+end;
+
+destructor TLoadGameState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TLoadGameState.BuildUI(const APalette: TSDLColorArray);
+begin
+  SetPalette(APalette);
+  // create status text
+end;
+
+procedure TLoadGameState.Init;
+begin
+  inherited;
+  if (FFileName = 'quicksave.sav') and not FileExists(Options.MasterUserFolder + FFileName) then
+    Game.PopState;
+end;
+
+procedure TLoadGameState.Think;
+begin
+  inherited;
+  Inc(FFirstRun);
+  if FFirstRun >= 10 then
+  begin
+    Game.PopState;
+    // load save
+  end;
+end;
+
+procedure TLoadGameState.ShowError(const Msg: string; ASave: TSaveGame);
+begin
+  // push error message
+end;
+
+{ TMainMenuState }
+constructor TMainMenuState.Create(AGame: TGame);
+begin
+  inherited Create(AGame);
+  // create buttons and window
+end;
+
+destructor TMainMenuState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TMainMenuState.BtnNewGameClick(Sender: TObject);
+begin
+  Game.PushState(TNewGameState.Create(Game));
+end;
+
+procedure TMainMenuState.BtnNewBattleClick(Sender: TObject);
+begin
+  Game.PushState(TNewBattleState.Create(Game));
+end;
+
+procedure TMainMenuState.BtnLoadClick(Sender: TObject);
+begin
+  Game.PushState(TListLoadState.Create(Game, optMenu));
+end;
+
+procedure TMainMenuState.BtnOptionsClick(Sender: TObject);
+begin
+  Options.BackupDisplay;
+  Game.PushState(TOptionsVideoState.Create(Game, optMenu));
+end;
+
+procedure TMainMenuState.BtnModsClick(Sender: TObject);
+begin
+  Game.PushState(TModListState.Create(Game));
+end;
+
+procedure TMainMenuState.BtnQuitClick(Sender: TObject);
+begin
+  Game.Quit;
+end;
+
+procedure TMainMenuState.Resize(var DX, DY: Integer);
+begin
+  inherited;
+  // update scale
+end;
+
+{ TGoToMainMenuState }
+procedure TGoToMainMenuState.Init;
+begin
+  inherited;
+  // reset display and push MainMenuState
+end;
+
+{ TModConfirmExtendedState }
+constructor TModConfirmExtendedState.Create(AGame: TGame; AState: TModListState; AModInfo: TModInfo);
+begin
+  inherited Create(AGame);
+  FState := AState;
+  FIsMaster := AModInfo.IsMaster;
+end;
+
+destructor TModConfirmExtendedState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TModConfirmExtendedState.BtnYesClick(Sender: TObject);
+begin
+  Game.PopState;
+  if FIsMaster then FState.ChangeMasterMod else FState.ToggleMod;
+end;
+
+procedure TModConfirmExtendedState.BtnNoClick(Sender: TObject);
+begin
+  Game.PopState;
+  if FIsMaster then FState.RevertMasterMod;
+end;
+
+{ TModListState }
+constructor TModListState.Create(AGame: TGame);
+begin
+  inherited Create(AGame);
+  // build UI
+end;
+
+destructor TModListState.Destroy;
+begin
+  inherited;
+end;
+
+function TModListState.MakeTooltip(const AModInfo: TModInfo): string;
+begin
+  Result := '';
+end;
+
+procedure TModListState.CbxMasterHover(Sender: TObject); begin end;
+procedure TModListState.CbxMasterChange(Sender: TObject); begin end;
+procedure TModListState.ChangeMasterMod; begin end;
+procedure TModListState.RevertMasterMod; begin end;
+procedure TModListState.LstModsRefresh(AScrollLoc: Integer); begin end;
+procedure TModListState.LstModsHover(Sender: TObject); begin end;
+procedure TModListState.LstModsClick(Sender: TObject); begin end;
+procedure TModListState.ToggleMod; begin end;
+procedure TModListState.LstModsLeftArrowClick(Sender: TObject); begin end;
+procedure TModListState.MoveModUp(Sender: TObject; ARow: Integer; AMax: Boolean = False); begin end;
+procedure TModListState.LstModsRightArrowClick(Sender: TObject); begin end;
+procedure TModListState.MoveModDown(Sender: TObject; ARow: Integer; AMax: Boolean = False); begin end;
+procedure TModListState.LstModsMousePress(Sender: TObject); begin end;
+procedure TModListState.TooltipIn(Sender: TObject); begin end;
+procedure TModListState.TooltipOut(Sender: TObject); begin end;
+procedure TModListState.BtnOkClick(Sender: TObject);
+begin
+  Options.Save;
+  if Options.Reload then Game.SetState(TStartState.Create(Game)) else Game.PopState;
+end;
+
+procedure TModListState.BtnCancelClick(Sender: TObject);
+begin
+  Options.Reload := False;
+  Options.Load;
+  Game.PopState;
+end;
+
+{ TNewBattleState }
+constructor TNewBattleState.Create(AGame: TGame);
+begin
+  inherited Create(AGame);
+  FCraft := nil;
+end;
+
+destructor TNewBattleState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TNewBattleState.Init;
+begin
+  inherited;
+  if FCraft = nil then LoadData;
+end;
+
+procedure TNewBattleState.LoadData(const AFileName: string);
+begin
+  // load from config
+end;
+
+procedure TNewBattleState.SaveData(const AFileName: string);
+begin
+  // save to config
+end;
+
+procedure TNewBattleState.InitSave;
+begin
+  // create dummy save
+end;
+
+procedure TNewBattleState.BtnOkClick(Sender: TObject);
+begin
+  SaveData;
+  // generate battle
+end;
+
+procedure TNewBattleState.BtnCancelClick(Sender: TObject);
+begin
+  SaveData;
+  Game.SavedGame := nil;
+  Game.PopState;
+end;
+
+procedure TNewBattleState.BtnRandomClick(Sender: TObject);
+begin
+  InitSave;
+  // randomize controls
+end;
+
+procedure TNewBattleState.BtnEquipClick(Sender: TObject);
+begin
+  // push craft info
+end;
+
+procedure TNewBattleState.CbxMissionChange(Sender: TObject);
+begin
+  // update terrains
+end;
+
+procedure TNewBattleState.CbxCraftChange(Sender: TObject);
+begin
+  // update craft capacity
+end;
+
+procedure TNewBattleState.CbxTerrainChange(Sender: TObject);
+begin
+  // update depth slider
+end;
+
+{ TNewGameState }
+constructor TNewGameState.Create(AGame: TGame);
+begin
+  inherited Create(AGame);
+end;
+
+destructor TNewGameState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TNewGameState.BtnOkClick(Sender: TObject);
+begin
+  // create save and go to geoscape
+end;
+
+procedure TNewGameState.BtnCancelClick(Sender: TObject);
+begin
+  Game.SavedGame := nil;
+  Game.PopState;
+end;
+
+{ TOptionsAdvancedState }
+constructor TOptionsAdvancedState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame, AOrigin);
+  SetCategory(FBtnAdvanced);
+end;
+
+destructor TOptionsAdvancedState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TOptionsAdvancedState.Init;
+begin
+  inherited;
+  FLstOptions.Clear;
+  // add categories
+end;
+
+procedure TOptionsAdvancedState.AddSettings(const ASettings: TOptionInfoList); begin end;
+function TOptionsAdvancedState.GetSetting(ASel: Integer): TOptionInfo; begin Result := nil; end;
+procedure TOptionsAdvancedState.LstOptionsClick(Sender: TObject); begin end;
+procedure TOptionsAdvancedState.LstOptionsMouseOver(Sender: TObject); begin end;
+procedure TOptionsAdvancedState.LstOptionsMouseOut(Sender: TObject); begin end;
+
+{ TOptionsAudioState }
+constructor TOptionsAudioState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame, AOrigin);
+  SetCategory(FBtnAudio);
+end;
+
+destructor TOptionsAudioState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TOptionsAudioState.SlrMusicVolumeChange(Sender: TObject); begin end;
+procedure TOptionsAudioState.SlrSoundVolumeChange(Sender: TObject); begin end;
+procedure TOptionsAudioState.SlrSoundVolumeRelease(Sender: TObject); begin end;
+procedure TOptionsAudioState.SlrUiVolumeChange(Sender: TObject); begin end;
+procedure TOptionsAudioState.SlrUiVolumeRelease(Sender: TObject); begin end;
+procedure TOptionsAudioState.CbxMusicFormatChange(Sender: TObject); begin end;
+procedure TOptionsAudioState.CbxSoundFormatChange(Sender: TObject); begin end;
+procedure TOptionsAudioState.CbxVideoFormatChange(Sender: TObject); begin end;
+procedure TOptionsAudioState.BtnBackgroundMuteClick(Sender: TObject); begin end;
+
+{ TOptionsNoAudioState }
+constructor TOptionsNoAudioState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame, AOrigin);
+  SetCategory(FBtnAudio);
+end;
+
+destructor TOptionsNoAudioState.Destroy;
+begin
+  inherited;
+end;
+
+{ TOptionsFoldersState }
+constructor TOptionsFoldersState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame, AOrigin);
+  SetCategory(FBtnFolders);
+end;
+
+destructor TOptionsFoldersState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TOptionsFoldersState.TxtClick(Sender: TObject);
+begin
+  // open explorer
+end;
+
+{ TOptionsBattlescapeState }
+constructor TOptionsBattlescapeState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame, AOrigin);
+  SetCategory(FBtnBattlescape);
+end;
+
+destructor TOptionsBattlescapeState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TOptionsBattlescapeState.CbxEdgeScrollChange(Sender: TObject); begin end;
+procedure TOptionsBattlescapeState.CbxDragScrollChange(Sender: TObject); begin end;
+procedure TOptionsBattlescapeState.SlrScrollSpeedChange(Sender: TObject); begin end;
+procedure TOptionsBattlescapeState.SlrFireSpeedChange(Sender: TObject); begin end;
+procedure TOptionsBattlescapeState.SlrXcomSpeedChange(Sender: TObject); begin end;
+procedure TOptionsBattlescapeState.SlrAlienSpeedChange(Sender: TObject); begin end;
+procedure TOptionsBattlescapeState.BtnPathPreviewClick(Sender: TObject); begin end;
+procedure TOptionsBattlescapeState.BtnTooltipsClick(Sender: TObject); begin end;
+procedure TOptionsBattlescapeState.BtnDeathsClick(Sender: TObject); begin end;
+
+{ TOptionsConfirmState }
+constructor TOptionsConfirmState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  FCountdown := 15;
+  FTimer := TTimer.Create(nil);
+  FTimer.Interval := 1000;
+  FTimer.OnTimer := Countdown;
+  FTimer.Enabled := True;
+end;
+
+destructor TOptionsConfirmState.Destroy;
+begin
+  FTimer.Free;
+  inherited;
+end;
+
+procedure TOptionsConfirmState.Think;
+begin
+  inherited;
+  // timer handled by VCL style, but we keep loop
+end;
+
+procedure TOptionsConfirmState.Countdown(Sender: TObject);
+begin
+  Dec(FCountdown);
+  if FCountdown = 0 then BtnNoClick(nil);
+end;
+
+procedure TOptionsConfirmState.BtnYesClick(Sender: TObject);
+begin
+  Game.PopState;
+  TOptionsBaseState.Restart(FOrigin);
+end;
+
+procedure TOptionsConfirmState.BtnNoClick(Sender: TObject);
+begin
+  Options.SwitchDisplay;
+  // restore
+  Game.PopState;
+  TOptionsBaseState.Restart(FOrigin);
+end;
+
+{ TOptionsControlsState }
+constructor TOptionsControlsState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame, AOrigin);
+  SetCategory(FBtnControls);
+  FSelected := -1;
+end;
+
+destructor TOptionsControlsState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TOptionsControlsState.Init;
+begin
+  inherited;
+  FLstControls.Clear;
+  // add categories
+end;
+
+function TOptionsControlsState.UcWords(const S: string): string;
+begin
+  Result := S;
+  // capitalize words
+end;
+
+procedure TOptionsControlsState.AddControls(const AKeys: TOptionInfoList); begin end;
+function TOptionsControlsState.GetControl(ASel: Integer): TOptionInfo; begin Result := nil; end;
+procedure TOptionsControlsState.LstControlsClick(Sender: TObject); begin end;
+procedure TOptionsControlsState.LstControlsKeyPress(Sender: TObject; var Key: Word; Shift: TShiftState); begin end;
+
+{ TOptionsDefaultsState }
+constructor TOptionsDefaultsState.Create(AGame: TGame; AOrigin: TOptionsOrigin; ABaseState: TOptionsBaseState);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  FBaseState := ABaseState;
+end;
+
+destructor TOptionsDefaultsState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TOptionsDefaultsState.BtnYesClick(Sender: TObject);
+begin
+  Options.ResetDefault(False);
+  Options.Save(True);
+  Game.PopState;
+  FBaseState.BtnOkClick(nil);
+end;
+
+procedure TOptionsDefaultsState.BtnNoClick(Sender: TObject);
+begin
+  Game.PopState;
+end;
+
+{ TOptionsGeoscapeState }
+constructor TOptionsGeoscapeState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame, AOrigin);
+  SetCategory(FBtnGeoscape);
+end;
+
+destructor TOptionsGeoscapeState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TOptionsGeoscapeState.CbxDragScrollChange(Sender: TObject); begin end;
+procedure TOptionsGeoscapeState.SlrScrollSpeedChange(Sender: TObject); begin end;
+procedure TOptionsGeoscapeState.SlrDogfightSpeedChange(Sender: TObject); begin end;
+procedure TOptionsGeoscapeState.SlrClockSpeedChange(Sender: TObject); begin end;
+procedure TOptionsGeoscapeState.BtnGlobeCountriesClick(Sender: TObject); begin end;
+procedure TOptionsGeoscapeState.BtnGlobeRadarsClick(Sender: TObject); begin end;
+procedure TOptionsGeoscapeState.BtnGlobePathsClick(Sender: TObject); begin end;
+procedure TOptionsGeoscapeState.BtnShowFundsClick(Sender: TObject); begin end;
+
+{ TOptionsVideoState }
+constructor TOptionsVideoState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame, AOrigin);
+  SetCategory(FBtnVideo);
+  // get resolutions
+end;
+
+destructor TOptionsVideoState.Destroy;
+begin
+  inherited;
+end;
+
+function TOptionsVideoState.UcWords(const S: string): string;
+begin
+  Result := S;
+  // capitalize words
+end;
+
+procedure TOptionsVideoState.UpdateDisplayResolution; begin end;
+procedure TOptionsVideoState.BtnDisplayResolutionUpClick(Sender: TObject); begin end;
+procedure TOptionsVideoState.BtnDisplayResolutionDownClick(Sender: TObject); begin end;
+procedure TOptionsVideoState.TxtDisplayWidthChange(Sender: TObject); begin end;
+procedure TOptionsVideoState.TxtDisplayHeightChange(Sender: TObject); begin end;
+procedure TOptionsVideoState.CbxLanguageChange(Sender: TObject); begin end;
+procedure TOptionsVideoState.CbxFilterChange(Sender: TObject); begin end;
+procedure TOptionsVideoState.UpdateDisplayMode(Sender: TObject); begin end;
+procedure TOptionsVideoState.BtnLetterboxClick(Sender: TObject); begin end;
+procedure TOptionsVideoState.BtnLockMouseClick(Sender: TObject); begin end;
+procedure TOptionsVideoState.BtnRootWindowedModeClick(Sender: TObject);
+begin
+  if FBtnRootWindowedMode.Pressed then
+    Game.PushState(TSetWindowedRootState.Create(Game, FOrigin, Self))
+  else
+    Options.NewRootWindowedMode := False;
+end;
+
+procedure TOptionsVideoState.UpdateGeoscapeScale(Sender: TObject); begin end;
+procedure TOptionsVideoState.UpdateBattlescapeScale(Sender: TObject); begin end;
+procedure TOptionsVideoState.Resize(var DX, DY: Integer);
+begin
+  inherited;
+  // update resolution text
+end;
+
+procedure TOptionsVideoState.Handle(Action: TAction);
+begin
+  inherited;
+  // Ctrl+G toggles mouse lock
+end;
+
+procedure TOptionsVideoState.UnpressRootWindowedMode;
+begin
+  FBtnRootWindowedMode.Pressed := False;
+end;
+
+{ TPauseState }
+constructor TPauseState.Create(AGame: TGame; AOrigin: TOptionsOrigin);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+end;
+
+destructor TPauseState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TPauseState.BtnLoadClick(Sender: TObject);
+begin
+  Game.PushState(TListLoadState.Create(Game, FOrigin));
+end;
+
+procedure TPauseState.BtnSaveClick(Sender: TObject);
+begin
+  Game.PushState(TListSaveState.Create(Game, FOrigin));
+end;
+
+procedure TPauseState.BtnAbandonClick(Sender: TObject);
+begin
+  Game.PushState(TAbandonGameState.Create(Game, FOrigin));
+end;
+
+procedure TPauseState.BtnOptionsClick(Sender: TObject);
+begin
+  Options.BackupDisplay;
+  if FOrigin = optGeoscape then
+    Game.PushState(TOptionsGeoscapeState.Create(Game, FOrigin))
+  else if FOrigin = optBattlescape then
+    Game.PushState(TOptionsBattlescapeState.Create(Game, FOrigin))
+  else
+    Game.PushState(TOptionsVideoState.Create(Game, FOrigin));
+end;
+
+procedure TPauseState.BtnCancelClick(Sender: TObject);
+begin
+  Game.PopState;
+end;
+
+{ TSaveGameState }
+constructor TSaveGameState.Create(AGame: TGame; AOrigin: TOptionsOrigin; const AFileName: string; const APalette: TSDLColorArray);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  FFileName := AFileName;
+  FSaveType := stDefault;
+  BuildUI(APalette);
+end;
+
+constructor TSaveGameState.Create(AGame: TGame; AOrigin: TOptionsOrigin; AType: TSaveType; const APalette: TSDLColorArray);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  FSaveType := AType;
+  case AType of
+    stQuick: FFileName := 'quicksave.sav';
+    stAutoGeoscape: FFileName := 'autosave_geoscape.sav';
+    stAutoBattlescape: FFileName := 'autosave_battlescape.sav';
+    stIronman, stIronmanEnd: FFileName := '';
+  end;
+  BuildUI(APalette);
+end;
+
+destructor TSaveGameState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSaveGameState.BuildUI(const APalette: TSDLColorArray);
+begin
+  SetPalette(APalette);
+  // create status text
+end;
+
+procedure TSaveGameState.Think;
+begin
+  inherited;
+  Inc(FFirstRun);
+  if FFirstRun >= 10 then
+  begin
+    Game.PopState;
+    if FSaveType = stDefault then
+    begin
+      Game.PopState; // pop save list
+      if not Game.SavedGame.IsIronman then Game.PopState; // pop pause
+    end;
+    try
+      Game.SavedGame.Save(FFileName);
+      if FSaveType = stIronmanEnd then
+      begin
+        // go to main menu
+      end;
+    except
+      on E: Exception do ShowError(E.Message);
+    end;
+  end;
+end;
+
+procedure TSaveGameState.ShowError(const Msg: string);
+begin
+  // push error
+end;
+
+{ TSetWindowedRootState }
+constructor TSetWindowedRootState.Create(AGame: TGame; AOrigin: TOptionsOrigin; AOptionsVideoState: TOptionsVideoState);
+begin
+  inherited Create(AGame);
+  FOrigin := AOrigin;
+  FOptionsVideoState := AOptionsVideoState;
+end;
+
+destructor TSetWindowedRootState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSetWindowedRootState.BtnOkClick(Sender: TObject);
+begin
+  Options.NewRootWindowedMode := True;
+  Options.NewWindowedModePositionX := StrToIntDef(FEdtX.Text, 0);
+  Options.NewWindowedModePositionY := StrToIntDef(FEdtY.Text, 0);
+  Game.PopState;
+end;
+
+procedure TSetWindowedRootState.BtnCancelClick(Sender: TObject);
+begin
+  FOptionsVideoState.UnpressRootWindowedMode;
+  Game.PopState;
+end;
+
+{ TSlideshowState }
+constructor TSlideshowState.Create(AGame: TGame; const AHeader: TSlideshowHeader; const ASlides: TSlideshowSlideList);
+begin
+  inherited Create(AGame);
+  FSlideshowHeader := AHeader;
+  FSlideshowSlides := ASlides;
+  FCurScreen := -1;
+  FWasLetterboxed := TCutsceneState.InitDisplay;
+  // create slides and captions
+  FTransitionTimer := TTimer.Create(nil);
+  FTransitionTimer.Interval := AHeader.TransitionSeconds * 1000;
+  FTransitionTimer.OnTimer := ScreenTimer;
+  FTransitionTimer.Enabled := False;
+end;
+
+destructor TSlideshowState.Destroy;
+begin
+  FTransitionTimer.Free;
+  inherited;
+end;
+
+procedure TSlideshowState.Think;
+begin
+  inherited;
+  // timer handled
+end;
+
+procedure TSlideshowState.ScreenTimer(Sender: TObject);
+begin
+  ScreenClick(nil);
+end;
+
+procedure TSlideshowState.ScreenClick(Sender: TObject);
+begin
+  if FCurScreen >= 0 then
+  begin
+    FSlides[FCurScreen].Visible := False;
+    FCaptions[FCurScreen].Visible := False;
+  end;
+  Inc(FCurScreen);
+  if FCurScreen < FSlideshowSlides.Count then
+  begin
+    // show next
+  end
+  else
+    ScreenSkip(nil);
+end;
+
+procedure TSlideshowState.ScreenSkip(Sender: TObject);
+begin
+  TCutsceneState.ResetDisplay(FWasLetterboxed);
+  Game.PopState;
+end;
+
+{ TVideoState }
+constructor TVideoState.Create(AGame: TGame; const AVideos, ATracks: TStringList; AUseUfoAudio: Boolean);
+begin
+  inherited Create(AGame);
+  FVideos := AVideos;
+  FTracks := ATracks;
+  FUseUfoAudioSequence := AUseUfoAudio;
+end;
+
+destructor TVideoState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TVideoState.Init;
+begin
+  inherited;
+  // play FLC videos
+end;
+
+{ TStartState }
+class var TStartState.FLoadingPhase := lpStarted;
+class var TStartState.FError := '';
+
+constructor TStartState.Create(AGame: TGame);
+begin
+  inherited Create(AGame);
+  FAnim := 0;
+  // create terminal UI
+  FThread := nil;
+end;
+
+destructor TStartState.Destroy;
+begin
+  if Assigned(FThread) then FThread.Terminate;
+  inherited;
+end;
+
+procedure TStartState.Init;
+begin
+  inherited;
+  // start load thread
+end;
+
+procedure TStartState.Think;
+begin
+  inherited;
+  // handle loading phase
+end;
+
+procedure TStartState.Handle(Action: TAction);
+begin
+  inherited;
+  if FLoadingPhase = lpDone then
+    if Action.IsKeyDown then Game.Quit;
+end;
+
+procedure TStartState.Animate(Sender: TObject);
+begin
+  FCursor.Visible := not FCursor.Visible;
+  Inc(FAnim);
+  // add lines
+end;
+
+procedure TStartState.AddLine(const S: string);
+begin
+  FOutput.Append(#10 + S);
+  FText.Text := FOutput.ToString;
+  // position cursor
+end;
+
+class function TStartState.Load(AGame: TGame): Integer;
+begin
+  try
+    // load mods and language
+    FLoadingPhase := lpSuccessful;
+  except
+    on E: Exception do
+    begin
+      FError := E.Message;
+      FLoadingPhase := lpFailed;
+    end;
+  end;
+  Result := 0;
+end;
+
+{ TStatisticsState }
+constructor TStatisticsState.Create(AGame: TGame);
+begin
+  inherited Create(AGame);
+end;
+
+destructor TStatisticsState.Destroy;
+begin
+  inherited;
+end;
+
+function TStatisticsState.SumVector<T>(const Vec: array of T): T;
+begin
+  Result := Default(T);
+  for var V in Vec do Result := Result + V;
+end;
+
+procedure TStatisticsState.ListStats;
+begin
+  // fill list with statistics
+end;
+
+procedure TStatisticsState.BtnOkClick(Sender: TObject);
+begin
+  if Game.SavedGame.Ending <> enNone then
+  begin
+    Game.SavedGame := nil;
+    Game.SetState(TGoToMainMenuState.Create(Game));
+  end
+  else
+    Game.PopState;
+end;
+
+end.

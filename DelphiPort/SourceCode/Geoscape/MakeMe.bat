@@ -1,0 +1,17 @@
+mkdir Part1
+mkdir Part2
+mkdir Part3
+mkdir Part4
+mkdir Part5
+mkdir Part6
+mkdir Part7
+mkdir Part8
+mkdir Part9
+mkdir Part10
+mkdir Part11
+mkdir Part12
+mkdir Part13
+mkdir Part14
+mkdir Part15
+mkdir Part16
+mkdir Part17

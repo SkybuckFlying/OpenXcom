@@ -1,0 +1,191 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦INDEX⟧
+{"batch":7,"files":["CraftPatrolState.pas","DogfightErrorState.pas"],"total_batches":18}
+⟦/INDEX⟧
+⟦FILE:CraftPatrolState.pas;encoding=utf8;eol=lf;sha256=⟧
+unit CraftPatrolState;
+
+interface
+
+uses
+  Engine.State, Engine.Game, Mod.Mod, Engine.LocalizedText,
+  Interface.TextButton, Interface.Window, Interface.Text,
+  Savegame.Craft, Savegame.Target, Geoscape.GeoscapeCraftState,
+  Engine.Options;
+
+type
+  TCraftPatrolState = class(TState)
+  private
+    FCraft: TCraft;
+    FGlobe: TGlobe;
+    FBtnOk, FBtnRedirect: TTextButton;
+    FWindow: TWindow;
+    FTxtDestination, FTxtPatrolling: TText;
+    procedure BtnOkClick(AAction: TAction);
+    procedure BtnRedirectClick(AAction: TAction);
+  public
+    constructor Create(ACraft: TCraft; AGlobe: TGlobe);
+    destructor Destroy; override;
+  end;
+
+implementation
+
+uses
+  System.SysUtils;
+
+{ TCraftPatrolState }
+
+constructor TCraftPatrolState.Create(ACraft: TCraft; AGlobe: TGlobe);
+begin
+  inherited Create(nil);
+  FCraft := ACraft;
+  FGlobe := AGlobe;
+  FScreen := False;
+
+  FWindow := TWindow.Create(Self, 224, 168, 16, 16, POPUP_BOTH);
+  FBtnOk := TTextButton.Create(140, 12, 58, 144);
+  FBtnRedirect := TTextButton.Create(140, 12, 58, 160);
+  FTxtDestination := TText.Create(224, 64, 16, 48);
+  FTxtPatrolling := TText.Create(224, 17, 16, 120);
+
+  SetInterface('craftPatrol');
+
+  Add(FWindow, 'window', 'craftPatrol');
+  Add(FBtnOk, 'button', 'craftPatrol');
+  Add(FBtnRedirect, 'button', 'craftPatrol');
+  Add(FTxtDestination, 'text1', 'craftPatrol');
+  Add(FTxtPatrolling, 'text1', 'craftPatrol');
+
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(Game.Mod.GetSurface('BACK12.SCR'));
+
+  FBtnOk.Text := Tr('STR_OK');
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress(Options.keyCancel, BtnOkClick);
+
+  FBtnRedirect.Text := Tr('STR_REDIRECT_CRAFT');
+  FBtnRedirect.OnMouseClick := BtnRedirectClick;
+  FBtnRedirect.OnKeyboardPress(Options.keyOk, BtnRedirectClick);
+
+  FTxtDestination.Big := True;
+  FTxtDestination.Align := ALIGN_CENTER;
+  FTxtDestination.WordWrap := True;
+  FTxtDestination.Text := Tr('STR_CRAFT_HAS_REACHED_DESTINATION')
+                           .Arg(FCraft.Name(Game.Language))
+                           .Arg(FCraft.Destination.Name(Game.Language));
+
+  FTxtPatrolling.Big := True;
+  FTxtPatrolling.Align := ALIGN_CENTER;
+  FTxtPatrolling.Text := Tr('STR_NOW_PATROLLING');
+end;
+
+destructor TCraftPatrolState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TCraftPatrolState.BtnOkClick(AAction: TAction);
+begin
+  Game.PopState;
+end;
+
+procedure TCraftPatrolState.BtnRedirectClick(AAction: TAction);
+begin
+  Game.PopState;
+  Game.PushState(TGeoscapeCraftState.Create(FCraft, FGlobe, nil));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:DogfightErrorState.pas;encoding=utf8;eol=lf;sha256=⟧
+unit DogfightErrorState;
+
+interface
+
+uses
+  Engine.State, Engine.Game, Mod.Mod, Engine.LocalizedText,
+  Interface.TextButton, Interface.Window, Interface.Text,
+  Savegame.Craft, Engine.Options;
+
+type
+  TDogfightErrorState = class(TState)
+  private
+    FCraft: TCraft;
+    FBtnIntercept, FBtnBase: TTextButton;
+    FWindow: TWindow;
+    FTxtCraft, FTxtMessage: TText;
+    procedure BtnInterceptClick(AAction: TAction);
+    procedure BtnBaseClick(AAction: TAction);
+  public
+    constructor Create(ACraft: TCraft; const AMsg: string);
+    destructor Destroy; override;
+  end;
+
+implementation
+
+uses
+  System.SysUtils;
+
+{ TDogfightErrorState }
+
+constructor TDogfightErrorState.Create(ACraft: TCraft; const AMsg: string);
+begin
+  inherited Create(nil);
+  FCraft := ACraft;
+  FScreen := False;
+
+  FWindow := TWindow.Create(Self, 208, 120, 24, 48, POPUP_BOTH);
+  FBtnIntercept := TTextButton.Create(180, 12, 38, 128);
+  FBtnBase := TTextButton.Create(180, 12, 38, 144);
+  FTxtCraft := TText.Create(198, 16, 29, 63);
+  FTxtMessage := TText.Create(198, 20, 29, 94);
+
+  SetInterface('dogfightInfo');
+
+  Add(FWindow, 'window', 'dogfightInfo');
+  Add(FBtnIntercept, 'button', 'dogfightInfo');
+  Add(FBtnBase, 'button', 'dogfightInfo');
+  Add(FTxtCraft, 'text', 'dogfightInfo');
+  Add(FTxtMessage, 'text', 'dogfightInfo');
+
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(Game.Mod.GetSurface('BACK15.SCR'));
+
+  FBtnIntercept.Text := Tr('STR_CONTINUE_INTERCEPTION_PURSUIT');
+  FBtnIntercept.OnMouseClick := BtnInterceptClick;
+  FBtnIntercept.OnKeyboardPress(Options.keyCancel, BtnInterceptClick);
+
+  FBtnBase.Text := Tr('STR_RETURN_TO_BASE');
+  FBtnBase.OnMouseClick := BtnBaseClick;
+  FBtnBase.OnKeyboardPress(Options.keyOk, BtnBaseClick);
+
+  FTxtCraft.Align := ALIGN_CENTER;
+  FTxtCraft.Big := True;
+  FTxtCraft.Text := FCraft.Name(Game.Language);
+
+  FTxtMessage.Align := ALIGN_CENTER;
+  FTxtMessage.WordWrap := True;
+  FTxtMessage.Text := AMsg;
+end;
+
+destructor TDogfightErrorState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TDogfightErrorState.BtnInterceptClick(AAction: TAction);
+begin
+  Game.PopState;
+end;
+
+procedure TDogfightErrorState.BtnBaseClick(AAction: TAction);
+begin
+  FCraft.ReturnToBase;
+  Game.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

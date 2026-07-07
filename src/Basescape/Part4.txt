@@ -1,0 +1,2841 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦FILE:ResearchState.pas;encoding=utf8;eol=lf⟧
+unit ResearchState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Base, NewResearchListState, Savegame.ResearchProject,
+  Mod.RuleResearch, ResearchInfoState;
+
+type
+  TResearchState = class(TState)
+  private
+    FBase: TBase;
+    FBtnNew, FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtAvailable, FTxtAllocated, FTxtSpace,
+    FTxtProject, FTxtScientists, FTxtProgress: TText;
+    FLstResearch: TTextList;
+
+    procedure FillProjectList;
+    procedure OnSelectProject(Sender: TObject; Action: TAction);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnNewClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TResearchState.Create(AOwner: TComponent; Base: TBase);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnNew := TTextButton.Create(148, 16, 8, 176);
+  FBtnOk := TTextButton.Create(148, 16, 164, 176);
+  FTxtTitle := TText.Create(310, 17, 5, 8);
+  FTxtAvailable := TText.Create(150, 9, 10, 24);
+  FTxtAllocated := TText.Create(150, 9, 160, 24);
+  FTxtSpace := TText.Create(300, 9, 10, 34);
+  FTxtProject := TText.Create(110, 17, 10, 44);
+  FTxtScientists := TText.Create(106, 17, 120, 44);
+  FTxtProgress := TText.Create(84, 9, 226, 44);
+  FLstResearch := TTextList.Create(288, 112, 8, 62);
+
+  SetInterface('researchMenu');
+  Add(FWindow, 'window', 'researchMenu');
+  Add(FBtnNew, 'button', 'researchMenu');
+  Add(FBtnOk, 'button', 'researchMenu');
+  Add(FTxtTitle, 'text', 'researchMenu');
+  Add(FTxtAvailable, 'text', 'researchMenu');
+  Add(FTxtAllocated, 'text', 'researchMenu');
+  Add(FTxtSpace, 'text', 'researchMenu');
+  Add(FTxtProject, 'text', 'researchMenu');
+  Add(FTxtScientists, 'text', 'researchMenu');
+  Add(FTxtProgress, 'text', 'researchMenu');
+  Add(FLstResearch, 'list', 'researchMenu');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK05.SCR'));
+  FBtnNew.SetText(Translate('STR_NEW_PROJECT'));
+  FBtnNew.OnMouseClick := BtnNewClick;
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_CURRENT_RESEARCH'));
+  FTxtProject.SetWordWrap(True);
+  FTxtProject.SetText(Translate('STR_RESEARCH_PROJECT'));
+  FTxtScientists.SetWordWrap(True);
+  FTxtScientists.SetText(Translate('STR_SCIENTISTS_ALLOCATED_UC'));
+  FTxtProgress.SetText(Translate('STR_PROGRESS'));
+
+  FLstResearch.SetColumns([158, 58, 70]);
+  FLstResearch.SetSelectable(True);
+  FLstResearch.SetBackground(FWindow);
+  FLstResearch.SetMargin(2);
+  FLstResearch.SetWordWrap(True);
+  FLstResearch.OnMouseClick := OnSelectProject;
+end;
+
+destructor TResearchState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TResearchState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TResearchState.BtnNewClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TNewResearchListState.Create(Self, FBase));
+end;
+
+procedure TResearchState.OnSelectProject(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TResearchInfoState.Create(Self, FBase, FBase.GetResearch[FLstResearch.GetSelectedRow]));
+end;
+
+procedure TResearchState.Init;
+begin
+  inherited;
+  FillProjectList;
+end;
+
+procedure TResearchState.FillProjectList;
+var
+  proj: TResearchProject;
+  s: string;
+begin
+  FLstResearch.ClearList;
+  for proj in FBase.GetResearch do
+  begin
+    s := IntToStr(proj.GetAssigned);
+    FLstResearch.AddRow([Translate(proj.GetRules.GetName), s, Translate(proj.GetResearchProgress)]);
+  end;
+  FTxtAvailable.SetText(Translate('STR_SCIENTISTS_AVAILABLE').Arg(FBase.GetAvailableScientists));
+  FTxtAllocated.SetText(Translate('STR_SCIENTISTS_ALLOCATED').Arg(FBase.GetAllocatedScientists));
+  FTxtSpace.SetText(Translate('STR_LABORATORY_SPACE_AVAILABLE').Arg(FBase.GetFreeLaboratories));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:ResearchInfoState.pas;encoding=utf8;eol=lf⟧
+unit ResearchInfoState;
+
+interface
+
+uses
+  Classes, SysUtils, Math,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text,
+  Interface.ArrowButton, Engine.Timer, Engine.RNG,
+  Savegame.Base, Mod.RuleResearch, Savegame.ResearchProject,
+  Savegame.ItemContainer;
+
+type
+  TResearchInfoState = class(TState)
+  private
+    FBase: TBase;
+    FProject: TResearchProject;
+    FRule: TRuleResearch;
+    FWindow: TWindow;
+    FBtnOk, FBtnCancel: TTextButton;
+    FBtnMore, FBtnLess: TArrowButton;
+    FTxtTitle, FTxtAvailableScientist, FTxtAvailableSpace,
+    FTxtAllocatedScientist, FTxtMore, FTxtLess: TText;
+    FSurfaceScientists: TInteractiveSurface;
+    FTimerMore, FTimerLess: TTimer;
+
+    procedure SetAssignedScientist;
+    procedure BuildUi;
+    procedure MoreByValue(Change: Integer);
+    procedure LessByValue(Change: Integer);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Rule: TRuleResearch); overload;
+    constructor Create(AOwner: TComponent; Base: TBase; Project: TResearchProject); overload;
+    destructor Destroy; override;
+    procedure Think; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+    procedure HandleWheel(Sender: TObject; Action: TAction);
+    procedure MorePress(Sender: TObject; Action: TAction);
+    procedure MoreRelease(Sender: TObject; Action: TAction);
+    procedure MoreClick(Sender: TObject; Action: TAction);
+    procedure LessPress(Sender: TObject; Action: TAction);
+    procedure LessRelease(Sender: TObject; Action: TAction);
+    procedure LessClick(Sender: TObject; Action: TAction);
+    procedure More;
+    procedure Less;
+  end;
+
+implementation
+
+constructor TResearchInfoState.Create(AOwner: TComponent; Base: TBase; Rule: TRuleResearch);
+begin
+  FBase := Base;
+  FRule := Rule;
+  FProject := TResearchProject.Create(Rule, Round(Rule.GetCost * RNG.Generate(50, 150) / 100));
+  BuildUi;
+end;
+
+constructor TResearchInfoState.Create(AOwner: TComponent; Base: TBase; Project: TResearchProject);
+begin
+  FBase := Base;
+  FRule := nil;
+  FProject := Project;
+  BuildUi;
+end;
+
+procedure TResearchInfoState.BuildUi;
+begin
+  inherited Create(nil);
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 230, 140, 45, 30);
+  FTxtTitle := TText.Create(210, 17, 61, 40);
+  FTxtAvailableScientist := TText.Create(210, 9, 61, 60);
+  FTxtAvailableSpace := TText.Create(210, 9, 61, 70);
+  FTxtAllocatedScientist := TText.Create(210, 17, 61, 80);
+  FTxtMore := TText.Create(110, 17, 85, 100);
+  FTxtLess := TText.Create(110, 17, 85, 120);
+  FBtnCancel := TTextButton.Create(90, 16, 61, 145);
+  FBtnOk := TTextButton.Create(90, 16, 169, 145);
+  FBtnMore := TArrowButton.Create(ARROW_BIG_UP, 13, 14, 195, 100);
+  FBtnLess := TArrowButton.Create(ARROW_BIG_DOWN, 13, 14, 195, 120);
+  FSurfaceScientists := TInteractiveSurface.Create(230, 140, 45, 30);
+  FSurfaceScientists.OnMouseClick := HandleWheel;
+
+  SetInterface('allocateResearch');
+  Add(FSurfaceScientists);
+  Add(FWindow, 'window', 'allocateResearch');
+  Add(FBtnOk, 'button2', 'allocateResearch');
+  Add(FBtnCancel, 'button2', 'allocateResearch');
+  Add(FTxtTitle, 'text', 'allocateResearch');
+  Add(FTxtAvailableScientist, 'text', 'allocateResearch');
+  Add(FTxtAvailableSpace, 'text', 'allocateResearch');
+  Add(FTxtAllocatedScientist, 'text', 'allocateResearch');
+  Add(FTxtMore, 'text', 'allocateResearch');
+  Add(FTxtLess, 'text', 'allocateResearch');
+  Add(FBtnMore, 'button1', 'allocateResearch');
+  Add(FBtnLess, 'button1', 'allocateResearch');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK05.SCR'));
+  FTxtTitle.SetBig;
+  if FRule <> nil then
+    FTxtTitle.SetText(Translate(FRule.GetName))
+  else
+    FTxtTitle.SetText(Translate(FProject.GetRules.GetName));
+  FTxtAllocatedScientist.SetBig;
+  FTxtMore.SetText(Translate('STR_INCREASE'));
+  FTxtLess.SetText(Translate('STR_DECREASE'));
+  FTxtMore.SetBig;
+  FTxtLess.SetBig;
+
+  if FRule <> nil then
+  begin
+    FBase.AddResearch(FProject);
+    if FRule.NeedItem and FRule.DestroyItem then
+      FBase.GetStorageItems.RemoveItem(FRule.GetName, 1);
+  end;
+  SetAssignedScientist;
+
+  FBtnMore.OnMousePress := MorePress;
+  FBtnMore.OnMouseRelease := MoreRelease;
+  FBtnMore.OnMouseClick := MoreClick;
+  FBtnLess.OnMousePress := LessPress;
+  FBtnLess.OnMouseRelease := LessRelease;
+  FBtnLess.OnMouseClick := LessClick;
+
+  FTimerMore := TTimer.Create(250);
+  FTimerMore.OnTimer := More;
+  FTimerLess := TTimer.Create(250);
+  FTimerLess.OnTimer := Less;
+
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  if FRule <> nil then
+  begin
+    FBtnOk.SetText(Translate('STR_START_PROJECT'));
+    FBtnCancel.SetText(Translate('STR_CANCEL_UC'));
+    FBtnCancel.OnKeyboardPress := BtnCancelClick;
+  end
+  else
+  begin
+    FBtnOk.SetText(Translate('STR_OK'));
+    FBtnCancel.SetText(Translate('STR_CANCEL_PROJECT'));
+    FBtnOk.OnKeyboardPress := BtnOkClick;
+  end;
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+end;
+
+destructor TResearchInfoState.Destroy;
+begin
+  FTimerMore.Free;
+  FTimerLess.Free;
+  inherited;
+end;
+
+procedure TResearchInfoState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TResearchInfoState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FBase.RemoveResearch(FProject);
+  FGame.PopState;
+end;
+
+procedure TResearchInfoState.SetAssignedScientist;
+begin
+  FTxtAvailableScientist.SetText(Translate('STR_SCIENTISTS_AVAILABLE_UC').Arg(FBase.GetAvailableScientists));
+  FTxtAvailableSpace.SetText(Translate('STR_LABORATORY_SPACE_AVAILABLE_UC').Arg(FBase.GetFreeLaboratories));
+  FTxtAllocatedScientist.SetText(Translate('STR_SCIENTISTS_ALLOCATED').Arg(FProject.GetAssigned));
+end;
+
+procedure TResearchInfoState.HandleWheel(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_WHEELUP then
+    MoreByValue(Options.ChangeValueByMouseWheel)
+  else if Action.GetDetails.button.button = SDL_BUTTON_WHEELDOWN then
+    LessByValue(Options.ChangeValueByMouseWheel);
+end;
+
+procedure TResearchInfoState.MorePress(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then FTimerMore.Start;
+end;
+
+procedure TResearchInfoState.MoreRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    FTimerMore.SetInterval(250);
+    FTimerMore.Stop;
+  end;
+end;
+
+procedure TResearchInfoState.MoreClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    MoreByValue(MaxInt)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    MoreByValue(1);
+end;
+
+procedure TResearchInfoState.LessPress(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then FTimerLess.Start;
+end;
+
+procedure TResearchInfoState.LessRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    FTimerLess.SetInterval(250);
+    FTimerLess.Stop;
+  end;
+end;
+
+procedure TResearchInfoState.LessClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    LessByValue(MaxInt)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    LessByValue(1);
+end;
+
+procedure TResearchInfoState.More;
+begin
+  FTimerMore.SetInterval(50);
+  MoreByValue(1);
+end;
+
+procedure TResearchInfoState.MoreByValue(Change: Integer);
+var
+  freeScientists, freeSpace: Integer;
+begin
+  if Change <= 0 then Exit;
+  freeScientists := FBase.GetAvailableScientists;
+  freeSpace := FBase.GetFreeLaboratories;
+  if (freeScientists > 0) and (freeSpace > 0) then
+  begin
+    Change := Min(Min(freeScientists, freeSpace), Change);
+    FProject.SetAssigned(FProject.GetAssigned + Change);
+    FBase.SetScientists(FBase.GetScientists - Change);
+    SetAssignedScientist;
+  end;
+end;
+
+procedure TResearchInfoState.Less;
+begin
+  FTimerLess.SetInterval(50);
+  LessByValue(1);
+end;
+
+procedure TResearchInfoState.LessByValue(Change: Integer);
+var
+  assigned: Integer;
+begin
+  if Change <= 0 then Exit;
+  assigned := FProject.GetAssigned;
+  if assigned > 0 then
+  begin
+    Change := Min(assigned, Change);
+    FProject.SetAssigned(assigned - Change);
+    FBase.SetScientists(FBase.GetScientists + Change);
+    SetAssignedScientist;
+  end;
+end;
+
+procedure TResearchInfoState.Think;
+begin
+  inherited;
+  FTimerMore.Think(Self, 0);
+  FTimerLess.Think(Self, 0);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:NewResearchListState.pas;encoding=utf8;eol=lf⟧
+unit NewResearchListState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.SavedGame, Savegame.Base, Mod.RuleResearch,
+  ResearchInfoState;
+
+type
+  TNewResearchListState = class(TState)
+  private
+    FBase: TBase;
+    FBtnOK: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle: TText;
+    FLstResearch: TTextList;
+    FProjects: TList<TRuleResearch>;
+
+    procedure OnSelectProject(Sender: TObject; Action: TAction);
+    procedure FillProjectList;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOKClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TNewResearchListState.Create(AOwner: TComponent; Base: TBase);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 230, 140, 45, 30, POPUP_BOTH);
+  FBtnOK := TTextButton.Create(214, 16, 53, 146);
+  FTxtTitle := TText.Create(214, 16, 53, 38);
+  FLstResearch := TTextList.Create(198, 88, 53, 54);
+
+  SetInterface('selectNewResearch');
+  Add(FWindow, 'window', 'selectNewResearch');
+  Add(FBtnOK, 'button', 'selectNewResearch');
+  Add(FTxtTitle, 'text', 'selectNewResearch');
+  Add(FLstResearch, 'list', 'selectNewResearch');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK05.SCR'));
+  FBtnOK.SetText(Translate('STR_OK'));
+  FBtnOK.OnMouseClick := BtnOKClick;
+  FBtnOK.OnKeyboardPress := BtnOKClick;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_NEW_RESEARCH_PROJECTS'));
+
+  FLstResearch.SetColumns([190]);
+  FLstResearch.SetSelectable(True);
+  FLstResearch.SetBackground(FWindow);
+  FLstResearch.SetMargin(8);
+  FLstResearch.SetAlign(ALIGN_CENTER);
+  FLstResearch.OnMouseClick := OnSelectProject;
+end;
+
+destructor TNewResearchListState.Destroy;
+begin
+  FProjects.Free;
+  inherited;
+end;
+
+procedure TNewResearchListState.Init;
+begin
+  inherited;
+  FillProjectList;
+end;
+
+procedure TNewResearchListState.OnSelectProject(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TResearchInfoState.Create(Self, FBase, FProjects[FLstResearch.GetSelectedRow]));
+end;
+
+procedure TNewResearchListState.BtnOKClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TNewResearchListState.FillProjectList;
+var
+  rule: TRuleResearch;
+begin
+  FProjects := TList<TRuleResearch>.Create;
+  FLstResearch.ClearList;
+  FGame.GetSavedGame.GetAvailableResearchProjects(FProjects, FGame.GetMod, FBase, True);
+  for rule in FProjects do
+  begin
+    // Only projects without requirements (see C++ explanation)
+    if rule.GetRequirements.IsEmpty then
+      FLstResearch.AddRow([Translate(rule.GetName)])
+    else
+      // remove from list
+      FProjects.Remove(rule); // but we can't modify while iterating; better use an index loop
+  end;
+  // Since we can't remove while iterating, we recreate list
+  var temp := TList<TRuleResearch>.Create;
+  try
+    for rule in FProjects do
+      if rule.GetRequirements.IsEmpty then
+        temp.Add(rule);
+    FProjects.Free;
+    FProjects := temp;
+    FLstResearch.ClearList;
+    for rule in FProjects do
+      FLstResearch.AddRow([Translate(rule.GetName)]);
+  except
+    temp.Free;
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:ManageAlienContainmentState.pas;encoding=utf8;eol=lf⟧
+unit ManageAlienContainmentState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.ResearchProject, Savegame.SavedGame, Savegame.Base,
+  Savegame.ItemContainer, Mod.RuleItem, Mod.RuleResearch,
+  Mod.Armor, Engine.Timer, Menu.ErrorMessageState,
+  SellState, Mod.RuleInterface, Menu.OptionsBaseState;
+
+type
+  TManageAlienContainmentState = class(TState)
+  private
+    FBase: TBase;
+    FOrigin: TOptionsOrigin;
+    FBtnOk, FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtUsed, FTxtAvailable, FTxtItem,
+    FTxtLiveAliens, FTxtDeadAliens, FTxtInterrogatedAliens: TText;
+    FLstAliens: TTextList;
+    FTimerInc, FTimerDec: TTimer;
+    FQtys: TList<Integer>;
+    FAliens: TStringList;
+    FSel: Integer;
+    FAliensSold: Integer;
+
+    function GetQuantity: Integer;
+    procedure UpdateStrings;
+    procedure IncreaseByValue(Change: Integer);
+    procedure DecreaseByValue(Change: Integer);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Origin: TOptionsOrigin);
+    destructor Destroy; override;
+    procedure Think; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowPress(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowRelease(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowClick(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowPress(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowRelease(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowClick(Sender: TObject; Action: TAction);
+    procedure LstItemsMousePress(Sender: TObject; Action: TAction);
+    procedure Increase;
+    procedure Decrease;
+  end;
+
+implementation
+
+constructor TManageAlienContainmentState.Create(AOwner: TComponent; Base: TBase; Origin: TOptionsOrigin);
+var
+  researchList: TStringList;
+  items: TStringList;
+  i: Integer;
+  qty: Integer;
+  research: TResearchProject;
+  itemName: string;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FOrigin := Origin;
+  FAliensSold := 0;
+  FQtys := TList<Integer>.Create;
+  FAliens := TStringList.Create;
+
+  researchList := TStringList.Create;
+  for research in FBase.GetResearch do
+  begin
+    itemName := research.GetRules.GetName;
+    if FGame.GetMod.GetItem(itemName) <> nil then
+      if FGame.GetMod.GetItem(itemName).IsAlien then
+        researchList.Add(itemName);
+  end;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(IfThen(Options.StorageLimitsEnforced and (FBase.GetFreeContainment < 0), 288, 148), 16,
+    IfThen(Options.StorageLimitsEnforced and (FBase.GetFreeContainment < 0), 16, 8), 176);
+  FBtnCancel := TTextButton.Create(148, 16, 164, 176);
+  FTxtTitle := TText.Create(310, 17, 5, 8);
+  FTxtAvailable := TText.Create(190, 9, 10, 24);
+  FTxtUsed := TText.Create(110, 9, 136, 24);
+  FTxtItem := TText.Create(120, 9, 10, 41);
+  FTxtLiveAliens := TText.Create(54, 18, 153, 32);
+  FTxtDeadAliens := TText.Create(54, 18, 207, 32);
+  FTxtInterrogatedAliens := TText.Create(54, 18, 261, 32);
+  FLstAliens := TTextList.Create(286, 112, 8, 53);
+
+  SetInterface('manageContainment');
+  Add(FWindow, 'window', 'manageContainment');
+  Add(FBtnOk, 'button', 'manageContainment');
+  Add(FBtnCancel, 'button', 'manageContainment');
+  Add(FTxtTitle, 'text', 'manageContainment');
+  Add(FTxtAvailable, 'text', 'manageContainment');
+  Add(FTxtUsed, 'text', 'manageContainment');
+  Add(FTxtItem, 'text', 'manageContainment');
+  Add(FTxtLiveAliens, 'text', 'manageContainment');
+  Add(FTxtDeadAliens, 'text', 'manageContainment');
+  Add(FTxtInterrogatedAliens, 'text', 'manageContainment');
+  Add(FLstAliens, 'list', 'manageContainment');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface(IfThen(Origin = OPT_BATTLESCAPE, 'BACK01.SCR', 'BACK05.SCR')));
+  FBtnOk.SetText(Translate('STR_REMOVE_SELECTED'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnCancel.SetText(Translate('STR_CANCEL'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+
+  if Options.StorageLimitsEnforced and (FBase.GetFreeContainment < 0) then
+  begin
+    FBtnCancel.Visible := False;
+    FBtnOk.Visible := False;
+  end;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_MANAGE_CONTAINMENT'));
+  FTxtItem.SetText(Translate('STR_ALIEN'));
+  FTxtLiveAliens.SetText(Translate('STR_LIVE_ALIENS'));
+  FTxtLiveAliens.SetWordWrap(True);
+  FTxtLiveAliens.SetVerticalAlign(ALIGN_BOTTOM);
+  FTxtDeadAliens.SetText(Translate('STR_DEAD_ALIENS'));
+  FTxtDeadAliens.SetWordWrap(True);
+  FTxtDeadAliens.SetVerticalAlign(ALIGN_BOTTOM);
+  FTxtInterrogatedAliens.SetText(Translate('STR_UNDER_INTERROGATION'));
+  FTxtInterrogatedAliens.SetWordWrap(True);
+  FTxtInterrogatedAliens.SetVerticalAlign(ALIGN_BOTTOM);
+
+  FTxtAvailable.SetText(Translate('STR_SPACE_AVAILABLE').Arg(FBase.GetFreeContainment));
+  FTxtUsed.SetText(Translate('STR_SPACE_USED').Arg(FBase.GetUsedContainment));
+
+  FLstAliens.SetArrowColumn(184, ARROW_HORIZONTAL);
+  FLstAliens.SetColumns([160, 64, 46, 46]);
+  FLstAliens.SetSelectable(True);
+  FLstAliens.SetBackground(FWindow);
+  FLstAliens.SetMargin(2);
+  FLstAliens.OnLeftArrowPress := LstItemsLeftArrowPress;
+  FLstAliens.OnLeftArrowRelease := LstItemsLeftArrowRelease;
+  FLstAliens.OnLeftArrowClick := LstItemsLeftArrowClick;
+  FLstAliens.OnRightArrowPress := LstItemsRightArrowPress;
+  FLstAliens.OnRightArrowRelease := LstItemsRightArrowRelease;
+  FLstAliens.OnRightArrowClick := LstItemsRightArrowClick;
+  FLstAliens.OnMousePress := LstItemsMousePress;
+
+  items := FGame.GetMod.GetItemsList;
+  for i := 0 to items.Count - 1 do
+  begin
+    qty := FBase.GetStorageItems.GetItem(items[i]);
+    if (qty > 0) and FGame.GetMod.GetItem(items[i], True).IsAlien then
+    begin
+      FQtys.Add(0);
+      FAliens.Add(items[i]);
+      // check if in research list
+      if researchList.IndexOf(items[i]) <> -1 then
+      begin
+        FLstAliens.AddRow([Translate(items[i]), IntToStr(qty), '0', '1']);
+        researchList.Delete(researchList.IndexOf(items[i]));
+      end
+      else
+        FLstAliens.AddRow([Translate(items[i]), IntToStr(qty), '0', '0']);
+    end;
+  end;
+
+  // remaining research items not in storage (interrogation ongoing)
+  for i := 0 to researchList.Count - 1 do
+  begin
+    FAliens.Add(researchList[i]);
+    FQtys.Add(0);
+    FLstAliens.AddRow([Translate(researchList[i]), '0', '0', '1']);
+    FLstAliens.SetRowColor(FAliens.Count - 1, FLstAliens.GetSecondaryColor);
+  end;
+
+  FTimerInc := TTimer.Create(250);
+  FTimerInc.OnTimer := Increase;
+  FTimerDec := TTimer.Create(250);
+  FTimerDec.OnTimer := Decrease;
+end;
+
+destructor TManageAlienContainmentState.Destroy;
+begin
+  FQtys.Free;
+  FAliens.Free;
+  FTimerInc.Free;
+  FTimerDec.Free;
+  inherited;
+end;
+
+procedure TManageAlienContainmentState.Think;
+begin
+  inherited;
+  FTimerInc.Think(Self, 0);
+  FTimerDec.Think(Self, 0);
+end;
+
+procedure TManageAlienContainmentState.BtnOkClick(Sender: TObject; Action: TAction);
+var
+  i: Integer;
+begin
+  for i := 0 to FQtys.Count - 1 do
+    if FQtys[i] > 0 then
+    begin
+      FBase.GetStorageItems.RemoveItem(FAliens[i], FQtys[i]);
+      if Options.CanSellLiveAliens then
+        FGame.GetSavedGame.SetFunds(FGame.GetSavedGame.GetFunds + FGame.GetMod.GetItem(FAliens[i], True).GetSellCost * FQtys[i])
+      else
+        FBase.GetStorageItems.AddItem(
+          FGame.GetMod.GetArmor(
+            FGame.GetMod.GetUnit(FAliens[i], True).GetArmor, True
+          ).GetCorpseGeoscape, FQtys[i]
+        );
+    end;
+  FGame.PopState;
+
+  if Options.StorageLimitsEnforced and FBase.StoresOverfull then
+  begin
+    FGame.PushState(TSellState.Create(Self, FBase, FOrigin));
+    FGame.PushState(TErrorMessageState.Create(Self,
+      Translate('STR_STORAGE_EXCEEDED').Arg(FBase.GetName),
+      FPalette,
+      FGame.GetMod.GetInterface('manageContainment').GetElement('errorMessage').Color,
+      IfThen(FOrigin = OPT_BATTLESCAPE, 'BACK01.SCR', 'BACK13.SCR'),
+      FGame.GetMod.GetInterface('manageContainment').GetElement('errorPalette').Color));
+  end;
+end;
+
+procedure TManageAlienContainmentState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TManageAlienContainmentState.LstItemsLeftArrowPress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstAliens.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (not FTimerDec.IsRunning) then
+    FTimerDec.Start;
+end;
+
+procedure TManageAlienContainmentState.LstItemsLeftArrowRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FTimerDec.Stop;
+end;
+
+procedure TManageAlienContainmentState.LstItemsLeftArrowClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    DecreaseByValue(MaxInt)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    DecreaseByValue(1);
+    FTimerInc.SetInterval(250);
+    FTimerDec.SetInterval(250);
+  end;
+end;
+
+procedure TManageAlienContainmentState.LstItemsRightArrowPress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstAliens.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (not FTimerInc.IsRunning) then
+    FTimerInc.Start;
+end;
+
+procedure TManageAlienContainmentState.LstItemsRightArrowRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FTimerInc.Stop;
+end;
+
+procedure TManageAlienContainmentState.LstItemsRightArrowClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    IncreaseByValue(MaxInt)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    IncreaseByValue(1);
+    FTimerInc.SetInterval(250);
+    FTimerDec.SetInterval(250);
+  end;
+end;
+
+procedure TManageAlienContainmentState.LstItemsMousePress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstAliens.GetSelectedRow;
+  if Action.GetDetails.button.button = SDL_BUTTON_WHEELUP then
+  begin
+    FTimerInc.Stop;
+    FTimerDec.Stop;
+    if (Action.GetAbsoluteXMouse >= FLstAliens.GetArrowsLeftEdge) and
+       (Action.GetAbsoluteXMouse <= FLstAliens.GetArrowsRightEdge) then
+      IncreaseByValue(Options.ChangeValueByMouseWheel);
+  end
+  else if Action.GetDetails.button.button = SDL_BUTTON_WHEELDOWN then
+  begin
+    FTimerInc.Stop;
+    FTimerDec.Stop;
+    if (Action.GetAbsoluteXMouse >= FLstAliens.GetArrowsLeftEdge) and
+       (Action.GetAbsoluteXMouse <= FLstAliens.GetArrowsRightEdge) then
+      DecreaseByValue(Options.ChangeValueByMouseWheel);
+  end;
+end;
+
+function TManageAlienContainmentState.GetQuantity: Integer;
+begin
+  Result := FBase.GetStorageItems.GetItem(FAliens[FSel]);
+end;
+
+procedure TManageAlienContainmentState.Increase;
+begin
+  FTimerDec.SetInterval(50);
+  FTimerInc.SetInterval(50);
+  IncreaseByValue(1);
+end;
+
+procedure TManageAlienContainmentState.IncreaseByValue(Change: Integer);
+var
+  qty: Integer;
+begin
+  qty := GetQuantity - FQtys[FSel];
+  if (Change <= 0) or (qty <= 0) then Exit;
+  Change := Min(qty, Change);
+  FQtys[FSel] := FQtys[FSel] + Change;
+  FAliensSold := FAliensSold + Change;
+  UpdateStrings;
+end;
+
+procedure TManageAlienContainmentState.Decrease;
+begin
+  FTimerInc.SetInterval(50);
+  FTimerDec.SetInterval(50);
+  DecreaseByValue(1);
+end;
+
+procedure TManageAlienContainmentState.DecreaseByValue(Change: Integer);
+begin
+  if (Change <= 0) or (FQtys[FSel] <= 0) then Exit;
+  Change := Min(FQtys[FSel], Change);
+  FQtys[FSel] := FQtys[FSel] - Change;
+  FAliensSold := FAliensSold - Change;
+  UpdateStrings;
+end;
+
+procedure TManageAlienContainmentState.UpdateStrings;
+var
+  qty, aliens, spaces: Integer;
+begin
+  qty := GetQuantity - FQtys[FSel];
+  FLstAliens.SetRowColor(FSel, IfThen(qty = 0, FLstAliens.GetSecondaryColor, FLstAliens.GetColor));
+  FLstAliens.SetCellText(FSel, 1, IntToStr(qty));
+  FLstAliens.SetCellText(FSel, 2, IntToStr(FQtys[FSel]));
+
+  aliens := FBase.GetUsedContainment - FAliensSold;
+  spaces := FBase.GetAvailableContainment - aliens;
+  if Options.StorageLimitsEnforced then
+    FBtnOk.Visible := (spaces >= 0);
+  FTxtAvailable.SetText(Translate('STR_SPACE_AVAILABLE').Arg(spaces));
+  FTxtUsed.SetText(Translate('STR_SPACE_USED').Arg(aliens));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:MonthlyCostsState.pas;encoding=utf8;eol=lf⟧
+unit MonthlyCostsState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options, Engine.Unicode,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Base, Savegame.SavedGame, Mod.RuleCraft, Mod.RuleSoldier;
+
+type
+  TMonthlyCostsState = class(TState)
+  private
+    FBase: TBase;
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtCost, FTxtQuantity, FTxtTotal,
+    FTxtRental, FTxtSalaries, FTxtIncome, FTxtMaintenance: TText;
+    FLstCrafts, FLstSalaries, FLstMaintenance, FLstTotal: TTextList;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TMonthlyCostsState.Create(AOwner: TComponent; Base: TBase);
+var
+  crafts: TStringList;
+  soldiers: TStringList;
+  craft: TRuleCraft;
+  soldier: TRuleSoldier;
+  i: Integer;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(300, 20, 10, 170);
+  FTxtTitle := TText.Create(310, 17, 5, 12);
+  FTxtCost := TText.Create(80, 9, 115, 32);
+  FTxtQuantity := TText.Create(55, 9, 195, 32);
+  FTxtTotal := TText.Create(60, 9, 249, 32);
+  FTxtRental := TText.Create(150, 9, 10, 40);
+  FTxtSalaries := TText.Create(150, 9, 10, 80);
+  FTxtIncome := TText.Create(150, 9, 10, 146);
+  FTxtMaintenance := TText.Create(150, 9, 10, 154);
+  FLstCrafts := TTextList.Create(288, 32, 10, 48);
+  FLstSalaries := TTextList.Create(288, 40, 10, 88);
+  FLstMaintenance := TTextList.Create(300, 9, 10, 128);
+  FLstTotal := TTextList.Create(100, 9, 205, 150);
+
+  SetInterface('costsInfo');
+  Add(FWindow, 'window', 'costsInfo');
+  Add(FBtnOk, 'button', 'costsInfo');
+  Add(FTxtTitle, 'text1', 'costsInfo');
+  Add(FTxtCost, 'text1', 'costsInfo');
+  Add(FTxtQuantity, 'text1', 'costsInfo');
+  Add(FTxtTotal, 'text1', 'costsInfo');
+  Add(FTxtRental, 'text1', 'costsInfo');
+  Add(FLstCrafts, 'list', 'costsInfo');
+  Add(FTxtSalaries, 'text1', 'costsInfo');
+  Add(FLstSalaries, 'list', 'costsInfo');
+  Add(FLstMaintenance, 'text1', 'costsInfo');
+  Add(FTxtIncome, 'list', 'costsInfo');
+  Add(FTxtMaintenance, 'list', 'costsInfo');
+  Add(FLstTotal, 'text2', 'costsInfo');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK13.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_MONTHLY_COSTS'));
+  FTxtCost.SetText(Translate('STR_COST_PER_UNIT'));
+  FTxtQuantity.SetText(Translate('STR_QUANTITY'));
+  FTxtTotal.SetText(Translate('STR_TOTAL'));
+  FTxtRental.SetText(Translate('STR_CRAFT_RENTAL'));
+  FTxtSalaries.SetText(Translate('STR_SALARIES'));
+
+  FTxtIncome.SetText(Translate('STR_INCOME') + '=' + Unicode.FormatFunding(FGame.GetSavedGame.GetCountryFunding));
+  FTxtMaintenance.SetText(Translate('STR_MAINTENANCE') + '=' + Unicode.FormatFunding(FGame.GetSavedGame.GetBaseMaintenance));
+
+  FLstCrafts.SetColumns([125, 70, 44, 50]);
+  FLstCrafts.SetDot(True);
+  crafts := FGame.GetMod.GetCraftsList;
+  for i := 0 to crafts.Count - 1 do
+  begin
+    craft := FGame.GetMod.GetCraft(crafts[i]);
+    if (craft.GetRentCost <> 0) and FGame.GetSavedGame.IsResearched(craft.GetRequirements) then
+      FLstCrafts.AddRow([
+        Translate(crafts[i]),
+        Unicode.FormatFunding(craft.GetRentCost),
+        IntToStr(FBase.GetCraftCount(crafts[i])),
+        Unicode.FormatFunding(FBase.GetCraftCount(crafts[i]) * craft.GetRentCost)
+      ]);
+  end;
+
+  FLstSalaries.SetColumns([125, 70, 44, 50]);
+  FLstSalaries.SetDot(True);
+  soldiers := FGame.GetMod.GetSoldiersList;
+  for i := 0 to soldiers.Count - 1 do
+  begin
+    soldier := FGame.GetMod.GetSoldier(soldiers[i]);
+    if (soldier.GetSalaryCost <> 0) and FGame.GetSavedGame.IsResearched(soldier.GetRequirements) then
+    begin
+      if soldiers.Count = 1 then
+        FLstSalaries.AddRow([
+          Translate('STR_SOLDIERS'),
+          Unicode.FormatFunding(soldier.GetSalaryCost),
+          IntToStr(FBase.GetSoldierCount(soldiers[i])),
+          Unicode.FormatFunding(FBase.GetSoldierCount(soldiers[i]) * soldier.GetSalaryCost)
+        ])
+      else
+        FLstSalaries.AddRow([
+          Translate(soldiers[i]),
+          Unicode.FormatFunding(soldier.GetSalaryCost),
+          IntToStr(FBase.GetSoldierCount(soldiers[i])),
+          Unicode.FormatFunding(FBase.GetSoldierCount(soldiers[i]) * soldier.GetSalaryCost)
+        ]);
+    end;
+  end;
+  FLstSalaries.AddRow([
+    Translate('STR_ENGINEERS'),
+    Unicode.FormatFunding(FGame.GetMod.GetEngineerCost),
+    IntToStr(FBase.GetTotalEngineers),
+    Unicode.FormatFunding(FBase.GetTotalEngineers * FGame.GetMod.GetEngineerCost)
+  ]);
+  FLstSalaries.AddRow([
+    Translate('STR_SCIENTISTS'),
+    Unicode.FormatFunding(FGame.GetMod.GetScientistCost),
+    IntToStr(FBase.GetTotalScientists),
+    Unicode.FormatFunding(FBase.GetTotalScientists * FGame.GetMod.GetScientistCost)
+  ]);
+
+  FLstMaintenance.SetColumns([239, 60]);
+  FLstMaintenance.SetDot(True);
+  FLstMaintenance.AddRow([
+    Translate('STR_BASE_MAINTENANCE'),
+    Unicode.TOK_COLOR_FLIP + Unicode.FormatFunding(FBase.GetFacilityMaintenance)
+  ]);
+
+  FLstTotal.SetColumns([44, 55]);
+  FLstTotal.SetDot(True);
+  FLstTotal.AddRow([
+    Translate('STR_TOTAL'),
+    Unicode.FormatFunding(FBase.GetMonthlyMaintenace)
+  ]);
+end;
+
+destructor TMonthlyCostsState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TMonthlyCostsState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SackSoldierState.pas;encoding=utf8;eol=lf⟧
+unit SackSoldierState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text,
+  Savegame.Base, Savegame.ItemContainer, Savegame.Soldier,
+  Mod.Armor;
+
+type
+  TSackSoldierState = class(TState)
+  private
+    FBase: TBase;
+    FSoldierId: Integer;
+    FBtnOk, FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtSoldier: TText;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; SoldierId: Integer);
+    destructor Destroy; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TSackSoldierState.Create(AOwner: TComponent; Base: TBase; SoldierId: Integer);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FSoldierId := SoldierId;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 152, 80, 84, 60);
+  FBtnOk := TTextButton.Create(44, 16, 100, 115);
+  FBtnCancel := TTextButton.Create(44, 16, 176, 115);
+  FTxtTitle := TText.Create(142, 9, 89, 75);
+  FTxtSoldier := TText.Create(142, 9, 89, 85);
+
+  SetInterface('sackSoldier');
+  Add(FWindow, 'window', 'sackSoldier');
+  Add(FBtnOk, 'button', 'sackSoldier');
+  Add(FBtnCancel, 'button', 'sackSoldier');
+  Add(FTxtTitle, 'text', 'sackSoldier');
+  Add(FTxtSoldier, 'text', 'sackSoldier');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK13.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnCancel.SetText(Translate('STR_CANCEL_UC'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_SACK'));
+  FTxtSoldier.SetAlign(ALIGN_CENTER);
+  FTxtSoldier.SetText(FBase.GetSoldiers[SoldierId].GetName(True) + '?');
+end;
+
+destructor TSackSoldierState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSackSoldierState.BtnOkClick(Sender: TObject; Action: TAction);
+var
+  soldier: TSoldier;
+begin
+  soldier := FBase.GetSoldiers[FSoldierId];
+  if soldier.GetArmor.GetStoreItem <> Armor.NONE then
+    FBase.GetStorageItems.AddItem(soldier.GetArmor.GetStoreItem);
+  FBase.GetSoldiers.Delete(FSoldierId);
+  soldier.Free;
+  FGame.PopState;
+end;
+
+procedure TSackSoldierState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SoldierArmorState.pas;encoding=utf8;eol=lf⟧
+unit SoldierArmorState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Mod.Armor, Savegame.SavedGame, Savegame.Soldier, Savegame.Base,
+  Savegame.ItemContainer, Mod.RuleSoldier;
+
+type
+  TSoldierArmorState = class(TState)
+  private
+    FBase: TBase;
+    FSoldier: Integer;
+    FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtType, FTxtQuantity: TText;
+    FLstArmor: TTextList;
+    FArmors: TList<TArmor>;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Soldier: Integer);
+    destructor Destroy; override;
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+    procedure LstArmorClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TSoldierArmorState.Create(AOwner: TComponent; Base: TBase; Soldier: Integer);
+var
+  armors: TStringList;
+  a: TArmor;
+  s: TSoldier;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FSoldier := Soldier;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 192, 160, 64, 20, POPUP_BOTH);
+  FBtnCancel := TTextButton.Create(140, 16, 90, 156);
+  FTxtTitle := TText.Create(182, 16, 69, 28);
+  FTxtType := TText.Create(90, 9, 80, 52);
+  FTxtQuantity := TText.Create(70, 9, 190, 52);
+  FLstArmor := TTextList.Create(160, 80, 73, 68);
+
+  SetInterface('soldierArmor');
+  Add(FWindow, 'window', 'soldierArmor');
+  Add(FBtnCancel, 'button', 'soldierArmor');
+  Add(FTxtTitle, 'text', 'soldierArmor');
+  Add(FTxtType, 'text', 'soldierArmor');
+  Add(FTxtQuantity, 'text', 'soldierArmor');
+  Add(FLstArmor, 'list', 'soldierArmor');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK14.SCR'));
+  FBtnCancel.SetText(Translate('STR_CANCEL_UC'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+
+  s := FBase.GetSoldiers[Soldier];
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_SELECT_ARMOR_FOR_SOLDIER').Arg(s.GetName));
+  FTxtType.SetText(Translate('STR_TYPE'));
+  FTxtQuantity.SetText(Translate('STR_QUANTITY_UC'));
+
+  FLstArmor.SetColumns([132, 21]);
+  FLstArmor.SetSelectable(True);
+  FLstArmor.SetBackground(FWindow);
+  FLstArmor.SetMargin(8);
+
+  FArmors := TList<TArmor>.Create;
+  armors := FGame.GetMod.GetArmorsList;
+  for a in armors do
+  begin
+    if not a.GetUnits.IsEmpty then
+      if a.GetUnits.IndexOf(s.GetRules.GetType) = -1 then
+        Continue;
+    if FBase.GetStorageItems.GetItem(a.GetStoreItem) > 0 then
+    begin
+      FArmors.Add(a);
+      FLstArmor.AddRow([
+        Translate(a.GetType),
+        IfThen(FGame.GetSavedGame.GetMonthsPassed > -1, IntToStr(FBase.GetStorageItems.GetItem(a.GetStoreItem)), '-')
+      ]);
+    end
+    else if a.GetStoreItem = Armor.NONE then
+    begin
+      FArmors.Add(a);
+      FLstArmor.AddRow([Translate(a.GetType)]);
+    end;
+  end;
+  FLstArmor.OnMouseClick := LstArmorClick;
+end;
+
+destructor TSoldierArmorState.Destroy;
+begin
+  FArmors.Free;
+  inherited;
+end;
+
+procedure TSoldierArmorState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TSoldierArmorState.LstArmorClick(Sender: TObject; Action: TAction);
+var
+  soldier: TSoldier;
+  armor: TArmor;
+begin
+  soldier := FBase.GetSoldiers[FSoldier];
+  armor := FArmors[FLstArmor.GetSelectedRow];
+  if FGame.GetSavedGame.GetMonthsPassed <> -1 then
+  begin
+    if soldier.GetArmor.GetStoreItem <> Armor.NONE then
+      FBase.GetStorageItems.AddItem(soldier.GetArmor.GetStoreItem);
+    if armor.GetStoreItem <> Armor.NONE then
+      FBase.GetStorageItems.RemoveItem(armor.GetStoreItem);
+  end;
+  soldier.SetArmor(armor);
+  FGame.GetSavedGame.SetLastSelectedArmor(armor.GetType);
+  FGame.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SoldierInfoState.pas;encoding=utf8;eol=lf⟧
+unit SoldierInfoState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.Bar, Interface.TextButton, Interface.Text, Interface.TextEdit,
+  Engine.Surface, Savegame.SavedGame, Savegame.Base,
+  Savegame.Craft, Savegame.Soldier, Engine.SurfaceSet,
+  Mod.Armor, Menu.ErrorMessageState, SellState,
+  SoldierArmorState, SackSoldierState, Mod.RuleInterface,
+  Mod.RuleSoldier, Savegame.SoldierDeath,
+  SoldierDiaryOverviewState;
+
+type
+  TSoldierInfoState = class(TState)
+  private
+    FBase: TBase;
+    FSoldierId: Integer;
+    FSoldier: TSoldier;
+    FList: TList<TSoldier>;
+
+    FBg, FRank: TSurface;
+    FBtnOk, FBtnPrev, FBtnNext, FBtnArmor, FBtnSack, FBtnDiary: TTextButton;
+    FTxtRank, FTxtMissions, FTxtKills, FTxtCraft, FTxtRecovery, FTxtPsionic, FTxtDead: TText;
+    FEdtSoldier: TTextEdit;
+
+    FTxtTimeUnits, FTxtStamina, FTxtHealth, FTxtBravery, FTxtReactions,
+    FTxtFiring, FTxtThrowing, FTxtMelee, FTxtStrength, FTxtPsiStrength, FTxtPsiSkill: TText;
+    FNumTimeUnits, FNumStamina, FNumHealth, FNumBravery, FNumReactions,
+    FNumFiring, FNumThrowing, FNumMelee, FNumStrength, FNumPsiStrength, FNumPsiSkill: TText;
+    FBarTimeUnits, FBarStamina, FBarHealth, FBarBravery, FBarReactions,
+    FBarFiring, FBarThrowing, FBarMelee, FBarStrength, FBarPsiStrength, FBarPsiSkill: TBar;
+
+    procedure EdtSoldierPress(Sender: TObject; Action: TAction);
+    procedure EdtSoldierChange(Sender: TObject; Action: TAction);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; SoldierId: Integer);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure SetSoldierId(Soldier: Integer);
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnPrevClick(Sender: TObject; Action: TAction);
+    procedure BtnNextClick(Sender: TObject; Action: TAction);
+    procedure BtnArmorClick(Sender: TObject; Action: TAction);
+    procedure BtnSackClick(Sender: TObject; Action: TAction);
+    procedure BtnDiaryClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TSoldierInfoState.Create(AOwner: TComponent; Base: TBase; SoldierId: Integer);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FSoldierId := SoldierId;
+
+  if FBase = nil then
+  begin
+    FList := FGame.GetSavedGame.GetDeadSoldiers;
+    if FSoldierId >= FList.Count then
+      FSoldierId := 0
+    else
+      FSoldierId := FList.Count - (1 + FSoldierId);
+  end
+  else
+    FList := FBase.GetSoldiers;
+
+  FBg := TSurface.Create(320, 200, 0, 0);
+  FRank := TSurface.Create(26, 23, 4, 4);
+  FBtnPrev := TTextButton.Create(28, 14, 0, 33);
+  FBtnOk := TTextButton.Create(48, 14, 30, 33);
+  FBtnNext := TTextButton.Create(28, 14, 80, 33);
+  FBtnArmor := TTextButton.Create(110, 14, 130, 33);
+  FEdtSoldier := TTextEdit.Create(Self, 210, 16, 40, 9);
+  FBtnSack := TTextButton.Create(60, 14, 260, 33);
+  FBtnDiary := TTextButton.Create(60, 14, 260, 48);
+  FTxtRank := TText.Create(130, 9, 0, 48);
+  FTxtMissions := TText.Create(100, 9, 130, 48);
+  FTxtKills := TText.Create(100, 9, 200, 48);
+  FTxtCraft := TText.Create(130, 9, 0, 56);
+  FTxtRecovery := TText.Create(180, 9, 130, 56);
+  FTxtPsionic := TText.Create(150, 9, 0, 66);
+  FTxtDead := TText.Create(150, 9, 130, 33);
+
+  var yPos := 80;
+  var step := 11;
+
+  FTxtTimeUnits := TText.Create(120, 9, 6, yPos);
+  FNumTimeUnits := TText.Create(18, 9, 131, yPos);
+  FBarTimeUnits := TBar.Create(170, 7, 150, yPos);
+  Inc(yPos, step);
+  FTxtStamina := TText.Create(120, 9, 6, yPos);
+  FNumStamina := TText.Create(18, 9, 131, yPos);
+  FBarStamina := TBar.Create(170, 7, 150, yPos);
+  Inc(yPos, step);
+  FTxtHealth := TText.Create(120, 9, 6, yPos);
+  FNumHealth := TText.Create(18, 9, 131, yPos);
+  FBarHealth := TBar.Create(170, 7, 150, yPos);
+  Inc(yPos, step);
+  FTxtBravery := TText.Create(120, 9, 6, yPos);
+  FNumBravery := TText.Create(18, 9, 131, yPos);
+  FBarBravery := TBar.Create(170, 7, 150, yPos);
+  Inc(yPos, step);
+  FTxtReactions := TText.Create(120, 9, 6, yPos);
+  FNumReactions := TText.Create(18, 9, 131, yPos);
+  FBarReactions := TBar.Create(170, 7, 150, yPos);
+  Inc(yPos, step);
+  FTxtFiring := TText.Create(120, 9, 6, yPos);
+  FNumFiring := TText.Create(18, 9, 131, yPos);
+  FBarFiring := TBar.Create(170, 7, 150, yPos);
+  Inc(yPos, step);
+  FTxtThrowing := TText.Create(120, 9, 6, yPos);
+  FNumThrowing := TText.Create(18, 9, 131, yPos);
+  FBarThrowing := TBar.Create(170, 7, 150, yPos);
+  Inc(yPos, step);
+  FTxtMelee := TText.Create(120, 9, 6, yPos);
+  FNumMelee := TText.Create(18, 9, 131, yPos);
+  FBarMelee := TBar.Create(170, 7, 150, yPos);
+  Inc(yPos, step);
+  FTxtStrength := TText.Create(120, 9, 6, yPos);
+  FNumStrength := TText.Create(18, 9, 131, yPos);
+  FBarStrength := TBar.Create(170, 7, 150, yPos);
+  Inc(yPos, step);
+  FTxtPsiStrength := TText.Create(120, 9, 6, yPos);
+  FNumPsiStrength := TText.Create(18, 9, 131, yPos);
+  FBarPsiStrength := TBar.Create(170, 7, 150, yPos);
+  Inc(yPos, step);
+  FTxtPsiSkill := TText.Create(120, 9, 6, yPos);
+  FNumPsiSkill := TText.Create(18, 9, 131, yPos);
+  FBarPsiSkill := TBar.Create(170, 7, 150, yPos);
+
+  SetInterface('soldierInfo');
+  Add(FBg);
+  Add(FRank);
+  Add(FBtnOk, 'button', 'soldierInfo');
+  Add(FBtnPrev, 'button', 'soldierInfo');
+  Add(FBtnNext, 'button', 'soldierInfo');
+  Add(FBtnArmor, 'button', 'soldierInfo');
+  Add(FEdtSoldier, 'text1', 'soldierInfo');
+  Add(FBtnSack, 'button', 'soldierInfo');
+  Add(FBtnDiary, 'button', 'soldierInfo');
+  Add(FTxtRank, 'text1', 'soldierInfo');
+  Add(FTxtMissions, 'text1', 'soldierInfo');
+  Add(FTxtKills, 'text1', 'soldierInfo');
+  Add(FTxtCraft, 'text1', 'soldierInfo');
+  Add(FTxtRecovery, 'text1', 'soldierInfo');
+  Add(FTxtPsionic, 'text2', 'soldierInfo');
+  Add(FTxtDead, 'text2', 'soldierInfo');
+
+  Add(FTxtTimeUnits, 'text2', 'soldierInfo');
+  Add(FNumTimeUnits, 'numbers', 'soldierInfo');
+  Add(FBarTimeUnits, 'barTUs', 'soldierInfo');
+  Add(FTxtStamina, 'text2', 'soldierInfo');
+  Add(FNumStamina, 'numbers', 'soldierInfo');
+  Add(FBarStamina, 'barEnergy', 'soldierInfo');
+  Add(FTxtHealth, 'text2', 'soldierInfo');
+  Add(FNumHealth, 'numbers', 'soldierInfo');
+  Add(FBarHealth, 'barHealth', 'soldierInfo');
+  Add(FTxtBravery, 'text2', 'soldierInfo');
+  Add(FNumBravery, 'numbers', 'soldierInfo');
+  Add(FBarBravery, 'barBravery', 'soldierInfo');
+  Add(FTxtReactions, 'text2', 'soldierInfo');
+  Add(FNumReactions, 'numbers', 'soldierInfo');
+  Add(FBarReactions, 'barReactions', 'soldierInfo');
+  Add(FTxtFiring, 'text2', 'soldierInfo');
+  Add(FNumFiring, 'numbers', 'soldierInfo');
+  Add(FBarFiring, 'barFiring', 'soldierInfo');
+  Add(FTxtThrowing, 'text2', 'soldierInfo');
+  Add(FNumThrowing, 'numbers', 'soldierInfo');
+  Add(FBarThrowing, 'barThrowing', 'soldierInfo');
+  Add(FTxtMelee, 'text2', 'soldierInfo');
+  Add(FNumMelee, 'numbers', 'soldierInfo');
+  Add(FBarMelee, 'barMelee', 'soldierInfo');
+  Add(FTxtStrength, 'text2', 'soldierInfo');
+  Add(FNumStrength, 'numbers', 'soldierInfo');
+  Add(FBarStrength, 'barStrength', 'soldierInfo');
+  Add(FTxtPsiStrength, 'text2', 'soldierInfo');
+  Add(FNumPsiStrength, 'numbers', 'soldierInfo');
+  Add(FBarPsiStrength, 'barPsiStrength', 'soldierInfo');
+  Add(FTxtPsiSkill, 'text2', 'soldierInfo');
+  Add(FNumPsiSkill, 'numbers', 'soldierInfo');
+  Add(FBarPsiSkill, 'barPsiSkill', 'soldierInfo');
+
+  CenterAllSurfaces;
+
+  FGame.GetMod.GetSurface('BACK06.SCR').Blit(FBg);
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+
+  if FBase = nil then
+  begin
+    FBtnPrev.OnMouseClick := BtnNextClick;
+    FBtnPrev.OnKeyboardPress := BtnNextClick;
+    FBtnNext.OnMouseClick := BtnPrevClick;
+    FBtnNext.OnKeyboardPress := BtnPrevClick;
+  end
+  else
+  begin
+    FBtnPrev.OnMouseClick := BtnPrevClick;
+    FBtnPrev.OnKeyboardPress := BtnPrevClick;
+    FBtnNext.OnMouseClick := BtnNextClick;
+    FBtnNext.OnKeyboardPress := BtnNextClick;
+  end;
+
+  FBtnArmor.SetText(Translate('STR_ARMOR'));
+  FBtnArmor.OnMouseClick := BtnArmorClick;
+  FEdtSoldier.SetBig;
+  FEdtSoldier.OnChange := EdtSoldierChange;
+  FEdtSoldier.OnMousePress := EdtSoldierPress;
+  FBtnSack.SetText(Translate('STR_SACK'));
+  FBtnSack.OnMouseClick := BtnSackClick;
+  FBtnDiary.SetText(Translate('STR_DIARY'));
+  FBtnDiary.OnMouseClick := BtnDiaryClick;
+  FTxtPsionic.SetText(Translate('STR_IN_PSIONIC_TRAINING'));
+
+  FTxtTimeUnits.SetText(Translate('STR_TIME_UNITS'));
+  FBarTimeUnits.SetScale(1.0);
+  FTxtStamina.SetText(Translate('STR_STAMINA'));
+  FBarStamina.SetScale(1.0);
+  FTxtHealth.SetText(Translate('STR_HEALTH'));
+  FBarHealth.SetScale(1.0);
+  FTxtBravery.SetText(Translate('STR_BRAVERY'));
+  FBarBravery.SetScale(1.0);
+  FTxtReactions.SetText(Translate('STR_REACTIONS'));
+  FBarReactions.SetScale(1.0);
+  FTxtFiring.SetText(Translate('STR_FIRING_ACCURACY'));
+  FBarFiring.SetScale(1.0);
+  FTxtThrowing.SetText(Translate('STR_THROWING_ACCURACY'));
+  FBarThrowing.SetScale(1.0);
+  FTxtMelee.SetText(Translate('STR_MELEE_ACCURACY'));
+  FBarMelee.SetScale(1.0);
+  FTxtStrength.SetText(Translate('STR_STRENGTH'));
+  FBarStrength.SetScale(1.0);
+  FTxtPsiStrength.SetText(Translate('STR_PSIONIC_STRENGTH'));
+  FBarPsiStrength.SetScale(1.0);
+  FTxtPsiSkill.SetText(Translate('STR_PSIONIC_SKILL'));
+  FBarPsiSkill.SetScale(1.0);
+end;
+
+destructor TSoldierInfoState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSoldierInfoState.Init;
+var
+  initial, current, withArmor: TUnitStats;
+  texture: TSurfaceSet;
+  craft: string;
+begin
+  inherited;
+  if FList.Count = 0 then
+  begin
+    FGame.PopState;
+    Exit;
+  end;
+  if FSoldierId >= FList.Count then
+    FSoldierId := 0;
+  FSoldier := FList[FSoldierId];
+  FEdtSoldier.SetBig;
+  FEdtSoldier.SetText(FSoldier.GetName);
+  initial := FSoldier.GetInitStats;
+  current := FSoldier.GetCurrentStats;
+  withArmor := current + FSoldier.GetArmor.GetStats;
+
+  texture := FGame.GetMod.GetSurfaceSet('BASEBITS.PCK');
+  texture.GetFrame(FSoldier.GetRankSprite).SetX(0);
+  texture.GetFrame(FSoldier.GetRankSprite).SetY(0);
+  texture.GetFrame(FSoldier.GetRankSprite).Blit(FRank);
+
+  FNumTimeUnits.SetText(IntToStr(withArmor.TU));
+  FBarTimeUnits.SetMax(current.TU);
+  FBarTimeUnits.SetValue(withArmor.TU);
+  FBarTimeUnits.SetValue2(Min(withArmor.TU, initial.TU));
+
+  FNumStamina.SetText(IntToStr(withArmor.Stamina));
+  FBarStamina.SetMax(current.Stamina);
+  FBarStamina.SetValue(withArmor.Stamina);
+  FBarStamina.SetValue2(Min(withArmor.Stamina, initial.Stamina));
+
+  FNumHealth.SetText(IntToStr(withArmor.Health));
+  FBarHealth.SetMax(current.Health);
+  FBarHealth.SetValue(withArmor.Health);
+  FBarHealth.SetValue2(Min(withArmor.Health, initial.Health));
+
+  FNumBravery.SetText(IntToStr(withArmor.Bravery));
+  FBarBravery.SetMax(current.Bravery);
+  FBarBravery.SetValue(withArmor.Bravery);
+  FBarBravery.SetValue2(Min(withArmor.Bravery, initial.Bravery));
+
+  FNumReactions.SetText(IntToStr(withArmor.Reactions));
+  FBarReactions.SetMax(current.Reactions);
+  FBarReactions.SetValue(withArmor.Reactions);
+  FBarReactions.SetValue2(Min(withArmor.Reactions, initial.Reactions));
+
+  FNumFiring.SetText(IntToStr(withArmor.Firing));
+  FBarFiring.SetMax(current.Firing);
+  FBarFiring.SetValue(withArmor.Firing);
+  FBarFiring.SetValue2(Min(withArmor.Firing, initial.Firing));
+
+  FNumThrowing.SetText(IntToStr(withArmor.Throwing));
+  FBarThrowing.SetMax(current.Throwing);
+  FBarThrowing.SetValue(withArmor.Throwing);
+  FBarThrowing.SetValue2(Min(withArmor.Throwing, initial.Throwing));
+
+  FNumMelee.SetText(IntToStr(withArmor.Melee));
+  FBarMelee.SetMax(current.Melee);
+  FBarMelee.SetValue(withArmor.Melee);
+  FBarMelee.SetValue2(Min(withArmor.Melee, initial.Melee));
+
+  FNumStrength.SetText(IntToStr(withArmor.Strength));
+  FBarStrength.SetMax(current.Strength);
+  FBarStrength.SetValue(withArmor.Strength);
+  FBarStrength.SetValue2(Min(withArmor.Strength, initial.Strength));
+
+  if FSoldier.GetArmor.GetType = FSoldier.GetRules.GetArmor then
+    FBtnArmor.SetText(Translate('STR_ARMOR_').Arg(Translate(FSoldier.GetArmor.GetType)))
+  else
+    FBtnArmor.SetText(Translate(FSoldier.GetArmor.GetType));
+
+  FBtnSack.Visible := (FGame.GetSavedGame.GetMonthsPassed > -1) and
+    not ((FSoldier.GetCraft <> nil) and (FSoldier.GetCraft.GetStatus = 'STR_OUT'));
+
+  FTxtRank.SetText(Translate('STR_RANK_').Arg(Translate(FSoldier.GetRankString)));
+  FTxtMissions.SetText(Translate('STR_MISSIONS').Arg(FSoldier.GetMissions));
+  FTxtKills.SetText(Translate('STR_KILLS').Arg(FSoldier.GetKills));
+
+  if FSoldier.GetCraft = nil then
+    craft := Translate('STR_NONE_UC')
+  else
+    craft := FSoldier.GetCraft.GetName(FGame.GetLanguage);
+  FTxtCraft.SetText(Translate('STR_CRAFT_').Arg(craft));
+
+  if FSoldier.GetWoundRecovery > 0 then
+    FTxtRecovery.SetText(Translate('STR_WOUND_RECOVERY').Arg(Translate('STR_DAY', FSoldier.GetWoundRecovery)))
+  else
+    FTxtRecovery.SetText('');
+
+  FTxtPsionic.Visible := FSoldier.IsInPsiTraining;
+
+  if (current.PsiSkill > 0) or (Options.PsiStrengthEval and FGame.GetSavedGame.IsResearched(FGame.GetMod.GetPsiRequirements)) then
+  begin
+    FNumPsiStrength.SetText(IntToStr(withArmor.PsiStrength));
+    FBarPsiStrength.SetMax(current.PsiStrength);
+    FBarPsiStrength.SetValue(withArmor.PsiStrength);
+    FBarPsiStrength.SetValue2(Min(withArmor.PsiStrength, initial.PsiStrength));
+    FTxtPsiStrength.Visible := True;
+    FNumPsiStrength.Visible := True;
+    FBarPsiStrength.Visible := True;
+  end
+  else
+  begin
+    FTxtPsiStrength.Visible := False;
+    FNumPsiStrength.Visible := False;
+    FBarPsiStrength.Visible := False;
+  end;
+
+  if current.PsiSkill > 0 then
+  begin
+    FNumPsiSkill.SetText(IntToStr(withArmor.PsiSkill));
+    FBarPsiSkill.SetMax(current.PsiSkill);
+    FBarPsiSkill.SetValue(withArmor.PsiSkill);
+    FBarPsiSkill.SetValue2(Min(withArmor.PsiSkill, initial.PsiSkill));
+    FTxtPsiSkill.Visible := True;
+    FNumPsiSkill.Visible := True;
+    FBarPsiSkill.Visible := True;
+  end
+  else
+  begin
+    FTxtPsiSkill.Visible := False;
+    FNumPsiSkill.Visible := False;
+    FBarPsiSkill.Visible := False;
+  end;
+
+  if FBase = nil then
+  begin
+    FBtnArmor.Visible := False;
+    FBtnSack.Visible := False;
+    FTxtCraft.Visible := False;
+    FTxtDead.Visible := True;
+    if (FSoldier.GetDeath <> nil) and (FSoldier.GetDeath.GetCause <> nil) then
+      FTxtDead.SetText(Translate('STR_KILLED_IN_ACTION', FSoldier.GetGender))
+    else
+      FTxtDead.SetText(Translate('STR_MISSING_IN_ACTION', FSoldier.GetGender));
+  end
+  else
+    FTxtDead.Visible := False;
+end;
+
+procedure TSoldierInfoState.EdtSoldierPress(Sender: TObject; Action: TAction);
+begin
+  if FBase = nil then
+    FEdtSoldier.SetFocus(False);
+end;
+
+procedure TSoldierInfoState.EdtSoldierChange(Sender: TObject; Action: TAction);
+begin
+  FSoldier.SetName(FEdtSoldier.GetText);
+end;
+
+procedure TSoldierInfoState.SetSoldierId(Soldier: Integer);
+begin
+  FSoldierId := Soldier;
+end;
+
+procedure TSoldierInfoState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+  if (FGame.GetSavedGame.GetMonthsPassed > -1) and Options.StorageLimitsEnforced and (FBase <> nil) and FBase.StoresOverfull then
+  begin
+    FGame.PushState(TSellState.Create(Self, FBase));
+    FGame.PushState(TErrorMessageState.Create(Self,
+      Translate('STR_STORAGE_EXCEEDED').Arg(FBase.GetName),
+      FPalette,
+      FGame.GetMod.GetInterface('soldierInfo').GetElement('errorMessage').Color,
+      'BACK01.SCR',
+      FGame.GetMod.GetInterface('soldierInfo').GetElement('errorPalette').Color));
+  end;
+end;
+
+procedure TSoldierInfoState.BtnPrevClick(Sender: TObject; Action: TAction);
+begin
+  if FSoldierId = 0 then
+    FSoldierId := FList.Count - 1
+  else
+    Dec(FSoldierId);
+  Init;
+end;
+
+procedure TSoldierInfoState.BtnNextClick(Sender: TObject; Action: TAction);
+begin
+  Inc(FSoldierId);
+  if FSoldierId >= FList.Count then
+    FSoldierId := 0;
+  Init;
+end;
+
+procedure TSoldierInfoState.BtnArmorClick(Sender: TObject; Action: TAction);
+begin
+  if (FSoldier.GetCraft = nil) or (FSoldier.GetCraft.GetStatus <> 'STR_OUT') then
+    FGame.PushState(TSoldierArmorState.Create(Self, FBase, FSoldierId));
+end;
+
+procedure TSoldierInfoState.BtnSackClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSackSoldierState.Create(Self, FBase, FSoldierId));
+end;
+
+procedure TSoldierInfoState.BtnDiaryClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSoldierDiaryOverviewState.Create(Self, FBase, FSoldierId, Self));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SoldiersState.pas;encoding=utf8;eol=lf⟧
+unit SoldiersState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Geoscape.AllocatePsiTrainingState,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Base, Savegame.Soldier,
+  SoldierInfoState, SoldierMemorialState;
+
+type
+  TSoldiersState = class(TState)
+  private
+    FBase: TBase;
+    FBtnOk, FBtnPsiTraining, FBtnMemorial: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtName, FTxtRank, FTxtCraft: TText;
+    FLstSoldiers: TTextList;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnPsiTrainingClick(Sender: TObject; Action: TAction);
+    procedure BtnMemorialClick(Sender: TObject; Action: TAction);
+    procedure LstSoldiersClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TSoldiersState.Create(AOwner: TComponent; Base: TBase);
+var
+  isPsiBtnVisible: Boolean;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  isPsiBtnVisible := Options.AnytimePsiTraining and (FBase.GetAvailablePsiLabs > 0);
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  if isPsiBtnVisible then
+  begin
+    FBtnOk := TTextButton.Create(96, 16, 216, 176);
+    FBtnPsiTraining := TTextButton.Create(96, 16, 112, 176);
+    FBtnMemorial := TTextButton.Create(96, 16, 8, 176);
+  end
+  else
+  begin
+    FBtnOk := TTextButton.Create(148, 16, 164, 176);
+    FBtnPsiTraining := TTextButton.Create(148, 16, 164, 176);
+    FBtnMemorial := TTextButton.Create(148, 16, 8, 176);
+  end;
+  FTxtTitle := TText.Create(310, 17, 5, 8);
+  FTxtName := TText.Create(114, 9, 16, 32);
+  FTxtRank := TText.Create(102, 9, 130, 32);
+  FTxtCraft := TText.Create(82, 9, 222, 32);
+  FLstSoldiers := TTextList.Create(288, 128, 8, 40);
+
+  SetInterface('soldierList');
+  Add(FWindow, 'window', 'soldierList');
+  Add(FBtnOk, 'button', 'soldierList');
+  Add(FBtnPsiTraining, 'button', 'soldierList');
+  Add(FBtnMemorial, 'button', 'soldierList');
+  Add(FTxtTitle, 'text1', 'soldierList');
+  Add(FTxtName, 'text2', 'soldierList');
+  Add(FTxtRank, 'text2', 'soldierList');
+  Add(FTxtCraft, 'text2', 'soldierList');
+  Add(FLstSoldiers, 'list', 'soldierList');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK02.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+
+  FBtnPsiTraining.SetText(Translate('STR_PSI_TRAINING'));
+  FBtnPsiTraining.OnMouseClick := BtnPsiTrainingClick;
+  FBtnPsiTraining.Visible := isPsiBtnVisible;
+
+  FBtnMemorial.SetText(Translate('STR_MEMORIAL'));
+  FBtnMemorial.OnMouseClick := BtnMemorialClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_SOLDIER_LIST'));
+  FTxtName.SetText(Translate('STR_NAME_UC'));
+  FTxtRank.SetText(Translate('STR_RANK'));
+  FTxtCraft.SetText(Translate('STR_CRAFT'));
+
+  FLstSoldiers.SetColumns([114, 92, 74]);
+  FLstSoldiers.SetSelectable(True);
+  FLstSoldiers.SetBackground(FWindow);
+  FLstSoldiers.SetMargin(8);
+  FLstSoldiers.OnMouseClick := LstSoldiersClick;
+end;
+
+destructor TSoldiersState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSoldiersState.Init;
+var
+  row: Integer;
+  s: TSoldier;
+begin
+  inherited;
+  row := 0;
+  FLstSoldiers.ClearList;
+  for s in FBase.GetSoldiers do
+  begin
+    FLstSoldiers.AddRow([s.GetName(True), Translate(s.GetRankString), s.GetCraftString(FGame.GetLanguage)]);
+    if s.GetCraft = nil then
+      FLstSoldiers.SetRowColor(row, FLstSoldiers.GetSecondaryColor);
+    Inc(row);
+  end;
+  if (row > 0) and (FLstSoldiers.GetScroll >= row) then
+    FLstSoldiers.ScrollTo(0);
+end;
+
+procedure TSoldiersState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TSoldiersState.BtnPsiTrainingClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TAllocatePsiTrainingState.Create(Self, FBase));
+end;
+
+procedure TSoldiersState.BtnMemorialClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSoldierMemorialState.Create(Self));
+end;
+
+procedure TSoldiersState.LstSoldiersClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSoldierInfoState.Create(Self, FBase, FLstSoldiers.GetSelectedRow));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SoldierMemorialState.pas;encoding=utf8;eol=lf⟧
+unit SoldierMemorialState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.SavedGame, Savegame.Base, Savegame.Soldier,
+  Savegame.SoldierDeath, Savegame.GameTime,
+  SoldierInfoState, Menu.StatisticsState;
+
+type
+  TSoldierMemorialState = class(TState)
+  private
+    FBtnOk, FBtnStatistics: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtName, FTxtRank, FTxtDate, FTxtRecruited, FTxtLost: TText;
+    FLstSoldiers: TTextList;
+  public
+    constructor Create(AOwner: TComponent);
+    destructor Destroy; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnStatisticsClick(Sender: TObject; Action: TAction);
+    procedure LstSoldiersClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TSoldierMemorialState.Create(AOwner: TComponent);
+var
+  lost, recruited: Integer;
+  dead: TSoldier;
+begin
+  inherited Create(AOwner);
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(148, 16, 164, 176);
+  FBtnStatistics := TTextButton.Create(148, 16, 8, 176);
+  FTxtTitle := TText.Create(310, 17, 5, 8);
+  FTxtName := TText.Create(114, 9, 16, 36);
+  FTxtRank := TText.Create(102, 9, 130, 36);
+  FTxtDate := TText.Create(90, 9, 218, 36);
+  FTxtRecruited := TText.Create(150, 9, 16, 24);
+  FTxtLost := TText.Create(150, 9, 160, 24);
+  FLstSoldiers := TTextList.Create(288, 120, 8, 44);
+
+  SetInterface('soldierMemorial');
+  Add(FWindow, 'window', 'soldierMemorial');
+  Add(FBtnOk, 'button', 'soldierMemorial');
+  Add(FBtnStatistics, 'button', 'soldierMemorial');
+  Add(FTxtTitle, 'text', 'soldierMemorial');
+  Add(FTxtName, 'text', 'soldierMemorial');
+  Add(FTxtRank, 'text', 'soldierMemorial');
+  Add(FTxtDate, 'text', 'soldierMemorial');
+  Add(FTxtRecruited, 'text', 'soldierMemorial');
+  Add(FTxtLost, 'text', 'soldierMemorial');
+  Add(FLstSoldiers, 'list', 'soldierMemorial');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK02.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnStatistics.SetText(Translate('STR_STATISTICS'));
+  FBtnStatistics.OnMouseClick := BtnStatisticsClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_MEMORIAL'));
+  FTxtName.SetText(Translate('STR_NAME_UC'));
+  FTxtRank.SetText(Translate('STR_RANK'));
+  FTxtDate.SetText(Translate('STR_DATE_UC'));
+
+  lost := FGame.GetSavedGame.GetDeadSoldiers.Count;
+  recruited := lost;
+  for Base in FGame.GetSavedGame.GetBases do
+    recruited := recruited + Base.GetTotalSoldiers;
+
+  FTxtRecruited.SetText(Translate('STR_SOLDIERS_RECRUITED_UC').Arg(recruited));
+  FTxtLost.SetText(Translate('STR_SOLDIERS_LOST_UC').Arg(lost));
+
+  FLstSoldiers.SetColumns([114, 88, 30, 25, 35]);
+  FLstSoldiers.SetSelectable(True);
+  FLstSoldiers.SetBackground(FWindow);
+  FLstSoldiers.SetMargin(8);
+  FLstSoldiers.OnMouseClick := LstSoldiersClick;
+
+  for dead in FGame.GetSavedGame.GetDeadSoldiers do
+  begin
+    var death := dead.GetDeath;
+    FLstSoldiers.AddRow([
+      dead.GetName,
+      Translate(dead.GetRankString),
+      death.GetTime.GetDayString(FGame.GetLanguage),
+      Translate(death.GetTime.GetMonthString),
+      IntToStr(death.GetTime.GetYear)
+    ]);
+  end;
+end;
+
+destructor TSoldierMemorialState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSoldierMemorialState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+  FGame.GetMod.PlayMusic('GMGEO');
+end;
+
+procedure TSoldierMemorialState.BtnStatisticsClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TStatisticsState.Create(Self));
+end;
+
+procedure TSoldierMemorialState.LstSoldiersClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSoldierInfoState.Create(Self, nil, FLstSoldiers.GetSelectedRow));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SoldierDiaryOverviewState.pas;encoding=utf8;eol=lf⟧
+unit SoldierDiaryOverviewState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Base, Savegame.Soldier, Savegame.SoldierDiary,
+  Savegame.SavedGame, Savegame.MissionStatistics,
+  SoldierDiaryMissionState, SoldierDiaryPerformanceState,
+  SoldierInfoState;
+
+type
+  TSoldierDiaryOverviewState = class(TState)
+  private
+    FBase: TBase;
+    FSoldierId: Integer;
+    FSoldierInfoState: TSoldierInfoState;
+    FSoldier: TSoldier;
+    FList: TList<TSoldier>;
+
+    FBtnOk, FBtnPrev, FBtnNext, FBtnKills, FBtnMissions, FBtnCommendations: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtMission, FTxtRating, FTxtDate: TText;
+    FLstDiary: TTextList;
+
+    procedure LstDiaryInfoClick(Sender: TObject; Action: TAction);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; SoldierId: Integer; SoldierInfoState: TSoldierInfoState);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure SetSoldierId(Soldier: Integer);
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnPrevClick(Sender: TObject; Action: TAction);
+    procedure BtnNextClick(Sender: TObject; Action: TAction);
+    procedure BtnKillsClick(Sender: TObject; Action: TAction);
+    procedure BtnMissionsClick(Sender: TObject; Action: TAction);
+    procedure BtnCommendationsClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TSoldierDiaryOverviewState.Create(AOwner: TComponent; Base: TBase; SoldierId: Integer; SoldierInfoState: TSoldierInfoState);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FSoldierId := SoldierId;
+  FSoldierInfoState := SoldierInfoState;
+
+  if FBase = nil then
+    FList := FGame.GetSavedGame.GetDeadSoldiers
+  else
+    FList := FBase.GetSoldiers;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnKills := TTextButton.Create(70, 16, 8, 176);
+  FBtnMissions := TTextButton.Create(70, 16, 86, 176);
+  FBtnCommendations := TTextButton.Create(70, 16, 164, 176);
+  FBtnOk := TTextButton.Create(70, 16, 242, 176);
+  FBtnPrev := TTextButton.Create(28, 14, 8, 8);
+  FBtnNext := TTextButton.Create(28, 14, 284, 8);
+  FTxtTitle := TText.Create(310, 16, 5, 8);
+  FTxtMission := TText.Create(114, 9, 16, 36);
+  FTxtRating := TText.Create(102, 9, 120, 36);
+  FTxtDate := TText.Create(90, 9, 218, 36);
+  FLstDiary := TTextList.Create(288, 120, 8, 44);
+
+  SetInterface('soldierDiary');
+  Add(FWindow, 'window', 'soldierDiary');
+  Add(FBtnOk, 'button', 'soldierDiary');
+  Add(FBtnKills, 'button', 'soldierDiary');
+  Add(FBtnMissions, 'button', 'soldierDiary');
+  Add(FBtnCommendations, 'button', 'soldierDiary');
+  Add(FBtnPrev, 'button', 'soldierDiary');
+  Add(FBtnNext, 'button', 'soldierDiary');
+  Add(FTxtTitle, 'text1', 'soldierDiary');
+  Add(FTxtMission, 'text2', 'soldierDiary');
+  Add(FTxtRating, 'text2', 'soldierDiary');
+  Add(FTxtDate, 'text2', 'soldierDiary');
+  Add(FLstDiary, 'list', 'soldierDiary');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK02.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnKills.SetText(Translate('STR_COMBAT'));
+  FBtnKills.OnMouseClick := BtnKillsClick;
+  FBtnMissions.SetText(Translate('STR_PERFORMANCE'));
+  FBtnMissions.OnMouseClick := BtnMissionsClick;
+  FBtnCommendations.SetText(Translate('STR_AWARDS'));
+  FBtnCommendations.OnMouseClick := BtnCommendationsClick;
+  FBtnCommendations.Visible := not FGame.GetMod.GetCommendationsList.IsEmpty;
+
+  if FBase = nil then
+  begin
+    FBtnPrev.OnMouseClick := BtnNextClick;
+    FBtnPrev.OnKeyboardPress := BtnNextClick;
+    FBtnNext.OnMouseClick := BtnPrevClick;
+    FBtnNext.OnKeyboardPress := BtnPrevClick;
+  end
+  else
+  begin
+    FBtnPrev.OnMouseClick := BtnPrevClick;
+    FBtnPrev.OnKeyboardPress := BtnPrevClick;
+    FBtnNext.OnMouseClick := BtnNextClick;
+    FBtnNext.OnKeyboardPress := BtnNextClick;
+  end;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtMission.SetText(Translate('STR_MISSION'));
+  FTxtRating.SetText(Translate('STR_RATING_UC'));
+  FTxtDate.SetText(Translate('STR_DATE_UC'));
+
+  FLstDiary.SetColumns([104, 98, 30, 25, 35]);
+  FLstDiary.SetSelectable(True);
+  FLstDiary.SetBackground(FWindow);
+  FLstDiary.SetMargin(8);
+  FLstDiary.OnMouseClick := LstDiaryInfoClick;
+end;
+
+destructor TSoldierDiaryOverviewState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSoldierDiaryOverviewState.Init;
+var
+  missionStats: TList<TMissionStatistics>;
+  mission: TMissionStatistics;
+  row: Integer;
+  wasOnMission: Boolean;
+begin
+  inherited;
+  if FList.Count = 0 then
+  begin
+    FGame.PopState;
+    Exit;
+  end;
+  if FSoldierId >= FList.Count then
+    FSoldierId := 0;
+  FSoldier := FList[FSoldierId];
+  FTxtTitle.SetText(FSoldier.GetName);
+  FLstDiary.ClearList;
+
+  missionStats := FGame.GetSavedGame.GetMissionStatistics;
+  row := 0;
+  for mission in missionStats do
+  begin
+    wasOnMission := False;
+    for id in FSoldier.GetDiary.GetMissionIdList do
+      if mission.Id = id then
+      begin
+        wasOnMission := True;
+        Break;
+      end;
+    if not wasOnMission then Continue;
+
+    FLstDiary.AddRow([
+      mission.GetMissionName(FGame.GetLanguage),
+      mission.GetRatingString(FGame.GetLanguage),
+      mission.Time.GetDayString(FGame.GetLanguage),
+      Translate(mission.Time.GetMonthString),
+      IntToStr(mission.Time.GetYear)
+    ]);
+    Inc(row);
+  end;
+  if (row > 0) and (FLstDiary.GetScroll >= row) then
+    FLstDiary.ScrollTo(0);
+end;
+
+procedure TSoldierDiaryOverviewState.SetSoldierId(Soldier: Integer);
+begin
+  FSoldierId := Soldier;
+end;
+
+procedure TSoldierDiaryOverviewState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FSoldierInfoState.SetSoldierId(FSoldierId);
+  FGame.PopState;
+end;
+
+procedure TSoldierDiaryOverviewState.BtnPrevClick(Sender: TObject; Action: TAction);
+begin
+  if FSoldierId = 0 then
+    FSoldierId := FList.Count - 1
+  else
+    Dec(FSoldierId);
+  Init;
+end;
+
+procedure TSoldierDiaryOverviewState.BtnNextClick(Sender: TObject; Action: TAction);
+begin
+  Inc(FSoldierId);
+  if FSoldierId >= FList.Count then
+    FSoldierId := 0;
+  Init;
+end;
+
+procedure TSoldierDiaryOverviewState.BtnKillsClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSoldierDiaryPerformanceState.Create(Self, FBase, FSoldierId, Self, DIARY_KILLS));
+end;
+
+procedure TSoldierDiaryOverviewState.BtnMissionsClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSoldierDiaryPerformanceState.Create(Self, FBase, FSoldierId, Self, DIARY_MISSIONS));
+end;
+
+procedure TSoldierDiaryOverviewState.BtnCommendationsClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSoldierDiaryPerformanceState.Create(Self, FBase, FSoldierId, Self, DIARY_COMMENDATIONS));
+end;
+
+procedure TSoldierDiaryOverviewState.LstDiaryInfoClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSoldierDiaryMissionState.Create(Self, FSoldier, FLstDiary.GetSelectedRow));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SoldierDiaryPerformanceState.pas;encoding=utf8;eol=lf⟧
+unit SoldierDiaryPerformanceState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Engine.SurfaceSet, Interface.TextButton, Interface.Window,
+  Interface.Text, Interface.TextList,
+  Savegame.Base, Savegame.Soldier, Savegame.SoldierDiary,
+  Mod.RuleCommendations, SoldierDiaryOverviewState;
+
+type
+  TSoldierDiaryDisplay = (DIARY_KILLS, DIARY_MISSIONS, DIARY_COMMENDATIONS);
+
+  TSoldierDiaryPerformanceState = class(TState)
+  private
+    FBase: TBase;
+    FSoldierId: Integer;
+    FSoldierDiaryOverviewState: TSoldierDiaryOverviewState;
+    FSoldier: TSoldier;
+    FList: TList<TSoldier>;
+
+    FBtnOk, FBtnPrev, FBtnNext, FBtnKills, FBtnMissions, FBtnCommendations: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtMedalName, FTxtMedalLevel, FTxtMedalInfo: TText;
+    FLstPerformance, FLstKillTotals, FLstMissionTotals, FLstCommendations: TTextList;
+    FCommendationsListEntry: TStringList;
+    FCommendations, FCommendationDecorations: TList<TSurface>;
+    FCommendationSprite, FCommendationDecoration: TSurfaceSet;
+    FDisplay: TSoldierDiaryDisplay;
+    FLastScrollPos: Integer;
+    FGroup: TTextButton;
+
+    procedure DrawSprites;
+    procedure LstInfoMouseOver(Sender: TObject; Action: TAction);
+    procedure LstInfoMouseOut(Sender: TObject; Action: TAction);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; SoldierId: Integer;
+      SoldierDiaryOverviewState: TSoldierDiaryOverviewState; Display: TSoldierDiaryDisplay);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure Think; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnPrevClick(Sender: TObject; Action: TAction);
+    procedure BtnNextClick(Sender: TObject; Action: TAction);
+    procedure BtnKillsToggle(Sender: TObject; Action: TAction);
+    procedure BtnMissionsToggle(Sender: TObject; Action: TAction);
+    procedure BtnCommendationsToggle(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TSoldierDiaryPerformanceState.Create(AOwner: TComponent; Base: TBase; SoldierId: Integer;
+  SoldierDiaryOverviewState: TSoldierDiaryOverviewState; Display: TSoldierDiaryDisplay);
+var
+  i: Integer;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FSoldierId := SoldierId;
+  FSoldierDiaryOverviewState := SoldierDiaryOverviewState;
+  FDisplay := Display;
+  FLastScrollPos := 0;
+
+  if FBase = nil then
+    FList := FGame.GetSavedGame.GetDeadSoldiers
+  else
+    FList := FBase.GetSoldiers;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnPrev := TTextButton.Create(28, 14, 8, 8);
+  FBtnNext := TTextButton.Create(28, 14, 284, 8);
+  FBtnKills := TTextButton.Create(70, 16, 8, 176);
+  FBtnMissions := TTextButton.Create(70, 16, 86, 176);
+  FBtnCommendations := TTextButton.Create(70, 16, 164, 176);
+  FBtnOk := TTextButton.Create(70, 16, 242, 176);
+  FTxtTitle := TText.Create(310, 16, 5, 8);
+  FLstPerformance := TTextList.Create(288, 128, 8, 28);
+  FLstKillTotals := TTextList.Create(302, 9, 8, 164);
+  FLstMissionTotals := TTextList.Create(302, 9, 8, 164);
+  FTxtMedalName := TText.Create(120, 18, 16, 36);
+  FTxtMedalLevel := TText.Create(120, 18, 186, 36);
+  FTxtMedalInfo := TText.Create(280, 32, 20, 135);
+  FLstCommendations := TTextList.Create(240, 80, 48, 52);
+
+  FCommendations := TList<TSurface>.Create;
+  FCommendationDecorations := TList<TSurface>.Create;
+  for i := 0 to 9 do
+  begin
+    FCommendations.Add(TSurface.Create(31, 8, 16, 52 + 8*i));
+    FCommendationDecorations.Add(TSurface.Create(31, 8, 16, 52 + 8*i));
+  end;
+
+  SetInterface('soldierDiaryPerformance');
+  Add(FWindow, 'window', 'soldierDiaryPerformance');
+  Add(FBtnOk, 'button', 'soldierDiaryPerformance');
+  Add(FBtnKills, 'button', 'soldierDiaryPerformance');
+  Add(FBtnMissions, 'button', 'soldierDiaryPerformance');
+  Add(FBtnCommendations, 'button', 'soldierDiaryPerformance');
+  Add(FBtnPrev, 'button', 'soldierDiaryPerformance');
+  Add(FBtnNext, 'button', 'soldierDiaryPerformance');
+  Add(FTxtTitle, 'text1', 'soldierDiaryPerformance');
+  Add(FLstPerformance, 'list', 'soldierDiaryPerformance');
+  Add(FLstKillTotals, 'text2', 'soldierDiaryPerformance');
+  Add(FLstMissionTotals, 'text2', 'soldierDiaryPerformance');
+  Add(FTxtMedalName, 'text2', 'soldierDiaryPerformance');
+  Add(FTxtMedalLevel, 'text2', 'soldierDiaryPerformance');
+  Add(FTxtMedalInfo, 'text2', 'soldierDiaryPerformance');
+  Add(FLstCommendations, 'list', 'soldierDiaryPerformance');
+  for i := 0 to 9 do
+  begin
+    Add(FCommendations[i]);
+    Add(FCommendationDecorations[i]);
+  end;
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK02.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnKills.SetText(Translate('STR_COMBAT'));
+  FBtnKills.OnMouseClick := BtnKillsToggle;
+  FBtnMissions.SetText(Translate('STR_PERFORMANCE'));
+  FBtnMissions.OnMouseClick := BtnMissionsToggle;
+  FBtnCommendations.SetText(Translate('STR_AWARDS'));
+  FBtnCommendations.OnMouseClick := BtnCommendationsToggle;
+
+  if FBase = nil then
+  begin
+    FBtnPrev.OnMouseClick := BtnNextClick;
+    FBtnPrev.OnKeyboardPress := BtnNextClick;
+    FBtnNext.OnMouseClick := BtnPrevClick;
+    FBtnNext.OnKeyboardPress := BtnPrevClick;
+  end
+  else
+  begin
+    FBtnPrev.OnMouseClick := BtnPrevClick;
+    FBtnPrev.OnKeyboardPress := BtnPrevClick;
+    FBtnNext.OnMouseClick := BtnNextClick;
+    FBtnNext.OnKeyboardPress := BtnNextClick;
+  end;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FLstPerformance.SetColumns([273, 15]);
+  FLstPerformance.SetDot(True);
+  FLstKillTotals.SetColumns([72, 72, 72, 86]);
+  FLstMissionTotals.SetColumns([72, 72, 72, 86]);
+  FTxtMedalName.SetText(Translate('STR_MEDAL_NAME'));
+  FTxtMedalLevel.SetText(Translate('STR_MEDAL_DECOR_LEVEL'));
+  FTxtMedalInfo.SetWordWrap(True);
+
+  FLstCommendations.SetColumns([138, 100]);
+  FLstCommendations.SetSelectable(True);
+  FLstCommendations.SetBackground(FWindow);
+  FLstCommendations.OnMouseOver := LstInfoMouseOver;
+  FLstCommendations.OnMouseOut := LstInfoMouseOut;
+
+  FBtnKills.SetGroup(@FGroup);
+  FBtnMissions.SetGroup(@FGroup);
+  FBtnCommendations.SetGroup(@FGroup);
+  if FDisplay = DIARY_KILLS then
+    FGroup := FBtnKills
+  else if FDisplay = DIARY_MISSIONS then
+    FGroup := FBtnMissions
+  else
+    FGroup := FBtnCommendations;
+end;
+
+destructor TSoldierDiaryPerformanceState.Destroy;
+begin
+  FCommendations.Free;
+  FCommendationDecorations.Free;
+  inherited;
+end;
+
+procedure TSoldierDiaryPerformanceState.Init;
+var
+  mapArray: array[0..2] of TDictionary<string, Integer>;
+  titleArray: array[0..2] of string;
+  i: Integer;
+  pair: TPair<string, Integer>;
+  commendation: TRuleCommendations;
+  comm: TSoldierCommendations;
+begin
+  inherited;
+  // clear sprites
+  for i := 0 to 9 do
+  begin
+    FCommendations[i].Clear;
+    FCommendationDecorations[i].Clear;
+  end;
+  FLstPerformance.ScrollTo(0);
+  FLstKillTotals.ScrollTo(0);
+  FLstMissionTotals.ScrollTo(0);
+  FLstCommendations.ScrollTo(0);
+  FLastScrollPos := 0;
+
+  FLstPerformance.Visible := (FDisplay <> DIARY_COMMENDATIONS);
+  FLstKillTotals.Visible := (FDisplay = DIARY_KILLS);
+  FLstMissionTotals.Visible := (FDisplay = DIARY_MISSIONS);
+  FTxtMedalName.Visible := (FDisplay = DIARY_COMMENDATIONS);
+  FTxtMedalLevel.Visible := (FDisplay = DIARY_COMMENDATIONS);
+  FTxtMedalInfo.Visible := (FDisplay = DIARY_COMMENDATIONS);
+  FLstCommendations.Visible := (FDisplay = DIARY_COMMENDATIONS);
+  FBtnCommendations.Visible := not FGame.GetMod.GetCommendationsList.IsEmpty;
+
+  if FList.Count = 0 then
+  begin
+    FGame.PopState;
+    Exit;
+  end;
+  if FSoldierId >= FList.Count then
+    FSoldierId := 0;
+  FSoldier := FList[FSoldierId];
+  FLstKillTotals.ClearList;
+  FLstMissionTotals.ClearList;
+  FCommendationsListEntry := TStringList.Create;
+  FTxtTitle.SetText(FSoldier.GetName);
+  FLstPerformance.ClearList;
+  FLstCommendations.ClearList;
+
+  if FDisplay = DIARY_KILLS then
+  begin
+    mapArray[0] := FSoldier.GetDiary.GetAlienRaceTotal;
+    mapArray[1] := FSoldier.GetDiary.GetAlienRankTotal;
+    mapArray[2] := FSoldier.GetDiary.GetWeaponTotal;
+    titleArray[0] := 'STR_NEUTRALIZATIONS_BY_RACE';
+    titleArray[1] := 'STR_NEUTRALIZATIONS_BY_RANK';
+    titleArray[2] := 'STR_NEUTRALIZATIONS_BY_WEAPON';
+
+    for i := 0 to 2 do
+    begin
+      FLstPerformance.AddRow([Translate(titleArray[i])]);
+      FLstPerformance.SetRowColor(FLstPerformance.GetRows-1, FLstPerformance.GetSecondaryColor);
+      for pair in mapArray[i] do
+        FLstPerformance.AddRow([Translate(pair.Key), IntToStr(pair.Value)]);
+      if i <> 2 then FLstPerformance.AddRow(['']);
+    end;
+
+    if (FSoldier.GetCurrentStats.PsiSkill > 0) or
+       (Options.PsiStrengthEval and FGame.GetSavedGame.IsResearched(FGame.GetMod.GetPsiRequirements)) then
+      FLstKillTotals.AddRow([
+        Translate('STR_KILLS').Arg(FSoldier.GetDiary.GetKillTotal),
+        Translate('STR_STUNS').Arg(FSoldier.GetDiary.GetStunTotal),
+        Translate('STR_DIARY_ACCURACY').Arg(FSoldier.GetDiary.GetAccuracy),
+        Translate('STR_MINDCONTROLS').Arg(FSoldier.GetDiary.GetControlTotal)
+      ])
+    else
+      FLstKillTotals.AddRow([
+        Translate('STR_KILLS').Arg(FSoldier.GetDiary.GetKillTotal),
+        Translate('STR_STUNS').Arg(FSoldier.GetDiary.GetStunTotal),
+        Translate('STR_DIARY_ACCURACY').Arg(FSoldier.GetDiary.GetAccuracy)
+      ]);
+  end
+  else if FDisplay = DIARY_MISSIONS then
+  begin
+    mapArray[0] := FSoldier.GetDiary.GetRegionTotal(FGame.GetSavedGame.GetMissionStatistics);
+    mapArray[1] := FSoldier.GetDiary.GetTypeTotal(FGame.GetSavedGame.GetMissionStatistics);
+    mapArray[2] := FSoldier.GetDiary.GetUFOTotal(FGame.GetSavedGame.GetMissionStatistics);
+    titleArray[0] := 'STR_MISSIONS_BY_LOCATION';
+    titleArray[1] := 'STR_MISSIONS_BY_TYPE';
+    titleArray[2] := 'STR_MISSIONS_BY_UFO';
+
+    for i := 0 to 2 do
+    begin
+      FLstPerformance.AddRow([Translate(titleArray[i])]);
+      FLstPerformance.SetRowColor(FLstPerformance.GetRows-1, FLstPerformance.GetSecondaryColor);
+      for pair in mapArray[i] do
+        if pair.Key <> 'NO_UFO' then
+          FLstPerformance.AddRow([Translate(pair.Key), IntToStr(pair.Value)]);
+      if i <> 2 then FLstPerformance.AddRow(['']);
+    end;
+
+    FLstMissionTotals.AddRow([
+      Translate('STR_MISSIONS').Arg(FSoldier.GetDiary.GetMissionTotal),
+      Translate('STR_WINS').Arg(FSoldier.GetDiary.GetWinTotal(FGame.GetSavedGame.GetMissionStatistics)),
+      Translate('STR_SCORE_VALUE').Arg(FSoldier.GetDiary.GetScoreTotal(FGame.GetSavedGame.GetMissionStatistics)),
+      Translate('STR_DAYS_WOUNDED').Arg(FSoldier.GetDiary.GetDaysWoundedTotal)
+    ]);
+  end
+  else if (FDisplay = DIARY_COMMENDATIONS) and (not FGame.GetMod.GetCommendationsList.IsEmpty) then
+  begin
+    for comm in FSoldier.GetDiary.GetSoldierCommendations do
+    begin
+      commendation := FGame.GetMod.GetCommendation(comm.GetType);
+      if comm.GetNoun <> 'noNoun' then
+      begin
+        FLstCommendations.AddRow([Translate(comm.GetType).Arg(Translate(comm.GetNoun)), Translate(comm.GetDecorationDescription)]);
+        FCommendationsListEntry.Add(Translate(commendation.GetDescription).Arg(Translate(comm.GetNoun)));
+      end
+      else
+      begin
+        FLstCommendations.AddRow([Translate(comm.GetType), Translate(comm.GetDecorationDescription)]);
+        FCommendationsListEntry.Add(Translate(commendation.GetDescription));
+      end;
+    end;
+    DrawSprites;
+  end;
+end;
+
+procedure TSoldierDiaryPerformanceState.DrawSprites;
+var
+  i, scrollDepth, idx: Integer;
+  comm: TSoldierCommendations;
+  commendation: TRuleCommendations;
+begin
+  if FDisplay <> DIARY_COMMENDATIONS then Exit;
+
+  FCommendationSprite := FGame.GetMod.GetSurfaceSet('Commendations');
+  FCommendationDecoration := FGame.GetMod.GetSurfaceSet('CommendationDecorations');
+
+  for i := 0 to 9 do
+  begin
+    FCommendations[i].Clear;
+    FCommendationDecorations[i].Clear;
+  end;
+
+  scrollDepth := FLstCommendations.GetScroll;
+  idx := 0;
+  for comm in FSoldier.GetDiary.GetSoldierCommendations do
+  begin
+    if (idx < scrollDepth) or (idx - scrollDepth >= 10) then
+    begin
+      Inc(idx);
+      Continue;
+    end;
+    commendation := FGame.GetMod.GetCommendation(comm.GetType);
+    FCommendationSprite.GetFrame(commendation.GetSprite).SetX(0);
+    FCommendationSprite.GetFrame(commendation.GetSprite).SetY(0);
+    FCommendationSprite.GetFrame(commendation.GetSprite).Blit(FCommendations[idx - scrollDepth]);
+
+    if comm.GetDecorationLevelInt <> 0 then
+    begin
+      FCommendationDecoration.GetFrame(comm.GetDecorationLevelInt).SetX(0);
+      FCommendationDecoration.GetFrame(comm.GetDecorationLevelInt).SetY(0);
+      FCommendationDecoration.GetFrame(comm.GetDecorationLevelInt).Blit(FCommendationDecorations[idx - scrollDepth]);
+    end;
+    Inc(idx);
+  end;
+end;
+
+procedure TSoldierDiaryPerformanceState.Think;
+begin
+  inherited;
+  if FLastScrollPos <> FLstCommendations.GetScroll then
+  begin
+    DrawSprites;
+    FLastScrollPos := FLstCommendations.GetScroll;
+  end;
+end;
+
+procedure TSoldierDiaryPerformanceState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FSoldierDiaryOverviewState.SetSoldierId(FSoldierId);
+  FGame.PopState;
+end;
+
+procedure TSoldierDiaryPerformanceState.BtnPrevClick(Sender: TObject; Action: TAction);
+begin
+  if FSoldierId = 0 then
+    FSoldierId := FList.Count - 1
+  else
+    Dec(FSoldierId);
+  Init;
+end;
+
+procedure TSoldierDiaryPerformanceState.BtnNextClick(Sender: TObject; Action: TAction);
+begin
+  Inc(FSoldierId);
+  if FSoldierId >= FList.Count then
+    FSoldierId := 0;
+  Init;
+end;
+
+procedure TSoldierDiaryPerformanceState.BtnKillsToggle(Sender: TObject; Action: TAction);
+begin
+  FDisplay := DIARY_KILLS;
+  Init;
+end;
+
+procedure TSoldierDiaryPerformanceState.BtnMissionsToggle(Sender: TObject; Action: TAction);
+begin
+  FDisplay := DIARY_MISSIONS;
+  Init;
+end;
+
+procedure TSoldierDiaryPerformanceState.BtnCommendationsToggle(Sender: TObject; Action: TAction);
+begin
+  FDisplay := DIARY_COMMENDATIONS;
+  Init;
+end;
+
+procedure TSoldierDiaryPerformanceState.LstInfoMouseOver(Sender: TObject; Action: TAction);
+var
+  sel: Integer;
+begin
+  sel := FLstCommendations.GetSelectedRow;
+  if (sel >= 0) and (sel < FCommendationsListEntry.Count) then
+    FTxtMedalInfo.SetText(FCommendationsListEntry[sel])
+  else
+    FTxtMedalInfo.SetText('');
+end;
+
+procedure TSoldierDiaryPerformanceState.LstInfoMouseOut(Sender: TObject; Action: TAction);
+begin
+  FTxtMedalInfo.SetText('');
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SoldierDiaryMissionState.pas;encoding=utf8;eol=lf⟧
+unit SoldierDiaryMissionState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.SavedGame, Savegame.Soldier, Savegame.SoldierDiary,
+  Savegame.MissionStatistics, Savegame.BattleUnitStatistics;
+
+type
+  TSoldierDiaryMissionState = class(TState)
+  private
+    FSoldier: TSoldier;
+    FRowEntry: Integer;
+    FBtnOk, FBtnPrev, FBtnNext: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtUFO, FTxtScore, FTxtKills, FTxtLocation, FTxtRace, FTxtDaylight, FTxtDaysWounded: TText;
+    FTxtNoRecord: TText;
+    FLstKills: TTextList;
+  public
+    constructor Create(AOwner: TComponent; Soldier: TSoldier; RowEntry: Integer);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnPrevClick(Sender: TObject; Action: TAction);
+    procedure BtnNextClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TSoldierDiaryMissionState.Create(AOwner: TComponent; Soldier: TSoldier; RowEntry: Integer);
+begin
+  inherited Create(AOwner);
+  FSoldier := Soldier;
+  FRowEntry := RowEntry;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 300, 128, 10, 36, POPUP_HORIZONTAL);
+  FBtnOk := TTextButton.Create(240, 16, 40, 140);
+  FBtnPrev := TTextButton.Create(28, 14, 18, 44);
+  FBtnNext := TTextButton.Create(28, 14, 274, 44);
+  FTxtTitle := TText.Create(262, 9, 29, 44);
+  FTxtUFO := TText.Create(262, 9, 29, 52);
+  FTxtScore := TText.Create(180, 9, 29, 68);
+  FTxtKills := TText.Create(120, 9, 169, 68);
+  FTxtLocation := TText.Create(180, 9, 29, 76);
+  FTxtRace := TText.Create(120, 9, 169, 76);
+  FTxtDaylight := TText.Create(120, 9, 169, 84);
+  FTxtDaysWounded := TText.Create(180, 9, 29, 84);
+  FTxtNoRecord := TText.Create(240, 9, 29, 100);
+  FLstKills := TTextList.Create(270, 32, 20, 100);
+
+  SetInterface('soldierDiaryMission');
+  Add(FWindow, 'window', 'soldierDiaryMission');
+  Add(FBtnOk, 'button', 'soldierDiaryMission');
+  Add(FBtnPrev, 'button', 'soldierDiaryMission');
+  Add(FBtnNext, 'button', 'soldierDiaryMission');
+  Add(FTxtTitle, 'text', 'soldierDiaryMission');
+  Add(FTxtUFO, 'text', 'soldierDiaryMission');
+  Add(FTxtScore, 'text', 'soldierDiaryMission');
+  Add(FTxtKills, 'text', 'soldierDiaryMission');
+  Add(FTxtLocation, 'text', 'soldierDiaryMission');
+  Add(FTxtRace, 'text', 'soldierDiaryMission');
+  Add(FTxtDaylight, 'text', 'soldierDiaryMission');
+  Add(FTxtDaysWounded, 'text', 'soldierDiaryMission');
+  Add(FTxtNoRecord, 'text', 'soldierDiaryMission');
+  Add(FLstKills, 'list', 'soldierDiaryMission');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK16.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnPrev.SetText('<<');
+  FBtnPrev.OnMouseClick := BtnPrevClick;
+  FBtnPrev.OnKeyboardPress := BtnPrevClick;
+  FBtnNext.SetText('>>');
+  FBtnNext.OnMouseClick := BtnNextClick;
+  FBtnNext.OnKeyboardPress := BtnNextClick;
+
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtUFO.SetAlign(ALIGN_CENTER);
+  FLstKills.SetColumns([60, 110, 100]);
+end;
+
+destructor TSoldierDiaryMissionState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSoldierDiaryMissionState.Init;
+var
+  missionStats: TList<TMissionStatistics>;
+  missionId: Integer;
+  mission: TMissionStatistics;
+  daysWounded: Integer;
+  kill: TBattleUnitKills;
+  kills, stunOrKill: Integer;
+begin
+  inherited;
+  if FSoldier.GetDiary.GetMissionIdList.IsEmpty then
+  begin
+    FGame.PopState;
+    Exit;
+  end;
+  missionStats := FGame.GetSavedGame.GetMissionStatistics;
+  missionId := FSoldier.GetDiary.GetMissionIdList[FRowEntry];
+  if missionId >= missionStats.Count then
+    missionId := 0;
+  mission := missionStats[missionId];
+
+  FLstKills.ClearList;
+  FTxtTitle.SetText(Translate(mission.Type));
+  if mission.IsUfoMission then
+    FTxtUFO.SetText(Translate(mission.UFO))
+  else
+    FTxtUFO.SetText('');
+  FTxtUFO.Visible := mission.IsUfoMission;
+  FTxtScore.SetText(Translate('STR_SCORE_VALUE').Arg(mission.Score));
+  FTxtLocation.SetText(Translate('STR_LOCATION').Arg(Translate(mission.GetLocationString)));
+  FTxtRace.SetText(Translate('STR_RACE_TYPE').Arg(Translate(mission.AlienRace)));
+  FTxtRace.Visible := (mission.AlienRace <> 'STR_UNKNOWN');
+  FTxtDaylight.SetText(Translate('STR_DAYLIGHT_TYPE').Arg(Translate(mission.GetDaylightString)));
+  daysWounded := mission.InjuryList[FSoldier.Id];
+  FTxtDaysWounded.SetText(Translate('STR_DAYS_WOUNDED').Arg(daysWounded));
+  FTxtDaysWounded.Visible := (daysWounded <> 0);
+
+  kills := 0;
+  stunOrKill := 0;
+  for kill in FSoldier.GetDiary.GetKills do
+  begin
+    if kill.Mission <> missionId then Continue;
+    case kill.Status of
+      STATUS_DEAD: Inc(kills);
+      STATUS_UNCONSCIOUS, STATUS_PANICKING, STATUS_TURNING: ; // fall through
+    else
+      stunOrKill := 1;
+    end;
+    FLstKills.AddRow([
+      Translate(kill.GetKillStatusString),
+      kill.GetUnitName(FGame.GetLanguage),
+      Translate(kill.Weapon)
+    ]);
+  end;
+
+  FTxtNoRecord.SetAlign(ALIGN_CENTER);
+  FTxtNoRecord.SetText(Translate('STR_NO_RECORD'));
+  FTxtNoRecord.Visible := (stunOrKill = 0);
+  FTxtKills.SetText(Translate('STR_KILLS').Arg(kills));
+end;
+
+procedure TSoldierDiaryMissionState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TSoldierDiaryMissionState.BtnPrevClick(Sender: TObject; Action: TAction);
+begin
+  if FRowEntry = 0 then
+    FRowEntry := FSoldier.GetDiary.GetMissionTotal - 1
+  else
+    Dec(FRowEntry);
+  Init;
+end;
+
+procedure TSoldierDiaryMissionState.BtnNextClick(Sender: TObject; Action: TAction);
+begin
+  Inc(FRowEntry);
+  if FRowEntry >= FSoldier.GetDiary.GetMissionTotal then
+    FRowEntry := 0;
+  Init;
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

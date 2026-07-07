@@ -1,0 +1,2269 @@
+﻿⟦PART:id=A2DA8AE872284815B12F9E72509ABC87;part=3;total=3;sha256=30fc8a4acd050e80a5d2bce6800e8cf67719101656c486bc363e78ac0303ab4e;type=bundle⟧
+		if (!_itemL->getRules()->isTwoHanded())
+		{
+			if (_drawingRoutine == 10)
+			{
+				itemL->setX(offX4[unitDir]);
+				itemL->setY(offY4[unitDir]);
+			}
+			else
+			{
+				itemL->setX(offX2[unitDir]);
+				itemL->setY(offY2[unitDir]);
+			}
+		}
+		else
+		{
+			itemL->setX(0);
+			itemL->setY(0);
+			rightArm = _unitSurface->getFrame(rarm2H + unitDir);
+		}
+
+		if (_unit->getStatus() == STATUS_AIMING && _itemL->getRules()->isTwoHanded())
+		{
+			int dir = (unitDir + 2)%8;
+			itemL = _itemSurfaceL->getFrame(_itemL->getRules()->getHandSprite() + dir);
+			if (_drawingRoutine == 10)
+			{
+				itemL->setX(offX7[unitDir]);
+				itemL->setY(offY7[unitDir]);
+			}
+			else
+			{
+				itemL->setX(offX6[unitDir]);
+				itemL->setY(offY6[unitDir]);
+			}
+			rightArm = _unitSurface->getFrame(rarmShoot + unitDir);
+		}
+
+		if (_unit->getStatus() == STATUS_WALKING)
+		{
+			itemL->setY(itemL->getY() + torsoHandsWeaponY);
+			leftArm->setY(torsoHandsWeaponY);
+			if (_itemL->getRules()->isTwoHanded())
+				rightArm->setY(torsoHandsWeaponY);
+		}
+	}
+	// offset everything but legs when kneeled
+	if (_unit->isKneeled())
+	{
+		if (_drawingRoutine == 13) // tftd torsos are stubby.
+		{
+			leftArm->setY(offYKneel + 1);
+			rightArm->setY(offYKneel + 1);
+			torso->setY(offYKneel + 1);
+			itemR?itemR->setY(itemR->getY() + offYKneel + 1):void();
+			itemL?itemL->setY(itemL->getY() + offYKneel + 1):void();
+		}
+		else
+		{
+			leftArm->setY(offYKneel);
+			rightArm->setY(offYKneel);
+			torso->setY(offYKneel);
+			itemR?itemR->setY(itemR->getY() + offYKneel):void();
+			itemL?itemL->setY(itemL->getY() + offYKneel):void();
+		}
+	}
+	else if (_unit->getStatus() != STATUS_WALKING)
+	{
+		leftArm->setY(0);
+		rightArm->setY(0);
+		torso->setY(0);
+	}
+
+	// items are calculated for soldier height (22) - some aliens are smaller, so item is drawn lower.
+	if (itemR)
+	{
+		itemR->setY(itemR->getY() + (soldierHeight - _unit->getStandHeight()));
+	}
+	if (itemL)
+	{
+		itemL->setY(itemL->getY() + (soldierHeight - _unit->getStandHeight()));
+	}
+
+	// offset everything to the left by 16 pixels.
+	// this is because we draw the sprites double wide, to accommodate weapons in-hand
+	torso->setX(offXSprite);
+	legs->setX(offXSprite);
+	leftArm->setX(offXSprite);
+	rightArm->setX(offXSprite);
+	if (itemR)
+		itemR->setX(itemR->getX() + offXSprite);
+	if (itemL)
+		itemL->setX(itemL->getX() + offXSprite);
+
+	// fix the errant muton arm.
+	if (!itemR && _drawingRoutine == 10 && _unit->getStatus() == STATUS_WALKING && unitDir == 2)
+	{
+		rightArm->setX(10);
+	}
+
+	// blit order depends on unit direction, and whether we are holding a 2 handed weapon.
+	switch (unitDir)
+	{
+	case 0: itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(leftArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(rightArm); break;
+	case 1: drawRecolored(leftArm); drawRecolored(legs); itemL?itemL->blit(this):void(); drawRecolored(torso); itemR?itemR->blit(this):void(); drawRecolored(rightArm); break;
+	case 2: drawRecolored(leftArm); drawRecolored(legs); drawRecolored(torso); itemL?itemL->blit(this):void(); itemR?itemR->blit(this):void(); drawRecolored(rightArm); break;
+	case 3:
+		if (_unit->getStatus() != STATUS_AIMING  && ((_itemR && _itemR->getRules()->isTwoHanded()) || (_itemL && _itemL->getRules()->isTwoHanded())))
+		{
+			drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(rightArm);
+		}
+		else
+		{
+			drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void();
+		}
+		break;
+	case 4:	drawRecolored(legs); drawRecolored(rightArm); drawRecolored(torso); drawRecolored(leftArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void();	break;
+	case 5:
+		if (_unit->getStatus() != STATUS_AIMING  && ((_itemR && _itemR->getRules()->isTwoHanded()) || (_itemL && _itemL->getRules()->isTwoHanded())))
+		{
+			drawRecolored(rightArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void();
+		}
+		else
+		{
+			drawRecolored(rightArm); drawRecolored(legs); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(torso); drawRecolored(leftArm);
+		}
+		break;
+	case 6: drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); break;
+	case 7:
+		if (_unit->getStatus() != STATUS_AIMING  && ((_itemR && _itemR->getRules()->isTwoHanded()) || (_itemL && _itemL->getRules()->isTwoHanded())))
+		{
+			drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(leftArm); drawRecolored(legs); drawRecolored(torso);
+		}
+		else
+		{
+			itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(leftArm); drawRecolored(rightArm); drawRecolored(legs); drawRecolored(torso);
+		}
+		break;
+	}
+	torso->setX(0);
+	legs->setX(0);
+	leftArm->setX(0);
+	rightArm->setX(0);
+	if (itemR)
+		itemR->setX(0);
+	if (itemL)
+		itemL->setX(0);
+}
+
+
+/**
+ * Drawing routine for floaters.
+ */
+void UnitSprite::drawRoutine1()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *torso = 0, *leftArm = 0, *rightArm = 0, *itemR = 0, *itemL = 0;
+	// magic numbers
+	const int stand = 16, walk = 24, die = 64;
+	const int larm = 8, rarm = 0, larm2H = 67, rarm2H = 75, rarmShoot = 83, rarm1H= 91; // note that arms are switched vs "normal" sheets
+	const int yoffWalk[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // bobbing up and down
+	const int offX[8] = { 8, 10, 7, 4, -9, -11, -7, -3 }; // for the weapons
+	const int offY[8] = { -6, -3, 0, 2, 0, -4, -7, -9 }; // for the weapons
+	const int offX2[8] = { -8, 3, 7, 13, 6, -3, -5, -13 }; // for the weapons
+	const int offY2[8] = { 1, -4, -1, 0, 3, 3, 5, 0 }; // for the weapons
+	const int offX3[8] = { 0, 6, 6, 12, -4, -5, -5, -13 }; // for the left handed rifles
+	const int offY3[8] = { -4, -4, -1, 0, 5, 0, 1, 0 }; // for the left handed rifles
+	const int offXSprite = 16; // sprites are double width
+
+	if (_unit->getStatus() == STATUS_COLLAPSING)
+	{
+		torso = _unitSurface->getFrame(die + _unit->getFallingPhase());
+		torso->setX(offXSprite);
+		drawRecolored(torso);
+		return;
+	}
+
+	const int unitDir = _unit->getDirection();
+	const int walkPhase = _unit->getWalkingPhase();
+
+	leftArm = _unitSurface->getFrame(larm + unitDir);
+	rightArm = _unitSurface->getFrame(rarm + unitDir);
+	// when walking, torso(fixed sprite) has to be animated up/down
+	if (_unit->getStatus() == STATUS_WALKING)
+	{
+		torso = _unitSurface->getFrame(walk + (5 * unitDir) + (walkPhase / 1.6)); // floater only has 5 walk animations instead of 8
+		torso->setY(yoffWalk[walkPhase]);
+	}
+	else
+	{
+		torso = _unitSurface->getFrame(stand + unitDir);
+	}
+
+	sortRifles();
+
+	// holding an item
+	if (_itemR)
+	{
+		// draw handob item
+		if (_unit->getStatus() == STATUS_AIMING && _itemR->getRules()->isTwoHanded())
+		{
+			int dir = (_unit->getDirection() + 2)%8;
+			itemR = _itemSurfaceR->getFrame(_itemR->getRules()->getHandSprite() + dir);
+			itemR->setX(offX[unitDir]);
+			itemR->setY(offY[unitDir]);
+		}
+		else
+		{
+			itemR = _itemSurfaceR->getFrame(_itemR->getRules()->getHandSprite() + unitDir);
+			itemR->setX(0);
+			itemR->setY(0);
+		}
+		// draw arms holding the item
+		if (_itemR->getRules()->isTwoHanded())
+		{
+			leftArm = _unitSurface->getFrame(larm2H + unitDir);
+			if (_unit->getStatus() == STATUS_AIMING)
+			{
+				rightArm = _unitSurface->getFrame(rarmShoot + unitDir);
+			}
+			else
+			{
+				rightArm = _unitSurface->getFrame(rarm2H + unitDir);
+			}
+		}
+		else
+		{
+			rightArm = _unitSurface->getFrame(rarm1H + unitDir);
+		}
+	}
+
+	//if we are left handed or dual wielding...
+	if (_itemL)
+	{
+		leftArm = _unitSurface->getFrame(larm2H + unitDir);
+		itemL = _itemSurfaceL->getFrame(_itemL->getRules()->getHandSprite() + unitDir);
+		if (!_itemL->getRules()->isTwoHanded())
+		{
+			itemL->setX(offX2[unitDir]);
+			itemL->setY(offY2[unitDir]);
+		}
+		else
+		{
+			itemL->setX(0);
+			itemL->setY(0);
+			rightArm = _unitSurface->getFrame(rarm2H + unitDir);
+		}
+
+		if (_unit->getStatus() == STATUS_AIMING && _itemL->getRules()->isTwoHanded())
+		{
+			int dir = (unitDir + 2)%8;
+			itemL = _itemSurfaceL->getFrame(_itemL->getRules()->getHandSprite() + dir);
+			itemL->setX(offX3[unitDir]);
+			itemL->setY(offY3[unitDir]);
+			rightArm = _unitSurface->getFrame(rarmShoot + unitDir);
+		}
+
+		if (_unit->getStatus() == STATUS_WALKING)
+		{
+			leftArm->setY(yoffWalk[walkPhase]);
+			itemL->setY(itemL->getY() + yoffWalk[walkPhase]);
+			if (_itemL->getRules()->isTwoHanded())
+				rightArm->setY(yoffWalk[walkPhase]);
+		}
+	}
+
+	if (_unit->getStatus() != STATUS_WALKING)
+	{
+		leftArm->setY(0);
+		rightArm->setY(0);
+		torso->setY(0);
+	}
+
+	// offset everything to the left by 16 pixels.
+	// this is because we draw the sprites double wide, to accommodate weapons in-hand
+	torso->setX(offXSprite);
+	leftArm->setX(offXSprite);
+	rightArm->setX(offXSprite);
+	if (itemR)
+		itemR->setX(itemR->getX() + offXSprite);
+	if (itemL)
+		itemL->setX(itemL->getX() + offXSprite);
+
+	// blit order depends on unit direction.
+	switch (unitDir)
+	{
+	case 0: itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(leftArm); drawRecolored(torso); drawRecolored(rightArm); break;
+	case 1: drawRecolored(leftArm); drawRecolored(torso); drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); break;
+	case 2: drawRecolored(leftArm); drawRecolored(torso); drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void();  break;
+	case 3:	drawRecolored(torso); drawRecolored(leftArm); drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); break;
+	case 4:	drawRecolored(torso); drawRecolored(leftArm); drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); break;
+	case 5:	drawRecolored(rightArm); drawRecolored(torso); drawRecolored(leftArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); break;
+	case 6: drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(torso); drawRecolored(leftArm); break;
+	case 7:	drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(leftArm); drawRecolored(torso); break;
+	}
+	torso->setX(0);
+	leftArm->setX(0);
+	rightArm->setX(0);
+	if (itemR)
+		itemR->setX(0);
+	if (itemL)
+		itemL->setX(0);
+}
+
+/**
+ * Drawing routine for XCom tanks.
+ */
+void UnitSprite::drawRoutine2()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	const int offX[8] = { -2, -7, -5, 0, 5, 7, 2, 0 }; // hovertank offsets
+	const int offy[8] = { -1, -3, -4, -5, -4, -3, -1, -1 }; // hovertank offsets
+	const int offXSprite = 16; // sprites are double width
+
+	Surface *s = 0;
+
+	const int hoverTank = _unit->getMovementType() == MT_FLY ? 32 : 0;
+	const int turret = _unit->getTurretType();
+
+	// draw the animated propulsion below the hwp
+	if (_part > 0 && hoverTank != 0)
+	{
+		s = _unitSurface->getFrame(104 + ((_part-1) * 8) + _animationFrame);
+		s->setX(offXSprite);
+		drawRecolored(s);
+	}
+
+	// draw the tank itself
+	s = _unitSurface->getFrame(hoverTank + (_part * 8) + _unit->getDirection());
+	s->setX(offXSprite);
+	drawRecolored(s);
+
+	// draw the turret, together with the last part
+	if (_part == 3 && turret != -1)
+	{
+		s = _unitSurface->getFrame(64 + (turret * 8) + _unit->getTurretDirection());
+		int turretOffsetX = 0;
+		int turretOffsetY = -4;
+		if (hoverTank)
+		{
+			turretOffsetX += offX[_unit->getDirection()];
+			turretOffsetY += offy[_unit->getDirection()];
+		}
+		s->setX(turretOffsetX + offXSprite);
+		s->setY(turretOffsetY);
+		drawRecolored(s);
+	}
+
+}
+
+/**
+ * Drawing routine for cyberdiscs. (3)
+ * and helicopters (22)
+ */
+void UnitSprite::drawRoutine3()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *s = 0;
+	const int offXSprite = 16; // sprites are double width
+
+	// draw the animated propulsion below the hwp
+	if (_drawingRoutine == 3)
+	{
+		if (_part > 0)
+		{
+			s = _unitSurface->getFrame(32 + ((_part-1) * 8) + _animationFrame);
+			s->setX(offXSprite);
+			drawRecolored(s);
+		}
+	}
+	s = _unitSurface->getFrame((_part * 8) + _unit->getDirection());
+
+	// offset everything to the left by 16 pixels.
+	// this is because we draw the sprites double wide, to accommodate weapons in-hand
+	s->setX(offXSprite);
+
+	drawRecolored(s);
+
+	// draw the animated propulsion above the hwp
+	if (_drawingRoutine == 22)
+	{
+		if (_part > 0)
+		{
+			s = _unitSurface->getFrame(32 + ((_part-1) * 8) + _animationFrame);
+			s->setX(offXSprite);
+			drawRecolored(s);
+		}
+	}
+}
+
+/**
+ * Drawing routine for civilians, ethereals, zombies (routine 4),
+ * tftd civilians, tftd zombies (routine 17), more tftd civilians (routine 18).
+ * Very easy: first 8 is standing positions, then 8 walking sequences of 8, finally death sequence of 3
+ */
+void UnitSprite::drawRoutine4()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *s = 0, *itemR = 0, *itemL = 0;
+	int stand = 0, walk = 8, die = 72;
+	const int offX[8] = { 8, 10, 7, 4, -9, -11, -7, -3 }; // for the weapons
+	const int offY[8] = { -6, -3, 0, 2, 0, -4, -7, -9 }; // for the weapons
+	const int offX2[8] = { -8, 3, 5, 12, 6, -1, -5, -13 }; // for the weapons
+	const int offY2[8] = { 1, -4, -2, 0, 3, 3, 5, 0 }; // for the weapons
+	const int offX3[8] = { 0, 6, 6, 12, -4, -5, -5, -13 }; // for the left handed rifles
+	const int offY3[8] = { -4, -4, -1, 0, 5, 0, 1, 0 }; // for the left handed rifles
+	const int standConvert[8] = { 3, 2, 1, 0, 7, 6, 5, 4 }; // array for converting stand frames for some tftd civilians
+	const int offXSprite = 16; // sprites are double width
+
+	if (_drawingRoutine == 17) // tftd civilian - first set
+	{
+		stand = 64;
+		walk = 0;
+	}
+	else if (_drawingRoutine == 18) // tftd civilian - second set
+	{
+		stand = 140;
+		walk = 76;
+		die = 148;
+	}
+
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	const int unitDir = _unit->getDirection();
+
+	if (_unit->getStatus() == STATUS_COLLAPSING)
+	{
+		s = _unitSurface->getFrame(die + _unit->getFallingPhase());
+		s->setX(offXSprite);
+		drawRecolored(s);
+		return;
+	}
+	else if (_unit->getStatus() == STATUS_WALKING)
+	{
+		s = _unitSurface->getFrame(walk + (8 * unitDir) + _unit->getWalkingPhase());
+	}
+	else if (_drawingRoutine != 17)
+	{
+		s = _unitSurface->getFrame(stand + unitDir);
+	}
+	else
+	{
+		s = _unitSurface->getFrame(stand + standConvert[unitDir]);
+	}
+
+	sortRifles();
+
+	if (_itemR && !_itemR->getRules()->isFixed())
+	{
+		// draw handob item
+		if (_unit->getStatus() == STATUS_AIMING && _itemR->getRules()->isTwoHanded())
+		{
+			int dir = (unitDir + 2)%8;
+			itemR = _itemSurfaceR->getFrame(_itemR->getRules()->getHandSprite() + dir);
+			itemR->setX(offX[unitDir]);
+			itemR->setY(offY[unitDir]);
+		}
+		else
+		{
+			if (_itemR->getSlot()->getId() == "STR_RIGHT_HAND")
+			{
+			itemR = _itemSurfaceR->getFrame(_itemR->getRules()->getHandSprite() + unitDir);
+			itemR->setX(0);
+			itemR->setY(0);
+			}
+			else
+			{
+			itemR = _itemSurfaceR->getFrame(_itemR->getRules()->getHandSprite() + unitDir);
+			itemR->setX(offX2[unitDir]);
+			itemR->setY(offY2[unitDir]);
+			}
+		}
+	}
+
+	//if we are dual wielding...
+	if (_itemL && !_itemL->getRules()->isFixed())
+	{
+		itemL = _itemSurfaceL->getFrame(_itemL->getRules()->getHandSprite() + unitDir);
+		if (!_itemL->getRules()->isTwoHanded())
+		{
+			itemL->setX(offX2[unitDir]);
+			itemL->setY(offY2[unitDir]);
+		}
+		else
+		{
+			itemL->setX(0);
+			itemL->setY(0);
+		}
+
+		if (_unit->getStatus() == STATUS_AIMING && _itemL->getRules()->isTwoHanded())
+		{
+			int dir = (unitDir + 2)%8;
+			itemL = _itemSurfaceL->getFrame(_itemL->getRules()->getHandSprite() + dir);
+			itemL->setX(offX3[unitDir]);
+			itemL->setY(offY3[unitDir]);
+		}
+	}
+
+	// offset everything to the right by 16 pixels.
+	// this is because we draw the sprites double wide, to accommodate weapons in-hand
+	s->setX(offXSprite);
+	if (itemR)
+		itemR->setX(itemR->getX() + offXSprite);
+	if (itemL)
+		itemL->setX(itemL->getX() + offXSprite);
+
+	switch (unitDir)
+	{
+	case 0: itemL?itemL->blit(this):void(); itemR?itemR->blit(this):void(); drawRecolored(s); break;
+	case 1: itemL?itemL->blit(this):void(); drawRecolored(s); itemR?itemR->blit(this):void(); break;
+	case 2: drawRecolored(s); itemL?itemL->blit(this):void(); itemR?itemR->blit(this):void(); break;
+	case 3: drawRecolored(s); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); break;
+	case 4: drawRecolored(s); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); break;
+	case 5: itemR?itemR->blit(this):void(); drawRecolored(s); itemL?itemL->blit(this):void(); break;
+	case 6: itemR?itemR->blit(this):void(); drawRecolored(s); itemL?itemL->blit(this):void(); break;
+	case 7: itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(s); break;
+	}
+	s->setX(0);
+	if (itemR)
+		itemR->setX(0);
+	if (itemL)
+		itemL->setX(0);
+}
+
+/**
+ * Drawing routine for sectopods and reapers.
+ */
+void UnitSprite::drawRoutine5()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *s = 0;
+	const int offXSprite = 16; // sprites are double width
+
+	if (_unit->getStatus() == STATUS_WALKING)
+	{
+		s = _unitSurface->getFrame( 32 + (_unit->getDirection() * 16) + (_part * 4) + ((_unit->getWalkingPhase() / 2) % 4));
+	}
+	else
+	{
+		s = _unitSurface->getFrame((_part * 8) + _unit->getDirection());
+	}
+
+	// offset everything to the right by 16 pixels.
+	// this is because we draw the sprites double wide, to accommodate weapons in-hand
+	s->setX(offXSprite);
+	drawRecolored(s);
+}
+
+/**
+ * Drawing routine for snakemen.
+ */
+void UnitSprite::drawRoutine6()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *torso = 0, *legs = 0, *leftArm = 0, *rightArm = 0, *itemR = 0, *itemL = 0;
+	// magic numbers
+	const int Torso = 24, legsStand = 16, die = 96;
+	const int larmStand = 0, rarmStand = 8, rarm1H = 99, larm2H = 107, rarm2H = 115, rarmShoot = 123;
+	const int legsWalk[8] = { 32, 40, 48, 56, 64, 72, 80, 88 };
+	const int yoffWalk[8] = {3, 3, 2, 1, 0, 0, 1, 2}; // bobbing up and down
+	const int xoffWalka[8] = {0, 0, 1, 2, 3, 3, 2, 1};
+	const int xoffWalkb[8] = {0, 0, -1, -2, -3, -3, -2, -1};
+	const int yoffStand[8] = {2, 1, 1, 0, 0, 0, 0, 0};
+	const int offX[8] = { 8, 10, 5, 2, -8, -10, -5, -2 }; // for the weapons
+	const int offY[8] = { -6, -3, 0, 0, 2, -3, -7, -9 }; // for the weapons
+	const int offX2[8] = { -8, 2, 7, 13, 7, 0, -3, -15 }; // for the weapons
+	const int offY2[8] = { 1, -4, -2, 0, 3, 3, 5, 0 }; // for the weapons
+	const int offX3[8] = { 0, 6, 6, 12, -4, -5, -5, -13 }; // for the left handed rifles
+	const int offY3[8] = { -4, -4, -1, 0, 5, 0, 1, 0 }; // for the left handed rifles
+	const int offXSprite = 16; // sprites are double width
+
+	if (_unit->getStatus() == STATUS_COLLAPSING)
+	{
+		torso = _unitSurface->getFrame(die + _unit->getFallingPhase());
+		torso->setX(offXSprite);
+		drawRecolored(torso);
+		return;
+	}
+
+	const int unitDir = _unit->getDirection();
+	const int walkPhase = _unit->getWalkingPhase();
+
+	torso = _unitSurface->getFrame(Torso + unitDir);
+	leftArm = _unitSurface->getFrame(larmStand + unitDir);
+	rightArm = _unitSurface->getFrame(rarmStand + unitDir);
+
+
+	// when walking, torso(fixed sprite) has to be animated up/down
+	if (_unit->getStatus() == STATUS_WALKING)
+	{
+		int xoffWalk = 0;
+		if (unitDir < 3)
+			xoffWalk = xoffWalka[walkPhase];
+		if (unitDir < 7 && unitDir > 3)
+			xoffWalk = xoffWalkb[walkPhase];
+		torso->setY(yoffWalk[walkPhase]);
+		torso->setX(xoffWalk);
+		legs = _unitSurface->getFrame(legsWalk[unitDir] + walkPhase);
+		rightArm->setY(yoffWalk[walkPhase]);
+		leftArm->setY(yoffWalk[walkPhase]);
+		rightArm->setX(xoffWalk);
+		leftArm->setX(xoffWalk);
+	}
+	else
+	{
+		legs = _unitSurface->getFrame(legsStand + unitDir);
+	}
+
+	sortRifles();
+
+	// holding an item
+	if (_itemR)
+	{
+		// draw handob item
+		if (_unit->getStatus() == STATUS_AIMING && _itemR->getRules()->isTwoHanded())
+		{
+			int dir = (unitDir + 2)%8;
+			itemR = _itemSurfaceR->getFrame(_itemR->getRules()->getHandSprite() + dir);
+			itemR->setX(offX[unitDir]);
+			itemR->setY(offY[unitDir]);
+		}
+		else
+		{
+			itemR = _itemSurfaceR->getFrame(_itemR->getRules()->getHandSprite() + unitDir);
+			itemR->setX(0);
+			itemR->setY(0);
+			if (!_itemR->getRules()->isTwoHanded())
+			{
+				itemR->setY(yoffStand[unitDir]);
+			}
+		}
+
+
+		// draw arms holding the item
+		if (_itemR->getRules()->isTwoHanded())
+		{
+			leftArm = _unitSurface->getFrame(larm2H + unitDir);
+			if (_unit->getStatus() == STATUS_AIMING)
+			{
+				rightArm = _unitSurface->getFrame(rarmShoot + unitDir);
+			}
+			else
+			{
+				rightArm = _unitSurface->getFrame(rarm2H + unitDir);
+			}
+		}
+		else
+		{
+			rightArm = _unitSurface->getFrame(rarm1H + unitDir);
+		}
+
+
+		// the fixed arm(s) have to be animated up/down when walking
+		if (_unit->getStatus() == STATUS_WALKING)
+		{
+			itemR->setY(yoffWalk[walkPhase]);
+			rightArm->setY(yoffWalk[walkPhase]);
+			if (_itemR->getRules()->isTwoHanded())
+				leftArm->setY(yoffWalk[walkPhase]);
+		}
+	}
+	//if we are left handed or dual wielding...
+	if (_itemL)
+	{
+		leftArm = _unitSurface->getFrame(larm2H + unitDir);
+		itemL = _itemSurfaceL->getFrame(_itemL->getRules()->getHandSprite() + unitDir);
+		if (!_itemL->getRules()->isTwoHanded())
+		{
+			itemL->setX(offX2[unitDir]);
+			itemL->setY(offY2[unitDir]);
+		}
+		else
+		{
+			itemL->setX(0);
+			itemL->setY(0);
+			if (!_itemL->getRules()->isTwoHanded())
+			{
+				itemL->setY(yoffStand[unitDir]);
+			}
+			rightArm = _unitSurface->getFrame(rarm2H + unitDir);
+		}
+
+		if (_unit->getStatus() == STATUS_AIMING && _itemL->getRules()->isTwoHanded())
+		{
+			int dir = (unitDir + 2)%8;
+			itemL = _itemSurfaceL->getFrame(_itemL->getRules()->getHandSprite() + dir);
+			itemL->setX(offX3[unitDir]);
+			itemL->setY(offY3[unitDir]);
+			rightArm = _unitSurface->getFrame(rarmShoot + unitDir);
+		}
+
+		if (_unit->getStatus() == STATUS_WALKING)
+		{
+			leftArm->setY(yoffWalk[walkPhase]);
+			itemL->setY(offY2[unitDir] + yoffWalk[walkPhase]);
+			if (_itemL->getRules()->isTwoHanded())
+				rightArm->setY(yoffWalk[walkPhase]);
+		}
+	}
+	// offset everything but legs when kneeled
+	if (_unit->getStatus() != STATUS_WALKING)
+	{
+		leftArm->setY(0);
+		rightArm->setY(0);
+		torso->setY(0);
+	}
+	// offset everything to the right by 16 pixels.
+	// this is because we draw the sprites double wide, to accommodate weapons in-hand
+	torso->setX(offXSprite);
+	legs->setX(offXSprite);
+	leftArm->setX(offXSprite);
+	rightArm->setX(offXSprite);
+	if (itemR)
+		itemR->setX(itemR->getX() + offXSprite);
+	if (itemL)
+		itemL->setX(itemL->getX() + offXSprite);
+
+	// blit order depends on unit direction.
+	switch (unitDir)
+	{
+	case 0: itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(leftArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(rightArm); break;
+	case 1: drawRecolored(leftArm); drawRecolored(legs); itemL?itemL->blit(this):void(); drawRecolored(torso); itemR?itemR->blit(this):void(); drawRecolored(rightArm); break;
+	case 2: drawRecolored(leftArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); break;
+	case 3: drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); drawRecolored(rightArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void();	break;
+	case 4:	drawRecolored(rightArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); break;
+	case 5:	drawRecolored(rightArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); break;
+	case 6: drawRecolored(rightArm); drawRecolored(legs); itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(torso); drawRecolored(leftArm); break;
+	case 7:	itemR?itemR->blit(this):void(); itemL?itemL->blit(this):void(); drawRecolored(leftArm); drawRecolored(rightArm); drawRecolored(legs); drawRecolored(torso); break;
+	}
+	torso->setX(0);
+	legs->setX(0);
+	leftArm->setX(0);
+	rightArm->setX(0);
+	if (itemR)
+		itemR->setX(itemR->getX() + 0);
+	if (itemL)
+		itemL->setX(itemL->getX() + 0);
+}
+
+/**
+ * Drawing routine for chryssalid.
+ */
+void UnitSprite::drawRoutine7()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *torso = 0, *legs = 0, *leftArm = 0, *rightArm = 0;
+	// magic numbers
+	const int Torso = 24, legsStand = 16, die = 224;
+	const int larmStand = 0, rarmStand = 8;
+	const int legsWalk[8] = { 48, 48+24, 48+24*2, 48+24*3, 48+24*4, 48+24*5, 48+24*6, 48+24*7 };
+	const int larmWalk[8] = { 32, 32+24, 32+24*2, 32+24*3, 32+24*4, 32+24*5, 32+24*6, 32+24*7 };
+	const int rarmWalk[8] = { 40, 40+24, 40+24*2, 40+24*3, 40+24*4, 40+24*5, 40+24*6, 40+24*7 };
+	const int yoffWalk[8] = {1, 0, -1, 0, 1, 0, -1, 0}; // bobbing up and down
+	const int offXSprite = 16; // sprites are double width
+
+	if (_unit->getStatus() == STATUS_COLLAPSING)
+	{
+		torso = _unitSurface->getFrame(die + _unit->getFallingPhase());
+		torso->setX(offXSprite);
+		drawRecolored(torso);
+		return;
+	}
+
+	const int unitDir = _unit->getDirection();
+	const int walkPhase = _unit->getWalkingPhase();
+
+	torso = _unitSurface->getFrame(Torso + unitDir);
+
+
+	// when walking, torso(fixed sprite) has to be animated up/down
+	if (_unit->getStatus() == STATUS_WALKING)
+	{
+		torso->setY(yoffWalk[walkPhase]);
+		legs = _unitSurface->getFrame(legsWalk[unitDir] + walkPhase);
+		leftArm = _unitSurface->getFrame(larmWalk[unitDir] + walkPhase);
+		rightArm = _unitSurface->getFrame(rarmWalk[unitDir] + walkPhase);
+	}
+	else
+	{
+
+		legs = _unitSurface->getFrame(legsStand + unitDir);
+		leftArm = _unitSurface->getFrame(larmStand + unitDir);
+		rightArm = _unitSurface->getFrame(rarmStand + unitDir);
+		leftArm->setY(0);
+		rightArm->setY(0);
+		torso->setY(0);
+	}
+	// offset everything to the right by 16 pixels.
+	// this is because we draw the sprites double wide, to accommodate weapons in-hand
+	torso->setX(offXSprite);
+	legs->setX(offXSprite);
+	leftArm->setX(offXSprite);
+	rightArm->setX(offXSprite);
+
+	// blit order depends on unit direction
+	switch (unitDir)
+	{
+	case 0: drawRecolored(leftArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(rightArm); break;
+	case 1: drawRecolored(leftArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(rightArm); break;
+	case 2: drawRecolored(leftArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(rightArm); break;
+	case 3: drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); drawRecolored(rightArm); break;
+	case 4: drawRecolored(rightArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); break;
+	case 5: drawRecolored(rightArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); break;
+	case 6: drawRecolored(rightArm); drawRecolored(legs); drawRecolored(torso); drawRecolored(leftArm); break;
+	case 7: drawRecolored(leftArm); drawRecolored(rightArm); drawRecolored(legs); drawRecolored(torso); break;
+	}
+}
+
+/**
+ * Drawing routine for silacoids.
+ */
+void UnitSprite::drawRoutine8()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *legs = 0;
+	// magic numbers
+	const int Body = 0, aim = 5, die = 6;
+	const int Pulsate[8] = { 0, 1, 2, 3, 4, 3, 2, 1 };
+	const int offXSprite = 16; // sprites are double width
+
+	legs = _unitSurface->getFrame(Body + Pulsate[_animationFrame]);
+	_redraw = true;
+
+	if (_unit->getStatus() == STATUS_COLLAPSING)
+		legs = _unitSurface->getFrame(die + _unit->getFallingPhase());
+
+	else if (_unit->getStatus() == STATUS_AIMING)
+		legs = _unitSurface->getFrame(aim);
+
+	// offset everything to the right by 16 pixels.
+	// this is because we draw the sprites double wide, to accommodate weapons in-hand
+	legs->setX(offXSprite);
+
+	drawRecolored(legs);
+}
+
+/**
+ * Drawing routine for celatids.
+ */
+void UnitSprite::drawRoutine9()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *torso = 0;
+	// magic numbers
+	const int Body = 0, die = 25;
+	const int offXSprite = 16; // sprites are double width
+
+	torso = _unitSurface->getFrame(Body + _animationFrame);
+	_redraw = true;
+
+	if (_unit->getStatus() == STATUS_COLLAPSING)
+		torso = _unitSurface->getFrame(die + _unit->getFallingPhase());
+
+	// offset everything to the right by 16 pixels.
+	// this is because we draw the sprites double wide, to accommodate weapons in-hand
+	torso->setX(offXSprite);
+
+	drawRecolored(torso);
+}
+
+/**
+ * Drawing routine for tftd tanks.
+ */
+void UnitSprite::drawRoutine11()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	const int offTurretX[8] = { -2, -6, -5, 0, 5, 6, 2, 0 }; // turret offsets
+	const int offTurretYAbove[8] = { 5, 3, 0, 0, 0, 3, 5, 4 }; // turret offsets
+	const int offTurretYBelow[8] = { -11, -13, -16, -16, -16, -13, -11, -12 }; // turret offsets
+	const int offXSprite = 16; // sprites are double width
+
+	int body = 0;
+	int animFrame = _unit->getWalkingPhase() % 4;
+	if (_unit->getMovementType() == MT_FLY)
+	{
+		body = 128;
+		animFrame = _animationFrame % 4;
+	}
+
+	Surface *s = _unitSurface->getFrame(body + (_part * 4) + 16 * _unit->getDirection() + animFrame);
+	s->setY(4);
+	s->setX(offXSprite);
+	drawRecolored(s);
+
+	int turret = _unit->getTurretType();
+	// draw the turret, overlapping all 4 parts
+	if ((_part == 3 || _part == 0) && turret != -1 && !_unit->getFloorAbove())
+	{
+		s = _unitSurface->getFrame(256 + (turret * 8) + _unit->getTurretDirection());
+		s->setX(offTurretX[_unit->getDirection()] + offXSprite);
+		if (_part == 3)
+			s->setY(offTurretYBelow[_unit->getDirection()]);
+		else
+			s->setY(offTurretYAbove[_unit->getDirection()]);
+		drawRecolored(s);
+	}
+
+}
+
+/**
+ * Drawing routine for hallucinoids (routine 12) and biodrones (routine 16).
+ */
+void UnitSprite::drawRoutine12()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	const int die = 8;
+	const int offXSprite = 16; // sprites are double width
+
+	Surface *s = 0;
+	s = _unitSurface->getFrame((_part * 8) + _animationFrame);
+	_redraw = true;
+
+	if ( (_unit->getStatus() == STATUS_COLLAPSING) && (_drawingRoutine == 16) )
+	{
+		// biodrone death frames
+		s = _unitSurface->getFrame(die + _unit->getFallingPhase());
+	}
+	s->setX(offXSprite);
+	drawRecolored(s);
+}
+
+/**
+ * Drawing routine for tentaculats.
+ */
+void UnitSprite::drawRoutine19()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *s = 0;
+	// magic numbers
+	const int stand = 0, move = 8, die = 16;
+	const int offXSprite = 16; // sprites are double width
+
+	if (_unit->getStatus() == STATUS_COLLAPSING)
+	{
+		s = _unitSurface->getFrame(die + _unit->getFallingPhase());
+	}
+	else if (_unit->getStatus() == STATUS_WALKING)
+	{
+		s = _unitSurface->getFrame(move + _unit->getDirection());
+	}
+	else
+	{
+		s = _unitSurface->getFrame(stand + _unit->getDirection());
+	}
+	s->setX(offXSprite);
+	drawRecolored(s);
+}
+
+/**
+ * Drawing routine for triscenes.
+ */
+void UnitSprite::drawRoutine20()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *s = 0;
+	const int offXSprite = 16; // sprites are double width
+
+	if (_unit->getStatus() == STATUS_WALKING)
+	{
+		s = _unitSurface->getFrame((_unit->getWalkingPhase()/2%4) + 5 * (_part + 4 * _unit->getDirection()));
+	}
+	else
+	{
+		s = _unitSurface->getFrame(5 * (_part + 4 * _unit->getDirection()));
+	}
+	s->setX(offXSprite);
+	drawRecolored(s);
+}
+
+/**
+ * Drawing routine for xarquids.
+ */
+void UnitSprite::drawRoutine21()
+{
+	if (_unit->isOut())
+	{
+		// unit is drawn as an item
+		return;
+	}
+
+	Surface *s = 0;
+	const int offXSprite = 16; // sprites are double width
+
+	s = _unitSurface->getFrame((_part * 4) + (_unit->getDirection() * 16) + (_animationFrame % 4));
+	_redraw = true;
+	s->setX(offXSprite);
+	drawRecolored(s);
+}
+
+/**
+ * Determines which weapons to display in the case of two-handed weapons.
+ */
+void UnitSprite::sortRifles()
+{
+	if (_itemR && _itemR->getRules()->isTwoHanded())
+	{
+		if (_itemL && _itemL->getRules()->isTwoHanded())
+		{
+			if (_unit->getActiveHand() == "STR_LEFT_HAND")
+			{
+				_itemR = _itemL;
+			}
+			_itemL = 0;
+		}
+		else if (_unit->getStatus() != STATUS_AIMING)
+		{
+			_itemL = 0;
+		}
+	}
+	else if (_itemL && _itemL->getRules()->isTwoHanded())
+	{
+		if (_unit->getStatus() != STATUS_AIMING)
+		{
+			_itemR = 0;
+		}
+	}
+}
+
+}
+⟦/FILE⟧
+⟦FILE:UnitSprite.h;encoding=utf8;sha256=ba9577aaa58f7bdaf09defa0629018680f2b64a2f78ebebe611bc205cfd18848;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/Surface.h"
+
+namespace OpenXcom
+{
+
+class BattleUnit;
+class BattleItem;
+class SurfaceSet;
+
+/**
+ * A class that renders a specific unit, given its render rules
+ * combining the right frames from the surfaceset.
+ */
+class UnitSprite : public Surface
+{
+private:
+	BattleUnit *_unit;
+	BattleItem *_itemR, *_itemL;
+	SurfaceSet *_unitSurface, *_itemSurfaceR, *_itemSurfaceL;
+	int _part, _animationFrame, _drawingRoutine;
+	bool _helmet;
+	const std::pair<Uint8, Uint8> *_color;
+	int _colorSize;
+
+	/// Drawing routine for XCom soldiers in overalls, sectoids (routine 0),
+	/// mutons (routine 10),
+	/// aquanauts (routine 13),
+	/// aquatoids, calcinites, deep ones, gill men, lobster men, tasoths (routine 14).
+	void drawRoutine0();
+	/// Drawing routine for floaters.
+	void drawRoutine1();
+	/// Drawing routine for XCom tanks.
+	void drawRoutine2();
+	/// Drawing routine for cyberdiscs.
+	void drawRoutine3();
+	/// Drawing routine for civilians, ethereals, zombies (routine 4),
+	/// tftd civilians, tftd zombies (routine 16), more tftd civilians (routine 17).
+	void drawRoutine4();
+	/// Drawing routine for sectopods and reapers.
+	void drawRoutine5();
+	/// Drawing routine for snakemen.
+	void drawRoutine6();
+	/// Drawing routine for chryssalid.
+	void drawRoutine7();
+	/// Drawing routine for silacoids.
+	void drawRoutine8();
+	/// Drawing routine for celatids.
+	void drawRoutine9();
+	/// Drawing routine for TFTD tanks.
+	void drawRoutine11();
+	/// Drawing routine for hallucinoids (routine 12) and biodrones (routine 15).
+	void drawRoutine12();
+	/// Drawing routine for tentaculats.
+	void drawRoutine19();
+	/// Drawing routine for triscenes.
+	void drawRoutine20();
+	/// Drawing routine for xarquids.
+	void drawRoutine21();
+	/// sort two handed sprites out.
+	void sortRifles();
+	/// Draw surface with changed colors.
+	void drawRecolored(Surface *src);
+public:
+	/// Creates a new UnitSprite at the specified position and size.
+	UnitSprite(int width, int height, int x, int y, bool helmet);
+	/// Cleans up the UnitSprite.
+	~UnitSprite();
+	/// Sets surfacesets for rendering.
+	void setSurfaces(SurfaceSet *unitSurface, SurfaceSet *itemSurfaceA, SurfaceSet *itemSurfaceB);
+	/// Sets the battleunit to be rendered.
+	void setBattleUnit(BattleUnit *unit, int part = 0);
+	/// Sets the animation frame.
+	void setAnimationFrame(int frame);
+	/// Draws the unit.
+	void draw();
+};
+
+}
+⟦/FILE⟧
+⟦FILE:UnitTurnBState.cpp;encoding=utf8;sha256=30787ac935aa0f36b57d08f835179a80449a7b30366d170d9bb7a31ed1f57f67;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "UnitTurnBState.h"
+#include "TileEngine.h"
+#include "Map.h"
+#include "../Savegame/BattleUnit.h"
+#include "../Savegame/SavedBattleGame.h"
+#include "../Mod/Mod.h"
+#include "../Engine/Sound.h"
+#include "../Engine/Options.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up an UnitTurnBState.
+ * @param parent Pointer to the Battlescape.
+ * @param action Pointer to an action.
+ */
+UnitTurnBState::UnitTurnBState(BattlescapeGame *parent, BattleAction action, bool chargeTUs) : BattleState(parent, action), _unit(0), _turret(false), _chargeTUs(chargeTUs)
+{
+
+}
+
+/**
+ * Deletes the UnitTurnBState.
+ */
+UnitTurnBState::~UnitTurnBState()
+{
+
+}
+
+/**
+ * Initializes the state.
+ */
+void UnitTurnBState::init()
+{
+	_unit = _action.actor;
+	if (_unit->isOut())
+	{
+		_parent->popState();
+		return;
+	}
+	_action.TU = 0;
+	if (_unit->getFaction() == FACTION_PLAYER)
+		_parent->setStateInterval(Options::battleXcomSpeed);
+	else
+		_parent->setStateInterval(Options::battleAlienSpeed);
+
+	// if the unit has a turret and we are turning during targeting, then only the turret turns
+	_turret = _unit->getTurretType() != -1 && (_action.targeting || _action.strafe);
+
+	_unit->lookAt(_action.target, _turret);
+
+	if (_chargeTUs && _unit->getStatus() != STATUS_TURNING)
+	{
+		if (_action.type == BA_NONE)
+		{
+			// try to open a door
+			int door = _parent->getTileEngine()->unitOpensDoor(_unit, true);
+			if (door == 0)
+			{
+				_parent->getMod()->getSoundByDepth(_parent->getDepth(), Mod::DOOR_OPEN)->play(-1, _parent->getMap()->getSoundAngle(_unit->getPosition())); // normal door
+			}
+			if (door == 1)
+			{
+				_parent->getMod()->getSoundByDepth(_parent->getDepth(), Mod::SLIDING_DOOR_OPEN)->play(-1, _parent->getMap()->getSoundAngle(_unit->getPosition())); // ufo door
+			}
+			if (door == 4)
+			{
+				_action.result = "STR_NOT_ENOUGH_TIME_UNITS";
+			}
+		}
+		_parent->popState();
+	}
+}
+
+/**
+ * Runs state functionality every cycle.
+ */
+void UnitTurnBState::think()
+{
+	const int tu = _chargeTUs ? 1 : 0;
+
+	if (_chargeTUs && _unit->getFaction() == _parent->getSave()->getSide() && _parent->getPanicHandled() && !_action.targeting && !_parent->checkReservedTU(_unit, tu))
+	{
+		_unit->abortTurn();
+		_parent->popState();
+		return;
+	}
+
+	if (_unit->spendTimeUnits(tu))
+	{
+		size_t unitSpotted = _unit->getUnitsSpottedThisTurn().size();
+		_unit->turn(_turret);
+		_parent->getTileEngine()->calculateFOV(_unit);
+		_unit->setCache(0);
+		_parent->getMap()->cacheUnit(_unit);
+		if (_chargeTUs && _unit->getFaction() == _parent->getSave()->getSide() && _parent->getPanicHandled() && _action.type == BA_NONE && _unit->getUnitsSpottedThisTurn().size() > unitSpotted)
+		{
+			_unit->abortTurn();
+		}
+		if (_unit->getStatus() == STATUS_STANDING)
+		{
+			_parent->popState();
+		}
+	}
+	else if (_parent->getPanicHandled())
+	{
+		_action.result = "STR_NOT_ENOUGH_TIME_UNITS";
+		_unit->abortTurn();
+		_parent->popState();
+	}
+}
+
+/**
+ * Unit turning cannot be cancelled.
+ */
+void UnitTurnBState::cancel()
+{
+}
+
+}
+⟦/FILE⟧
+⟦FILE:UnitTurnBState.h;encoding=utf8;sha256=659b9d40efcf70e17ecdd68853c2718b59340e5ce16071a5449fd32297487908;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "BattleState.h"
+
+namespace OpenXcom
+{
+
+class BattleUnit;
+
+/**
+ * State for turning units.
+ */
+class UnitTurnBState : public BattleState
+{
+private:
+	BattleUnit *_unit;
+	bool _turret, _chargeTUs;
+public:
+	/// Creates a new UnitTurnBState class
+	UnitTurnBState(BattlescapeGame *parent, BattleAction action, bool chargeTUs = true);
+	/// Cleans up the UnitTurnBState.
+	~UnitTurnBState();
+	/// Initializes the state.
+	void init();
+	/// Handles a cancels request.
+	void cancel();
+	/// Runs state functionality every cycle.
+	void think();
+};
+
+}
+⟦/FILE⟧
+⟦FILE:UnitWalkBState.cpp;encoding=utf8;sha256=9b424ca040fbb9347ec626aa85f0a2165e341c84e01f172851d0f6b9caeadb80;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "UnitWalkBState.h"
+#include "MeleeAttackBState.h"
+#include "TileEngine.h"
+#include "Pathfinding.h"
+#include "BattlescapeState.h"
+#include "Map.h"
+#include "Camera.h"
+#include "../Savegame/BattleUnit.h"
+#include "../Savegame/SavedBattleGame.h"
+#include "../Savegame/Tile.h"
+#include "../Mod/Mod.h"
+#include "../Engine/Sound.h"
+#include "../Engine/Options.h"
+#include "../Mod/Armor.h"
+#include "../Engine/Logger.h"
+#include "UnitFallBState.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up an UnitWalkBState.
+ * @param parent Pointer to the Battlescape.
+ * @param action Pointer to an action.
+ */
+UnitWalkBState::UnitWalkBState(BattlescapeGame *parent, BattleAction action) : BattleState(parent, action), _unit(0), _pf(0), _terrain(0), _falling(false), _beforeFirstStep(false), _numUnitsSpotted(0), _preMovementCost(0)
+{
+
+}
+
+/**
+ * Deletes the UnitWalkBState.
+ */
+UnitWalkBState::~UnitWalkBState()
+{
+
+}
+
+/**
+ * Initializes the state.
+ */
+void UnitWalkBState::init()
+{
+	_unit = _action.actor;
+	_numUnitsSpotted = _unit->getUnitsSpottedThisTurn().size();
+	setNormalWalkSpeed();
+	_pf = _parent->getPathfinding();
+	_terrain = _parent->getTileEngine();
+	_target = _action.target;
+	if (Options::traceAI) { Log(LOG_INFO) << "Walking from: " << _unit->getPosition() << "," << " to " << _target;}
+	int dir = _pf->getStartDirection();
+	if (!_action.strafe && dir != -1 && dir != _unit->getDirection())
+	{
+		_beforeFirstStep = true;
+	}
+}
+
+/**
+ * Runs state functionality every cycle.
+ */
+void UnitWalkBState::think()
+{
+	bool unitSpotted = false;
+	int size = _unit->getArmor()->getSize() - 1;
+	bool onScreen = (_unit->getVisible() && _parent->getMap()->getCamera()->isOnScreen(_unit->getPosition(), true, size, false));
+	if (_unit->isKneeled())
+	{
+		if (_parent->kneel(_unit))
+		{
+			_unit->setCache(0);
+			_terrain->calculateFOV(_unit);
+			_parent->getMap()->cacheUnit(_unit);
+			return;
+		}
+		else
+		{
+			_action.result = "STR_NOT_ENOUGH_TIME_UNITS";
+			_pf->abortPath();
+			_parent->popState();
+			return;
+		}
+	}
+
+
+	if (_unit->isOut())
+	{
+		_pf->abortPath();
+		_parent->popState();
+		return;
+	}
+
+	if (_unit->getStatus() == STATUS_WALKING || _unit->getStatus() == STATUS_FLYING)
+	{
+		Tile *tileBelow = _parent->getSave()->getTile(_unit->getPosition() + Position(0,0,-1));
+		if ((_parent->getSave()->getTile(_unit->getDestination())->getUnit() == 0) || // next tile must be not occupied
+			(_parent->getSave()->getTile(_unit->getDestination())->getUnit() == _unit))
+		{
+			bool onScreenBoundary = (_unit->getVisible() && _parent->getMap()->getCamera()->isOnScreen(_unit->getPosition(), true, size, true));
+			_unit->keepWalking(tileBelow, onScreenBoundary); // advances the phase
+			playMovementSound();
+		}
+		else if (!_falling)
+		{
+			_unit->lookAt(_unit->getDestination(), (_unit->getTurretType() != -1));	// turn to undiscovered unit
+			_pf->abortPath();
+		}
+
+		// unit moved from one tile to the other, update the tiles
+		if (_unit->getPosition() != _unit->getLastPosition())
+		{
+			bool largeCheck = true;
+			for (int x = size; x >= 0; x--)
+			{
+				for (int y = size; y >= 0; y--)
+				{
+					Tile *otherTileBelow = _parent->getSave()->getTile(_unit->getPosition() + Position(x,y,-1));
+					if (!_parent->getSave()->getTile(_unit->getPosition() + Position(x,y,0))->hasNoFloor(otherTileBelow) || _unit->getMovementType() == MT_FLY)
+						largeCheck = false;
+					_parent->getSave()->getTile(_unit->getLastPosition() + Position(x,y,0))->setUnit(0);
+				}
+			}
+			for (int x = size; x >= 0; x--)
+			{
+				for (int y = size; y >= 0; y--)
+				{
+					_parent->getSave()->getTile(_unit->getPosition() + Position(x,y,0))->setUnit(_unit, _parent->getSave()->getTile(_unit->getPosition() + Position(x,y,-1)));
+				}
+			}
+			_falling = largeCheck && _unit->getPosition().z != 0 && _unit->getTile()->hasNoFloor(tileBelow) && _unit->getMovementType() != MT_FLY && _unit->getWalkingPhase() == 0;
+
+			if (_falling)
+			{
+				for (int x = size; x >= 0; --x)
+				{
+					for (int y = size; y >= 0; --y)
+					{
+						Tile *otherTileBelow = _parent->getSave()->getTile(_unit->getPosition() + Position(x,y,-1));
+						if (otherTileBelow && otherTileBelow->getUnit())
+						{
+							_falling = false;
+							_pf->dequeuePath();
+							_parent->getSave()->addFallingUnit(_unit);
+							_parent->statePushFront(new UnitFallBState(_parent));
+							return;
+						}
+					}
+				}
+			}
+
+			if (!_parent->getMap()->getCamera()->isOnScreen(_unit->getPosition(), true, size, false) && _unit->getFaction() != FACTION_PLAYER && _unit->getVisible())
+				_parent->getMap()->getCamera()->centerOnPosition(_unit->getPosition());
+			// if the unit changed level, camera changes level with
+			_parent->getMap()->getCamera()->setViewLevel(_unit->getPosition().z);
+		}
+
+		// is the step finished?
+		if (_unit->getStatus() == STATUS_STANDING)
+		{
+			// update the TU display
+			_parent->getSave()->getBattleState()->updateSoldierInfo();
+			// if the unit burns floortiles, burn floortiles as long as we're not falling
+			if (!_falling && (_unit->getSpecialAbility() == SPECAB_BURNFLOOR || _unit->getSpecialAbility() == SPECAB_BURN_AND_EXPLODE))
+			{
+				_unit->getTile()->ignite(1);
+				Position posHere = _unit->getPosition();
+				Position voxelHere = (posHere * Position(16,16,24)) + Position(8,8,-(_unit->getTile()->getTerrainLevel()));
+				_parent->getTileEngine()->hit(voxelHere, _unit->getBaseStats()->strength, DT_IN, _unit);
+
+				if (_unit->getStatus() != STATUS_STANDING) // ie: we burned a hole in the floor and fell through it
+				{
+					_pf->abortPath();
+					return;
+				}
+			}
+
+			// move our personal lighting with us
+			_terrain->calculateUnitLighting();
+			if (_unit->getFaction() != FACTION_PLAYER)
+			{
+				_unit->setVisible(false);
+			}
+			_terrain->calculateFOV(_unit->getPosition());
+			unitSpotted = (!_falling && !_action.desperate && _parent->getPanicHandled() && _numUnitsSpotted != _unit->getUnitsSpottedThisTurn().size());
+
+			if (_parent->checkForProximityGrenades(_unit))
+			{
+				_parent->popState();
+				return;
+			}
+			if (unitSpotted)
+			{
+				_unit->setCache(0);
+				_parent->getMap()->cacheUnit(_unit);
+				_pf->abortPath();
+				_parent->popState();
+				return;
+			}
+			// check for reaction fire
+			if (!_falling)
+			{
+				if (_terrain->checkReactionFire(_unit))
+				{
+					// unit got fired upon - stop walking
+					_unit->setCache(0);
+					_parent->getMap()->cacheUnit(_unit);
+					_pf->abortPath();
+					_parent->popState();
+					return;
+				}
+			}
+		}
+		else if (onScreen)
+		{
+			// make sure the unit sprites are up to date
+			if (_pf->getStrafeMove())
+			{
+				// This is where we fake out the strafe movement direction so the unit "moonwalks"
+				int dirTemp = _unit->getDirection();
+				_unit->setDirection(_unit->getFaceDirection());
+				_parent->getMap()->cacheUnit(_unit);
+				_unit->setDirection(dirTemp);
+			}
+			else
+			{
+				_parent->getMap()->cacheUnit(_unit);
+			}
+		}
+	}
+
+	// we are just standing around, shouldn't we be walking?
+	if (_unit->getStatus() == STATUS_STANDING || _unit->getStatus() == STATUS_PANICKING)
+	{
+		// check if we did spot new units
+		if (unitSpotted && !_action.desperate && _unit->getCharging() == 0 && !_falling)
+		{
+			if (Options::traceAI) { Log(LOG_INFO) << "Uh-oh! Company!"; }
+			_unit->setHiding(false); // clearly we're not hidden now
+			_parent->getMap()->cacheUnit(_unit);
+			postPathProcedures();
+			return;
+		}
+
+		if (onScreen || _parent->getSave()->getDebugMode())
+		{
+			setNormalWalkSpeed();
+		}
+		else
+		{
+			_parent->setStateInterval(0);
+		}
+		int dir = _pf->getStartDirection();
+		if (_falling)
+		{
+			dir = Pathfinding::DIR_DOWN;
+		}
+
+		if (dir != -1)
+		{
+			if (_pf->getStrafeMove())
+			{
+				_unit->setFaceDirection(_unit->getDirection());
+			}
+
+			Position destination;
+			int tu = _pf->getTUCost(_unit->getPosition(), dir, &destination, _unit, 0, false); // gets tu cost, but also gets the destination position.
+			if (_unit->getFaction() != FACTION_PLAYER &&
+				_unit->getSpecialAbility() < SPECAB_BURNFLOOR &&
+				_parent->getSave()->getTile(destination) &&
+				_parent->getSave()->getTile(destination)->getFire() > 0)
+			{
+				tu -= 32; // we artificially inflate the TU cost by 32 points in getTUCost under these conditions, so we have to deflate it here.
+			}
+			if (_falling)
+			{
+				tu = 0;
+			}
+			int energy = tu;
+			if (dir >= Pathfinding::DIR_UP)
+			{
+				energy = 0;
+			}
+			else if (_action.run)
+			{
+				tu *= 0.75;
+				energy *= 1.5;
+			}
+			if (tu > _unit->getTimeUnits())
+			{
+				if (_parent->getPanicHandled() && tu < 255)
+				{
+					_action.result = "STR_NOT_ENOUGH_TIME_UNITS";
+				}
+				_pf->abortPath();
+				_unit->setCache(0);
+				_parent->getMap()->cacheUnit(_unit);
+				_parent->popState();
+				return;
+			}
+
+			if (energy / 2 > _unit->getEnergy())
+			{
+				if (_parent->getPanicHandled())
+				{
+					_action.result = "STR_NOT_ENOUGH_ENERGY";
+				}
+				_pf->abortPath();
+				_unit->setCache(0);
+				_parent->getMap()->cacheUnit(_unit);
+				_parent->popState();
+				return;
+			}
+
+			if (_parent->getPanicHandled() && _parent->checkReservedTU(_unit, tu) == false)
+			{
+				_pf->abortPath();
+				_unit->setCache(0);
+				_parent->getMap()->cacheUnit(_unit);
+				return;
+			}
+
+			// we are looking in the wrong way, turn first (unless strafing)
+			// we are not using the turn state, because turning during walking costs no tu
+			if (dir != _unit->getDirection() && dir < Pathfinding::DIR_UP && !_pf->getStrafeMove())
+			{
+				_unit->lookAt(dir);
+				_unit->setCache(0);
+				_parent->getMap()->cacheUnit(_unit);
+				return;
+			}
+
+			// now open doors (if any)
+			if (dir < Pathfinding::DIR_UP)
+			{
+				int door = _terrain->unitOpensDoor(_unit, false, dir);
+				if (door == 3)
+				{
+					return; // don't start walking yet, wait for the ufo door to open
+				}
+				if (door == 0)
+				{
+					_parent->getMod()->getSoundByDepth(_parent->getDepth(), Mod::DOOR_OPEN)->play(-1, _parent->getMap()->getSoundAngle(_unit->getPosition())); // normal door
+				}
+				if (door == 1)
+				{
+					_parent->getMod()->getSoundByDepth(_parent->getDepth(), Mod::SLIDING_DOOR_OPEN)->play(-1, _parent->getMap()->getSoundAngle(_unit->getPosition())); // ufo door
+					return; // don't start walking yet, wait for the ufo door to open
+				}
+			}
+			for (int x = size; x >= 0; --x)
+			{
+				for (int y = size; y >= 0; --y)
+				{
+					BattleUnit* unitInMyWay = _parent->getSave()->getTile(destination + Position(x,y,0))->getUnit();
+					BattleUnit* unitBelowMyWay = 0;
+					Tile* belowDest = _parent->getSave()->getTile(destination + Position(x,y,-1));
+					if (belowDest)
+					{
+						unitBelowMyWay = belowDest->getUnit();
+					}
+					// can't walk into units in this tile, or on top of other units sticking their head into this tile
+					if (!_falling &&
+						((unitInMyWay && unitInMyWay != _unit)
+						|| (belowDest && unitBelowMyWay && unitBelowMyWay != _unit &&
+						(-belowDest->getTerrainLevel() + unitBelowMyWay->getFloatHeight() + unitBelowMyWay->getHeight())
+						>= 28)))  // 4+ voxels poking into the tile above, we don't kick people in the head here at XCom.
+					{
+						_action.TU = 0;
+						_pf->abortPath();
+						_unit->setCache(0);
+						_parent->getMap()->cacheUnit(_unit);
+						_parent->popState();
+						return;
+					}
+				}
+			}
+			// now start moving
+			dir = _pf->dequeuePath();
+			if (_falling)
+			{
+				dir = Pathfinding::DIR_DOWN;
+			}
+
+			if (_unit->spendTimeUnits(tu))
+			{
+				if (_unit->spendEnergy(energy))
+				{
+					Tile *tileBelow = _parent->getSave()->getTile(_unit->getPosition() + Position(0,0,-1));
+					_unit->startWalking(dir, destination, tileBelow, onScreen);
+					_beforeFirstStep = false;
+				}
+			}
+			// make sure the unit sprites are up to date
+			if (onScreen)
+			{
+				if (_pf->getStrafeMove())
+				{
+					// This is where we fake out the strafe movement direction so the unit "moonwalks"
+					int dirTemp = _unit->getDirection();
+					_unit->setDirection(_unit->getFaceDirection());
+					_parent->getMap()->cacheUnit(_unit);
+					_unit->setDirection(dirTemp);
+				}
+				else
+				{
+					_parent->getMap()->cacheUnit(_unit);
+				}
+			}
+		}
+		else
+		{
+			postPathProcedures();
+			return;
+		}
+	}
+
+	// turning during walking costs no tu
+	if (_unit->getStatus() == STATUS_TURNING)
+	{
+		// except before the first step.
+		if (_beforeFirstStep)
+		{
+			_preMovementCost++;
+		}
+
+		_unit->turn();
+
+		// calculateFOV is unreliable for setting the unitSpotted bool, as it can be called from various other places
+		// in the code, ie: doors opening, and this messes up the result.
+		_terrain->calculateFOV(_unit);
+		unitSpotted = (!_falling && !_action.desperate && _parent->getPanicHandled() && _numUnitsSpotted != _unit->getUnitsSpottedThisTurn().size());
+
+		// make sure the unit sprites are up to date
+		_unit->setCache(0);
+		_parent->getMap()->cacheUnit(_unit);
+
+		if (unitSpotted && !_action.desperate && !_unit->getCharging() && !_falling)
+		{
+			if (_beforeFirstStep)
+			{
+				_unit->spendTimeUnits(_preMovementCost);
+			}
+			if (Options::traceAI) { Log(LOG_INFO) << "Egads! A turn reveals new units! I must pause!"; }
+			_unit->setHiding(false); // not hidden, are we...
+			_pf->abortPath();
+			_unit->abortTurn(); //revert to a standing state.
+			_unit->setCache(0);
+			_parent->getMap()->cacheUnit(_unit);
+			_parent->popState();
+		}
+	}
+}
+
+/**
+ * Aborts unit walking.
+ */
+void UnitWalkBState::cancel()
+{
+	if (_parent->getSave()->getSide() == FACTION_PLAYER && _parent->getPanicHandled())
+	_pf->abortPath();
+}
+
+/**
+ * Handles some calculations when the path is finished.
+ */
+void UnitWalkBState::postPathProcedures()
+{
+	_action.TU = 0;
+	if (_unit->getFaction() != FACTION_PLAYER)
+	{
+		int dir = _action.finalFacing;
+		if (_action.finalAction)
+		{
+			_unit->dontReselect();
+		}
+		if (_unit->getCharging() != 0)
+		{
+			dir = _parent->getTileEngine()->getDirectionTo(_unit->getPosition(), _unit->getCharging()->getPosition());
+			if (_parent->getTileEngine()->validMeleeRange(_unit, _action.actor->getCharging(), dir))
+			{
+				BattleAction action;
+				action.actor = _unit;
+				action.target = _unit->getCharging()->getPosition();
+				action.weapon = _unit->getMeleeWeapon();
+				action.type = BA_HIT;
+				action.TU = _unit->getActionTUs(action.type, action.weapon);
+				action.targeting = true;
+				_unit->setCharging(0);
+				_parent->statePushBack(new MeleeAttackBState(_parent, action));
+			}
+		}
+		else if (_unit->isHiding())
+		{
+			dir = _unit->getDirection() + 4;
+			_unit->setHiding(false);
+			_unit->dontReselect();
+		}
+		if (dir != -1)
+		{
+			if (dir >= 8)
+			{
+				dir -= 8;
+			}
+			_unit->lookAt(dir);
+			while (_unit->getStatus() == STATUS_TURNING)
+			{
+				_unit->turn();
+				_parent->getTileEngine()->calculateFOV(_unit);
+			}
+		}
+	}
+	else if (!_parent->getPanicHandled())
+	{
+		//todo: set the unit to aggrostate and try to find cover?
+		_unit->setTimeUnits(0);
+	}
+
+	_unit->setCache(0);
+	_terrain->calculateUnitLighting();
+	_terrain->calculateFOV(_unit);
+	_parent->getMap()->cacheUnit(_unit);
+	if (!_falling)
+		_parent->popState();
+}
+
+/**
+ * Handles some calculations when the walking is finished.
+ */
+void UnitWalkBState::setNormalWalkSpeed()
+{
+	if (_unit->getFaction() == FACTION_PLAYER)
+		_parent->setStateInterval(Options::battleXcomSpeed);
+	else
+		_parent->setStateInterval(Options::battleAlienSpeed);
+}
+
+
+/**
+ * Handles the stepping sounds.
+ */
+void UnitWalkBState::playMovementSound()
+{
+	int size = _unit->getArmor()->getSize() - 1;
+	if ((!_unit->getVisible() && !_parent->getSave()->getDebugMode()) || !_parent->getMap()->getCamera()->isOnScreen(_unit->getPosition(), true, size, false)) return;
+
+	if (_unit->getMoveSound() != -1)
+	{
+		// if a sound is configured in the ruleset, play that one
+		if (_unit->getWalkingPhase() == 0)
+		{
+			_parent->getMod()->getSoundByDepth(_parent->getDepth(), _unit->getMoveSound())->play(-1, _parent->getMap()->getSoundAngle(_unit->getPosition()));
+		}
+	}
+	else
+	{
+		if (_unit->getStatus() == STATUS_WALKING)
+		{
+			Tile *tile = _unit->getTile();
+			Tile *tileBelow = _parent->getSave()->getTile(tile->getPosition() + Position(0,0,-1));
+			// play footstep sound 1
+			if (_unit->getWalkingPhase() == 3)
+			{
+				if (tile->getFootstepSound(tileBelow) > -1)
+				{
+					_parent->getMod()->getSoundByDepth(_parent->getDepth(), Mod::WALK_OFFSET + (tile->getFootstepSound(tileBelow)*2))->play(-1, _parent->getMap()->getSoundAngle(_unit->getPosition()));
+				}
+			}
+			// play footstep sound 2
+			if (_unit->getWalkingPhase() == 7)
+			{
+				if (tile->getFootstepSound(tileBelow) > -1)
+				{
+					_parent->getMod()->getSoundByDepth(_parent->getDepth(), 1 + Mod::WALK_OFFSET + (tile->getFootstepSound(tileBelow)*2))->play(-1, _parent->getMap()->getSoundAngle(_unit->getPosition()));
+				}
+			}
+		}
+		else if (_unit->getMovementType() == MT_FLY)
+		{
+			// play default flying sound
+			if (_unit->getWalkingPhase() == 1 && !_falling)
+			{
+				_parent->getMod()->getSoundByDepth(_parent->getDepth(), Mod::FLYING_SOUND)->play(-1, _parent->getMap()->getSoundAngle(_unit->getPosition()));
+			}
+		}
+	}
+}
+
+}
+⟦/FILE⟧
+⟦FILE:UnitWalkBState.h;encoding=utf8;sha256=1a05ed7934f5c4380f92dade51b391a1007e9fd0080cc4ac7ae46c88435c363c;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "BattleState.h"
+#include "BattlescapeGame.h"
+#include "Position.h"
+
+namespace OpenXcom
+{
+
+class BattleUnit;
+class Pathfinding;
+class TileEngine;
+
+/**
+ * State for walking units.
+ */
+class UnitWalkBState : public BattleState
+{
+private:
+	Position _target;
+	BattleUnit *_unit;
+	Pathfinding *_pf;
+	TileEngine *_terrain;
+	bool _falling;
+	bool _beforeFirstStep;
+	/// Handles some calculations when the path is finished.
+	void postPathProcedures();
+	/// Handles some calculations when the walking is finished.
+	void setNormalWalkSpeed();
+	/// Handles the stepping sounds.
+	void playMovementSound();
+	std::size_t _numUnitsSpotted;
+	int _preMovementCost;
+public:
+	/// Creates a new UnitWalkBState class.
+	UnitWalkBState(BattlescapeGame *parent, BattleAction _action);
+	/// Cleans up the UnitWalkBState.
+	~UnitWalkBState();
+	/// Initializes the state.
+	void init();
+	/// Handles a cancels request.
+	void cancel();
+	/// Runs state functionality every cycle.
+	void think();
+};
+
+}
+⟦/FILE⟧
+⟦FILE:WarningMessage.cpp;encoding=utf8;sha256=da32173296e71cb4dd318aedcaeb1685207887fc2423026ec2e58b8b02e60e7f;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "WarningMessage.h"
+#include <SDL.h>
+#include <string>
+#include "../Engine/Timer.h"
+#include "../Interface/Text.h"
+
+namespace OpenXcom
+{
+
+/**
+ * Sets up a blank warning message with the specified size and position.
+ * @param width Width in pixels.
+ * @param height Height in pixels.
+ * @param x X position in pixels.
+ * @param y Y position in pixels.
+ */
+WarningMessage::WarningMessage(int width, int height, int x, int y) : Surface(width, height, x, y), _color(0), _fade(0)
+{
+	_text = new Text(width, height, 0, 0);
+	_text->setHighContrast(true);
+	_text->setAlign(ALIGN_CENTER);
+	_text->setVerticalAlign(ALIGN_MIDDLE);
+	_text->setWordWrap(true);
+
+	_timer = new Timer(50);
+	_timer->onTimer((SurfaceHandler)&WarningMessage::fade);
+
+	setVisible(false);
+}
+
+/**
+ * Deletes timers.
+ */
+WarningMessage::~WarningMessage()
+{
+	delete _timer;
+	delete _text;
+}
+
+/**
+ * Changes the color for the message background.
+ * @param color Color value.
+ */
+void WarningMessage::setColor(Uint8 color)
+{
+	_color = color;
+}
+
+/**
+ * Changes the color for the message text.
+ * @param color Color value.
+ */
+void WarningMessage::setTextColor(Uint8 color)
+{
+	_text->setColor(color);
+}
+
+/**
+ * Changes the various resources needed for text rendering.
+ * The different fonts need to be passed in advance since the
+ * text size can change mid-text, and the language affects
+ * how the text is rendered.
+ * @param big Pointer to large-size font.
+ * @param small Pointer to small-size font.
+ * @param lang Pointer to current language.
+ */
+void WarningMessage::initText(Font *big, Font *small, Language *lang)
+{
+	_text->initText(big, small, lang);
+}
+
+/**
+ * Replaces a certain amount of colors in the surface's palette.
+ * @param colors Pointer to the set of colors.
+ * @param firstcolor Offset of the first color to replace.
+ * @param ncolors Amount of colors to replace.
+ */
+void WarningMessage::setPalette(SDL_Color *colors, int firstcolor, int ncolors)
+{
+	Surface::setPalette(colors, firstcolor, ncolors);
+	_text->setPalette(colors, firstcolor, ncolors);
+}
+
+/**
+ * Displays the warning message.
+ * @param msg Message string.
+ */
+void WarningMessage::showMessage(const std::string &msg)
+{
+	_text->setText(msg);
+	_fade = 0;
+	_redraw = true;
+	setVisible(true);
+	_timer->start();
+}
+
+/**
+ * Keeps the animation timers running.
+ */
+void WarningMessage::think()
+{
+	_timer->think(0, this);
+}
+
+/**
+ * Plays the message fade animation.
+ */
+void WarningMessage::fade()
+{
+	_fade++;
+	_redraw = true;
+	if (_fade == 24)
+	{
+		setVisible(false);
+		_timer->stop();
+	}
+}
+
+/**
+ * Draws the warning message.
+ */
+void WarningMessage::draw()
+{
+	Surface::draw();
+	drawRect(0, 0, getWidth(), getHeight(), _color + (_fade > 12 ? 12 : _fade));
+	_text->blit(this);
+}
+
+}
+⟦/FILE⟧
+⟦FILE:WarningMessage.h;encoding=utf8;sha256=ea36945d1f11448873658cb8c1480f7b430d3012f00250e53df531bed9557937;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/Surface.h"
+
+namespace OpenXcom
+{
+
+class Text;
+class Timer;
+class Font;
+
+/**
+ * Coloured box with text inside that fades out after it is displayed.
+ * Used to display warning/error messages on the Battlescape.
+ */
+class WarningMessage : public Surface
+{
+private:
+	Text *_text;
+	Timer *_timer;
+	Uint8 _color, _fade;
+public:
+	/// Creates a new warning message with the specified size and position.
+	WarningMessage(int width, int height, int x = 0, int y = 0);
+	/// Cleans up the warning message.
+	~WarningMessage();
+	/// Sets the color for the warning message.
+	void setColor(Uint8 color);
+	/// Sets the text color for the warning message.
+	void setTextColor(Uint8 color);
+	/// Initializes the warning message's resources.
+	void initText(Font *big, Font *small, Language *lang);
+	/// Sets the warning message's palette.
+	void setPalette(SDL_Color *colors, int firstcolor = 0, int ncolors = 256);
+	/// Shows the warning message.
+	void showMessage(const std::string &msg);
+	/// Handles the timers.
+	void think();
+	/// Fades the message.
+	void fade();
+	/// Draws the message.
+	void draw();
+};
+
+}
+⟦/FILE⟧
+⟦/BUNDLE⟧
+⟦/PART⟧

@@ -1,0 +1,1019 @@
+unit Globe;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.Math, System.Types,
+  Engine.InteractiveSurface, Engine.Surface, Engine.SurfaceSet,
+  Engine.Timer, Engine.Action, Engine.Game, Engine.Mod,
+  Engine.FastLineClip, Engine.ShaderMove, Engine.ShaderRepeat,
+  Savegame.SavedGame, Savegame.GameTime, Savegame.Base,
+  Savegame.BaseFacility, Mod.RuleBaseFacility, Savegame.Craft,
+  Mod.RuleCraft, Savegame.Ufo, Mod.RuleUfo, Savegame.Waypoint,
+  Savegame.MissionSite, Savegame.AlienBase, Mod.Polygon,
+  Mod.Polyline, Mod.City, Savegame.Country, Mod.RuleCountry,
+  Savegame.Region, Mod.RuleRegion, Interface.Text, Engine.LocalizedText,
+  Engine.Language, Engine.Options, Engine.Palette, Engine.Screen,
+  Mod.RuleGlobe, Interface.Cursor;
+
+const
+  DOGFIGHT_ZOOM = 3;
+  NEAR_RADIUS = 25;
+  CITY_MARKER = 8;
+
+type
+  TGlobe = class(TInteractiveSurface)
+  private
+    FRules: TRuleGlobe;
+    FCenX, FCenY: Integer;
+    FCenLon, FCenLat, FRotLon, FRotLat, FHoverLon, FHoverLat: Double;
+    FCraftLon, FCraftLat, FCraftRange: Double;
+    FZoom, FZoomOld, FZoomTexture: Integer;
+    FTexture, FMarkerSet: TSurfaceSet;
+    FGame: TGame;
+    FMarkers, FCountries, FRadars: TSurface;
+    FHover, FCraft: Boolean;
+    FBlink: Integer;
+    FBlinkTimer, FRotTimer: TTimer;
+    FCacheLand: TList;
+    FClipper: TFastLineClip;
+    FRadius, FRadiusStep: Double;
+    FEarthData: TArray<TArray<TCord>>;
+    FRandomNoiseData: TArray<SmallInt>;
+    FZoomRadius: TArray<Double>;
+    FIsMouseScrolling, FIsMouseScrolled: Boolean;
+    FXBeforeMouseScrolling, FYBeforeMouseScrolling: Integer;
+    FLonBeforeMouseScrolling, FLatBeforeMouseScrolling: Double;
+    FMouseScrollingStartTime: Cardinal;
+    FTotalMouseMoveX, FTotalMouseMoveY: Integer;
+    FMouseMovedOverThreshold: Boolean;
+    procedure SetZoom(AZoom: Integer);
+    function PointBack(Lon, Lat: Double): Boolean;
+    function GetPolygonFromLonLat(Lon, Lat: Double): TPolygon;
+    function TargetNear(ATarget: TTarget; X, Y: Integer): Boolean;
+    procedure Cache(APolygons: TList; ACache: TList);
+    function GetSunDirection(Lon, Lat: Double): TCord;
+    procedure DrawGlobeCircle(Lat, Lon, Radius: Double; Segments: Integer; Frac: Integer = 1);
+    procedure XuLine(Surface, Src: TSurface; X1, Y1, X2, Y2: Double; Shade: Integer);
+    procedure DrawVHLine(ASurface: TSurface; Lon1, Lat1, Lon2, Lat2: Double; Color: Byte);
+    procedure DrawPath(ASurface: TSurface; Lon1, Lat1, Lon2, Lat2: Double);
+    procedure DrawTarget(ATarget: TTarget; ASurface: TSurface);
+    procedure Blink;
+    procedure Rotate;
+    procedure SetupRadii(AWidth, AHeight: Integer);
+    procedure StopScrolling(AAction: TAction);
+  protected
+    procedure MouseOver(AAction: TAction; AState: TState); override;
+    procedure MousePress(AAction: TAction; AState: TState); override;
+    procedure MouseRelease(AAction: TAction; AState: TState); override;
+    procedure MouseClick(AAction: TAction; AState: TState); override;
+    procedure KeyboardPress(AAction: TAction; AState: TState); override;
+  public
+    constructor Create(AGame: TGame; ACenX, ACenY, AWidth, AHeight, AX, AY: Integer);
+    destructor Destroy; override;
+    procedure SetPalette(AColors: PSDL_Color; AFirstColor, ANColors: Integer); override;
+    procedure Think;
+    procedure Draw; override;
+    procedure Blit(ASurface: TSurface); override;
+    procedure CachePolygons;
+    procedure PolarToCart(Lon, Lat: Double; var X, Y: SmallInt); overload;
+    procedure PolarToCart(Lon, Lat: Double; var X, Y: Double); overload;
+    procedure CartToPolar(X, Y: SmallInt; var Lon, Lat: Double);
+    function InsideLand(Lon, Lat: Double): Boolean;
+    procedure RotateLeft;
+    procedure RotateRight;
+    procedure RotateUp;
+    procedure RotateDown;
+    procedure RotateStop;
+    procedure RotateStopLon;
+    procedure RotateStopLat;
+    procedure ZoomIn;
+    procedure ZoomOut;
+    procedure ZoomMin;
+    procedure ZoomMax;
+    procedure SaveZoomDogfight;
+    function ZoomDogfightIn: Boolean;
+    function ZoomDogfightOut: Boolean;
+    function GetZoom: Integer;
+    procedure Center(Lon, Lat: Double);
+    procedure ToggleDetail;
+    procedure ToggleRadarLines;
+    function GetTargets(X, Y: Integer; ACraftOnly: Boolean): TList;
+    procedure GetPolygonTextureAndShade(Lon, Lat: Double; var Texture, Shade: Integer);
+    procedure SetNewBaseHover(AHover: Boolean);
+    procedure SetNewBaseHoverPos(Lon, Lat: Double);
+    procedure SetCraftRange(Lon, Lat, Range: Double);
+    procedure Resize;
+  end;
+
+implementation
+
+uses
+  Engine.ShaderDraw;
+
+{ Static data for shading }
+type
+  TGlobeStatic = class
+    ShadeGradient: array[0..239] of SmallInt;
+    RandomSurfSize: Integer;
+    constructor Create;
+  end;
+
+var
+  GS: TGlobeStatic;
+
+constructor TGlobeStatic.Create;
+var
+  i, j: Integer;
+begin
+  RandomSurfSize := 60;
+  for i := 0 to 239 do
+  begin
+    j := i - 120;
+    if j < -66 then j := -16
+    else if j < -48 then j := -15
+    else if j < -33 then j := -14
+    else if j < -22 then j := -13
+    else if j < -15 then j := -12
+    else if j < -11 then j := -11
+    else if j < -9 then j := -10;
+
+    if j > 120 then j := 19
+    else if j > 98 then j := 18
+    else if j > 86 then j := 17
+    else if j > 74 then j := 16
+    else if j > 54 then j := 15
+    else if j > 38 then j := 14
+    else if j > 26 then j := 13
+    else if j > 18 then j := 12
+    else if j > 13 then j := 11
+    else if j > 10 then j := 10
+    else if j > 8 then j := 9;
+
+    ShadeGradient[i] := j + 16;
+  end;
+end;
+
+{ Helpers }
+function CircleNorm(Ox, Oy, R, X, Y: Double): TCord;
+var
+  Limit, Norm: Double;
+begin
+  Limit := R * R;
+  Norm := 1.0 / R;
+  Result.x := X - Ox;
+  Result.y := Y - Oy;
+  var Temp := Result.x * Result.x + Result.y * Result.y;
+  if Limit > Temp then
+  begin
+    Result.x := Result.x * Norm;
+    Result.y := Result.y * Norm;
+    Result.z := Sqrt(Limit - Temp) * Norm;
+  end
+  else
+  begin
+    Result.x := 0; Result.y := 0; Result.z := 0;
+  end;
+end;
+
+const
+  OCEAN_COLOR: Byte = 0;
+  OCEAN_SHADING: Boolean = True;
+  COUNTRY_LABEL_COLOR: Byte = 0;
+  LINE_COLOR: Byte = 0;
+  CITY_LABEL_COLOR: Byte = 0;
+  BASE_LABEL_COLOR: Byte = 0;
+
+{ TGlobe }
+
+constructor TGlobe.Create(AGame: TGame; ACenX, ACenY, AWidth, AHeight, AX, AY: Integer);
+var
+  i: Integer;
+begin
+  inherited Create(AWidth, AHeight, AX, AY);
+  FGame := AGame;
+  FCenX := ACenX;
+  FCenY := ACenY;
+  FRules := FGame.Mod.Globe;
+  FTexture := TSurfaceSet.Create(FGame.Mod.SurfaceSet('TEXTURE.DAT'));
+  FMarkerSet := TSurfaceSet.Create(FGame.Mod.SurfaceSet('GlobeMarkers'));
+
+  FCountries := TSurface.Create(AWidth, AHeight, AX, AY);
+  FMarkers := TSurface.Create(AWidth, AHeight, AX, AY);
+  FRadars := TSurface.Create(AWidth, AHeight, AX, AY);
+  FClipper := TFastLineClip.Create(AX, AX + AWidth, AY, AY + AHeight);
+
+  FBlinkTimer := TTimer.Create(100);
+  FBlinkTimer.OnTimer := Blink;
+  FBlinkTimer.Start;
+
+  FRotTimer := TTimer.Create(10);
+  FRotTimer.OnTimer := Rotate;
+
+  FCenLon := FGame.SavedGame.GlobeLongitude;
+  FCenLat := FGame.SavedGame.GlobeLatitude;
+  FZoom := FGame.SavedGame.GlobeZoom;
+  FZoomOld := FZoom;
+
+  SetupRadii(AWidth, AHeight);
+  SetZoom(FZoom);
+
+  // Random noise for shadow
+  SetLength(FRandomNoiseData, GS.RandomSurfSize * GS.RandomSurfSize);
+  for i := 0 to High(FRandomNoiseData) do
+    FRandomNoiseData[i] := Random(4);
+
+  FCacheLand := TList.Create;
+  CachePolygons;
+
+  FBlink := 1;
+end;
+
+destructor TGlobe.Destroy;
+var
+  i: Integer;
+begin
+  FBlinkTimer.Free;
+  FRotTimer.Free;
+  FTexture.Free;
+  FMarkerSet.Free;
+  FCountries.Free;
+  FMarkers.Free;
+  FRadars.Free;
+  FClipper.Free;
+  for i := 0 to FCacheLand.Count - 1 do
+    TPolygon(FCacheLand[i]).Free;
+  FCacheLand.Free;
+  inherited;
+end;
+
+procedure TGlobe.SetPalette(AColors: PSDL_Color; AFirstColor, ANColors: Integer);
+begin
+  inherited;
+  FTexture.SetPalette(AColors, AFirstColor, ANColors);
+  FMarkerSet.SetPalette(AColors, AFirstColor, ANColors);
+  FCountries.SetPalette(AColors, AFirstColor, ANColors);
+  FMarkers.SetPalette(AColors, AFirstColor, ANColors);
+  FRadars.SetPalette(AColors, AFirstColor, ANColors);
+end;
+
+procedure TGlobe.Think;
+begin
+  FBlinkTimer.Think(0, Self);
+  FRotTimer.Think(0, Self);
+end;
+
+procedure TGlobe.Blink;
+begin
+  FBlink := -FBlink;
+  for var i in FMarkerSet.Frames.Keys do
+    if i <> CITY_MARKER then
+      FMarkerSet.Frames[i].Offset(FBlink);
+  DrawMarkers;
+end;
+
+procedure TGlobe.Rotate;
+begin
+  FCenLon := FCenLon + FRotLon * ((110 - Options.GeoScrollSpeed) / 100.0) / (FZoom + 1);
+  FCenLat := FCenLat + FRotLat * ((110 - Options.GeoScrollSpeed) / 100.0) / (FZoom + 1);
+  FGame.SavedGame.GlobeLongitude := FCenLon;
+  FGame.SavedGame.GlobeLatitude := FCenLat;
+  Invalidate;
+end;
+
+procedure TGlobe.SetupRadii(AWidth, AHeight: Integer);
+var
+  r: array[0..5] of Double;
+  i: Integer;
+begin
+  r[0] := 0.45 * AHeight;
+  r[1] := 0.60 * AHeight;
+  r[2] := 0.90 * AHeight;
+  r[3] := 1.40 * AHeight;
+  r[4] := 2.25 * AHeight;
+  r[5] := 3.60 * AHeight;
+  SetLength(FZoomRadius, 6);
+  for i := 0 to 5 do FZoomRadius[i] := r[i];
+  FRadius := FZoomRadius[FZoom];
+  FRadiusStep := (FZoomRadius[DOGFIGHT_ZOOM] - FZoomRadius[0]) / 10.0;
+
+  if Options.GlobeSurfaceCache then
+  begin
+    SetLength(FEarthData, Length(FZoomRadius));
+    for i := 0 to High(FZoomRadius) do
+    begin
+      SetLength(FEarthData[i], AWidth * AHeight);
+      for var y := 0 to AHeight - 1 do
+        for var x := 0 to AWidth - 1 do
+          FEarthData[i][AWidth * y + x] := CircleNorm(AWidth/2, AHeight/2, FZoomRadius[i], x + 0.5, y + 0.5);
+    end;
+  end
+  else
+    SetLength(FEarthData, 0);
+end;
+
+procedure TGlobe.SetZoom(AZoom: Integer);
+begin
+  FZoom := Max(0, Min(AZoom, Length(FZoomRadius) - 1));
+  FZoomTexture := (2 - Floor(FZoom / 2.0)) * (FTexture.TotalFrames div 3);
+  FRadius := FZoomRadius[FZoom];
+  FGame.SavedGame.GlobeZoom := FZoom;
+  if FIsMouseScrolling then
+  begin
+    FLonBeforeMouseScrolling := FCenLon;
+    FLatBeforeMouseScrolling := FCenLat;
+    FTotalMouseMoveX := 0;
+    FTotalMouseMoveY := 0;
+  end;
+  Invalidate;
+end;
+
+procedure TGlobe.ZoomIn;
+begin
+  if FZoom < Length(FZoomRadius) - 1 then SetZoom(FZoom + 1);
+end;
+
+procedure TGlobe.ZoomOut;
+begin
+  if FZoom > 0 then SetZoom(FZoom - 1);
+end;
+
+procedure TGlobe.ZoomMin;
+begin
+  if FZoom > 0 then SetZoom(0);
+end;
+
+procedure TGlobe.ZoomMax;
+begin
+  if FZoom < Length(FZoomRadius) - 1 then SetZoom(Length(FZoomRadius) - 1);
+end;
+
+procedure TGlobe.SaveZoomDogfight;
+begin
+  FZoomOld := FZoom;
+end;
+
+function TGlobe.ZoomDogfightIn: Boolean;
+var
+  nowRadius: Double;
+begin
+  if FZoom < DOGFIGHT_ZOOM then
+  begin
+    nowRadius := FRadius;
+    if nowRadius + FRadiusStep >= FZoomRadius[DOGFIGHT_ZOOM] then
+      SetZoom(DOGFIGHT_ZOOM)
+    else
+    begin
+      if nowRadius + FRadiusStep >= FZoomRadius[FZoom + 1] then
+        Inc(FZoom);
+      SetZoom(FZoom);
+      FRadius := nowRadius + FRadiusStep;
+    end;
+    Result := False;
+  end
+  else
+    Result := True;
+end;
+
+function TGlobe.ZoomDogfightOut: Boolean;
+var
+  nowRadius: Double;
+begin
+  if FZoom > FZoomOld then
+  begin
+    nowRadius := FRadius;
+    if nowRadius - FRadiusStep <= FZoomRadius[FZoomOld] then
+      SetZoom(FZoomOld)
+    else
+    begin
+      if nowRadius - FRadiusStep <= FZoomRadius[FZoom - 1] then
+        Dec(FZoom);
+      SetZoom(FZoom);
+      FRadius := nowRadius - FRadiusStep;
+    end;
+    Result := False;
+  end
+  else
+    Result := True;
+end;
+
+function TGlobe.GetZoom: Integer;
+begin
+  Result := FZoom;
+end;
+
+procedure TGlobe.PolarToCart(Lon, Lat: Double; var X, Y: SmallInt);
+begin
+  X := FCenX + Round(FRadius * Cos(Lat) * Sin(Lon - FCenLon));
+  Y := FCenY + Round(FRadius * (Cos(FCenLat) * Sin(Lat) - Sin(FCenLat) * Cos(Lat) * Cos(Lon - FCenLon)));
+end;
+
+procedure TGlobe.PolarToCart(Lon, Lat: Double; var X, Y: Double);
+begin
+  X := FCenX + FRadius * Cos(Lat) * Sin(Lon - FCenLon);
+  Y := FCenY + FRadius * (Cos(FCenLat) * Sin(Lat) - Sin(FCenLat) * Cos(Lat) * Cos(Lon - FCenLon));
+end;
+
+procedure TGlobe.CartToPolar(X, Y: SmallInt; var Lon, Lat: Double);
+var
+  dx, dy: Integer;
+  rho, c: Double;
+begin
+  dx := X - FCenX;
+  dy := Y - FCenY;
+  rho := Sqrt(dx*dx + dy*dy);
+  if AreSame(rho, 0.0) then
+  begin
+    Lat := FCenLat;
+    Lon := FCenLon;
+  end
+  else
+  begin
+    c := ArcSin(rho / FRadius);
+    Lat := ArcSin((dy * Sin(c) * Cos(FCenLat)) / rho + Cos(c) * Sin(FCenLat));
+    Lon := ArcTan2(dx * Sin(c), (rho * Cos(FCenLat) * Cos(c) - dy * Sin(FCenLat) * Sin(c))) + FCenLon;
+  end;
+  while Lon < 0 do Lon := Lon + 2 * PI;
+  while Lon >= 2 * PI do Lon := Lon - 2 * PI;
+end;
+
+function TGlobe.PointBack(Lon, Lat: Double): Boolean;
+var
+  c: Double;
+begin
+  c := Cos(FCenLat) * Cos(Lat) * Cos(Lon - FCenLon) + Sin(FCenLat) * Sin(Lat);
+  Result := c < 0.0;
+end;
+
+function TGlobe.GetPolygonFromLonLat(Lon, Lat: Double): TPolygon;
+const
+  zDiscard = 0.75;
+var
+  cosLat, sinLat: Double;
+  poly: TPolygon;
+  odd: Boolean;
+  x, y, x2, y2: Double;
+  clat, clon: Double;
+  z: Double;
+  j: Integer;
+begin
+  cosLat := Cos(Lat); sinLat := Sin(Lat);
+  for poly in FCacheLand do
+  begin
+    // quick discard
+    z := 0;
+    for j := 0 to poly.Points - 1 do
+    begin
+      z := cosLat * Cos(poly.Latitude[j]) * Cos(poly.Longitude[j] - Lon) + sinLat * Sin(poly.Latitude[j]);
+      if z < zDiscard then Break;
+    end;
+    if z < zDiscard then Continue;
+
+    odd := False;
+    clat := poly.Latitude[0];
+    clon := poly.Longitude[0];
+    x := Cos(clat) * Sin(clon - Lon);
+    y := cosLat * Sin(clat) - sinLat * Cos(clat) * Cos(clon - Lon);
+    for j := 0 to poly.Points - 1 do
+    begin
+      var k := (j + 1) mod poly.Points;
+      clat := poly.Latitude[k];
+      clon := poly.Longitude[k];
+      x2 := Cos(clat) * Sin(clon - Lon);
+      y2 := cosLat * Sin(clat) - sinLat * Cos(clat) * Cos(clon - Lon);
+      if ((y > 0) <> (y2 > 0)) and (0 < (x2 - x) * (0 - y) / (y2 - y) + x) then
+        odd := not odd;
+      x := x2; y := y2;
+    end;
+    if odd then Exit(poly);
+  end;
+  Result := nil;
+end;
+
+function TGlobe.InsideLand(Lon, Lat: Double): Boolean;
+begin
+  Result := GetPolygonFromLonLat(Lon, Lat) <> nil;
+end;
+
+procedure TGlobe.Center(Lon, Lat: Double);
+begin
+  FCenLon := Lon;
+  FCenLat := Lat;
+  FGame.SavedGame.GlobeLongitude := FCenLon;
+  FGame.SavedGame.GlobeLatitude := FCenLat;
+  Invalidate;
+end;
+
+procedure TGlobe.CachePolygons;
+begin
+  Cache(FRules.Polygons, FCacheLand);
+end;
+
+procedure TGlobe.Cache(APolygons: TList; ACache: TList);
+var
+  p: TPolygon;
+  closest, z, furthest: Double;
+  j: Integer;
+begin
+  for var i := 0 to ACache.Count - 1 do TPolygon(ACache[i]).Free;
+  ACache.Clear;
+
+  for p in APolygons do
+  begin
+    closest := 0; furthest := 0;
+    for j := 0 to p.Points - 1 do
+    begin
+      z := Cos(FCenLat) * Cos(p.Latitude[j]) * Cos(p.Longitude[j] - FCenLon) + Sin(FCenLat) * Sin(p.Latitude[j]);
+      if z > closest then closest := z
+      else if z < furthest then furthest := z;
+    end;
+    if -furthest > closest then Continue;
+
+    var newP := TPolygon.Create(p);
+    for j := 0 to newP.Points - 1 do
+    begin
+      var px, py: SmallInt;
+      PolarToCart(newP.Longitude[j], newP.Latitude[j], px, py);
+      newP.X[j] := px;
+      newP.Y[j] := py;
+    end;
+    ACache.Add(newP);
+  end;
+end;
+
+procedure TGlobe.Draw;
+begin
+  if Redraw then CachePolygons;
+  inherited;
+  DrawOcean;
+  DrawLand;
+  DrawRadars;
+  DrawFlights;
+  DrawShadow;
+  DrawMarkers;
+  DrawDetail;
+end;
+
+procedure TGlobe.DrawOcean;
+begin
+  Lock;
+  DrawCircle(FCenX + 1, FCenY, Round(FRadius) + 20, OCEAN_COLOR);
+  Unlock;
+end;
+
+procedure TGlobe.DrawLand;
+var
+  poly: TPolygon;
+  x, y: array[0..3] of SmallInt;
+  j: Integer;
+begin
+  for poly in FCacheLand do
+  begin
+    for j := 0 to poly.Points - 1 do
+    begin
+      x[j] := poly.X[j];
+      y[j] := poly.Y[j];
+    end;
+    DrawTexturedPolygon(x, y, poly.Points, FTexture.GetFrame(poly.Texture + FZoomTexture), 0, 0);
+  end;
+end;
+
+function TGlobe.GetSunDirection(Lon, Lat: Double): TCord;
+var
+  curTime: Double;
+  rot: Double;
+  sun: Double;
+  year, month, day: Integer;
+  MonthDays1: array[0..12] of Integer = (0,31,59,90,120,151,181,212,243,273,304,334,365);
+  MonthDays2: array[0..12] of Integer = (0,31,60,91,121,152,182,213,244,274,305,335,366);
+  curDay: Double;
+  sun_dir: TCord;
+  pole: TCord;
+  norm: Double;
+begin
+  curTime := FGame.SavedGame.Time.Daylight;
+  rot := curTime * 2 * PI;
+  sun := 0;
+  if Options.GlobeSeasons then
+  begin
+    year := FGame.SavedGame.Time.Year;
+    month := FGame.SavedGame.Time.Month - 1;
+    day := FGame.SavedGame.Time.Day - 1;
+    var tm := (FGame.SavedGame.Time.Hour * 60 + FGame.SavedGame.Time.Minute) * 60 + FGame.SavedGame.Time.Second;
+    tm := tm / 86400;
+    if (year mod 4 = 0) and ((year mod 100 <> 0) or (year mod 400 = 0)) then
+      curDay := (MonthDays2[month] + day + tm) / 366 - 0.219
+    else
+      curDay := (MonthDays1[month] + day + tm) / 365 - 0.219;
+    if curDay < 0 then curDay := curDay + 1;
+    sun := -0.261 * Sin(curDay * 2 * PI);
+  end;
+
+  sun_dir := TCord.Create(Cos(rot + Lon), Sin(rot + Lon) * -Sin(Lat), Sin(rot + Lon) * Cos(Lat));
+  pole := TCord.Create(0, Cos(Lat), Sin(Lat));
+  if sun > 0 then sun_dir := sun_dir * (1 - sun)
+  else sun_dir := sun_dir * (1 + sun);
+  pole := pole * sun;
+  sun_dir := sun_dir + pole;
+  norm := sun_dir.Norm;
+  if norm > 0 then sun_dir := sun_dir / norm;
+  Result := sun_dir;
+end;
+
+procedure TGlobe.DrawShadow;
+begin
+  if Options.GlobeSurfaceCache then
+  begin
+    // Using precomputed earth normals
+    var shader := TShaderMove<TCord>.Create(FEarthData[FZoom], Width, Height);
+    try
+      shader.SetMove(FCenX - Width div 2, FCenY - Height div 2);
+      Lock;
+      TShaderDraw<TDrawShadowWithCache>.Draw(Self, shader,
+        TShaderScalar<TCord>.Create(GetSunDirection(FCenLon, FCenLat)),
+        TShaderRepeat<SmallInt>.Create(FRandomNoiseData, GS.RandomSurfSize, GS.RandomSurfSize));
+      Unlock;
+    finally
+      shader.Free;
+    end;
+  end
+  else
+  begin
+    // Using on-the-fly normals
+    Lock;
+    TShaderDraw<TDrawShadowNoCache>.Draw(Self,
+      TOffset.Create(FCenX, FCenY),
+      TShaderScalar<TCord>.Create(GetSunDirection(FCenLon, FCenLat)),
+      TShaderRepeat<SmallInt>.Create(FRandomNoiseData, GS.RandomSurfSize, GS.RandomSurfSize),
+      TShaderScalar<Integer>.Create(FRadius));
+    Unlock;
+  end;
+end;
+
+procedure TGlobe.DrawRadars;
+begin
+  // Implemented in Batch 11 (part 2)
+end;
+
+procedure TGlobe.DrawFlights;
+begin
+  // Implemented in Batch 11
+end;
+
+procedure TGlobe.DrawMarkers;
+begin
+  // Implemented in Batch 11
+end;
+
+procedure TGlobe.DrawDetail;
+begin
+  // Implemented in Batch 11
+end;
+
+procedure TGlobe.DrawGlobeCircle(Lat, Lon, Radius: Double; Segments: Integer; Frac: Integer = 1);
+begin
+  // Implemented in Batch 11
+end;
+
+procedure TGlobe.XuLine(Surface, Src: TSurface; X1, Y1, X2, Y2: Double; Shade: Integer);
+begin
+  // Implemented in Batch 11
+end;
+
+procedure TGlobe.DrawVHLine(ASurface: TSurface; Lon1, Lat1, Lon2, Lat2: Double; Color: Byte);
+begin
+  // Implemented in Batch 11
+end;
+
+procedure TGlobe.DrawPath(ASurface: TSurface; Lon1, Lat1, Lon2, Lat2: Double);
+begin
+  // Implemented in Batch 11
+end;
+
+procedure TGlobe.DrawTarget(ATarget: TTarget; ASurface: TSurface);
+begin
+  // Implemented in Batch 11
+end;
+
+procedure TGlobe.Blit(ASurface: TSurface);
+begin
+  inherited;
+  FRadars.Blit(ASurface);
+  FCountries.Blit(ASurface);
+  FMarkers.Blit(ASurface);
+end;
+
+function TGlobe.TargetNear(ATarget: TTarget; X, Y: Integer): Boolean;
+var
+  tx, ty: SmallInt;
+begin
+  if PointBack(ATarget.Longitude, ATarget.Latitude) then Exit(False);
+  PolarToCart(ATarget.Longitude, ATarget.Latitude, tx, ty);
+  var dx := X - tx; var dy := Y - ty;
+  Result := dx*dx + dy*dy <= NEAR_RADIUS;
+end;
+
+function TGlobe.GetTargets(X, Y: Integer; ACraftOnly: Boolean): TList;
+var
+  list: TList;
+  b: TBase;
+  c: TCraft;
+  u: TUfo;
+  w: TWaypoint;
+  m: TMissionSite;
+  ab: TAlienBase;
+begin
+  list := TList.Create;
+  if not ACraftOnly then
+  begin
+    for b in FGame.SavedGame.Bases do
+    begin
+      if (b.Longitude = 0) and (b.Latitude = 0) then Continue;
+      if TargetNear(b, X, Y) then list.Add(b);
+      for c in b.Crafts do
+      begin
+        if (c.Longitude = b.Longitude) and (c.Latitude = b.Latitude) and (c.Destination = nil) then Continue;
+        if TargetNear(c, X, Y) then list.Add(c);
+      end;
+    end;
+  end;
+  for u in FGame.SavedGame.Ufos do
+    if u.Detected and TargetNear(u, X, Y) then list.Add(u);
+  for w in FGame.SavedGame.Waypoints do
+    if TargetNear(w, X, Y) then list.Add(w);
+  for m in FGame.SavedGame.MissionSites do
+    if TargetNear(m, X, Y) then list.Add(m);
+  for ab in FGame.SavedGame.AlienBases do
+    if ab.IsDiscovered and TargetNear(ab, X, Y) then list.Add(ab);
+  Result := list;
+end;
+
+procedure TGlobe.GetPolygonTextureAndShade(Lon, Lat: Double; var Texture, Shade: Integer);
+var
+  worldshades: array[0..31] of Integer;
+  shadow: Byte;
+begin
+  for var i := 0 to 31 do
+    worldshades[i] := Trunc(i * 0.5);
+  var sunDir := GetSunDirection(Lon, Lat);
+  var earth := TCord.Create(0,0,1);
+  var temp := earth - sunDir;
+  temp := temp * temp;
+  var val := temp.x * 125;
+  if val < -110 then val := -31
+  else if val > 120 then val := 50
+  else val := GS.ShadeGradient[Round(val) + 120];
+  val := val - 0;
+  shadow := Clamp(Round(val), 0, 31);
+  Shade := worldshades[shadow];
+  var poly := GetPolygonFromLonLat(Lon, Lat);
+  if poly <> nil then Texture := poly.Texture else Texture := -1;
+end;
+
+procedure TGlobe.SetNewBaseHover(AHover: Boolean);
+begin
+  FHover := AHover;
+end;
+
+procedure TGlobe.SetNewBaseHoverPos(Lon, Lat: Double);
+begin
+  FHoverLon := Lon;
+  FHoverLat := Lat;
+end;
+
+procedure TGlobe.SetCraftRange(Lon, Lat, Range: Double);
+begin
+  FCraft := Range > 0.0;
+  FCraftLon := Lon;
+  FCraftLat := Lat;
+  FCraftRange := Range;
+end;
+
+procedure TGlobe.RotateLeft;
+begin
+  FRotLon := -0.10;
+  if not FRotTimer.IsRunning then FRotTimer.Start;
+end;
+
+procedure TGlobe.RotateRight;
+begin
+  FRotLon := 0.10;
+  if not FRotTimer.IsRunning then FRotTimer.Start;
+end;
+
+procedure TGlobe.RotateUp;
+begin
+  FRotLat := -0.06;
+  if not FRotTimer.IsRunning then FRotTimer.Start;
+end;
+
+procedure TGlobe.RotateDown;
+begin
+  FRotLat := 0.06;
+  if not FRotTimer.IsRunning then FRotTimer.Start;
+end;
+
+procedure TGlobe.RotateStop;
+begin
+  FRotLon := 0; FRotLat := 0;
+  FRotTimer.Stop;
+end;
+
+procedure TGlobe.RotateStopLon;
+begin
+  FRotLon := 0;
+  if AreSame(FRotLat, 0.0) then FRotTimer.Stop;
+end;
+
+procedure TGlobe.RotateStopLat;
+begin
+  FRotLat := 0;
+  if AreSame(FRotLon, 0.0) then FRotTimer.Stop;
+end;
+
+procedure TGlobe.ToggleDetail;
+begin
+  Options.GlobeDetail := not Options.GlobeDetail;
+  DrawDetail;
+end;
+
+procedure TGlobe.ToggleRadarLines;
+begin
+  Options.GlobeRadarLines := not Options.GlobeRadarLines;
+  DrawRadars;
+end;
+
+procedure TGlobe.Resize;
+var
+  surfaces: array[0..3] of TSurface;
+  i: Integer;
+begin
+  surfaces[0] := Self;
+  surfaces[1] := FMarkers;
+  surfaces[2] := FCountries;
+  surfaces[3] := FRadars;
+  var w := Options.BaseXGeoscape - 64;
+  var h := Options.BaseYGeoscape;
+  for i := 0 to 3 do
+  begin
+    surfaces[i].Width := w;
+    surfaces[i].Height := h;
+    surfaces[i].Invalidate;
+  end;
+  FClipper.Wxrig := w;
+  FClipper.Wybot := h;
+  FCenX := w div 2;
+  FCenY := h div 2;
+  SetupRadii(w, h);
+  Invalidate;
+end;
+
+procedure TGlobe.MouseOver(AAction: TAction; AState: TState);
+var
+  lon, lat: Double;
+begin
+  CartToPolar(Trunc(AAction.AbsoluteXMouse), Trunc(AAction.AbsoluteYMouse), lon, lat);
+  if FIsMouseScrolling and (AAction.Details.Type = SDL_MOUSEMOTION) then
+  begin
+    // Check if mouse button still pressed (workaround for missed release)
+    if (SDL_GetMouseState(nil, nil) and SDL_BUTTON(Options.GeoDragScrollButton)) = 0 then
+    begin
+      if (not FMouseMovedOverThreshold) and (SDL_GetTicks - FMouseScrollingStartTime <= Cardinal(Options.DragScrollTimeTolerance)) then
+        Center(FLonBeforeMouseScrolling, FLatBeforeMouseScrolling);
+      FIsMouseScrolled := False;
+      FIsMouseScrolling := False;
+      StopScrolling(AAction);
+      Exit;
+    end;
+    FIsMouseScrolled := True;
+    if not Options.TouchEnabled then
+    begin
+      SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
+      SDL_WarpMouse((FGame.Screen.Width - 100) div 2, FGame.Screen.Height div 2);
+      SDL_EventState(SDL_MOUSEMOTION, SDL_ENABLE);
+    end;
+    FTotalMouseMoveX := FTotalMouseMoveX + AAction.Details.Motion.xrel;
+    FTotalMouseMoveY := FTotalMouseMoveY + AAction.Details.Motion.yrel;
+    if not FMouseMovedOverThreshold then
+      FMouseMovedOverThreshold := (Abs(FTotalMouseMoveX) > Options.DragScrollPixelTolerance) or
+                                  (Abs(FTotalMouseMoveY) > Options.DragScrollPixelTolerance);
+    if Options.GeoDragScrollInvert then
+    begin
+      var newLon := (FTotalMouseMoveX / AAction.XScale) * 0.10 / (FZoom+1) / 2;
+      var newLat := (FTotalMouseMoveY / AAction.YScale) * 0.06 / (FZoom+1) / 2;
+      Center(FLonBeforeMouseScrolling + newLon / (Options.GeoScrollSpeed / 10),
+             FLatBeforeMouseScrolling + newLat / (Options.GeoScrollSpeed / 10));
+    end
+    else
+    begin
+      var newLon := -AAction.Details.Motion.xrel * 0.10 / (FZoom+1) / 2;
+      var newLat := -AAction.Details.Motion.yrel * 0.06 / (FZoom+1) / 2;
+      Center(FCenLon + newLon / (Options.GeoScrollSpeed / 10),
+             FCenLat + newLat / (Options.GeoScrollSpeed / 10));
+    end;
+    if not Options.TouchEnabled then
+    begin
+      AAction.SetMouseAction(FXBeforeMouseScrolling, FYBeforeMouseScrolling, X, Y);
+      AAction.Details.Motion.x := FXBeforeMouseScrolling;
+      AAction.Details.Motion.y := FYBeforeMouseScrolling;
+    end;
+    FGame.Cursor.Handle(AAction);
+  end;
+  if (lon = lon) and (lat = lat) then
+    inherited MouseOver(AAction, AState);
+end;
+
+procedure TGlobe.MousePress(AAction: TAction; AState: TState);
+var
+  lon, lat: Double;
+begin
+  CartToPolar(Trunc(AAction.AbsoluteXMouse), Trunc(AAction.AbsoluteYMouse), lon, lat);
+  if AAction.Details.button.button = Options.GeoDragScrollButton then
+  begin
+    FIsMouseScrolling := True;
+    FIsMouseScrolled := False;
+    SDL_GetMouseState(FXBeforeMouseScrolling, FYBeforeMouseScrolling);
+    FLonBeforeMouseScrolling := FCenLon;
+    FLatBeforeMouseScrolling := FCenLat;
+    FTotalMouseMoveX := 0; FTotalMouseMoveY := 0;
+    FMouseMovedOverThreshold := False;
+    FMouseScrollingStartTime := SDL_GetTicks;
+  end;
+  if (lon = lon) and (lat = lat) then
+    inherited MousePress(AAction, AState);
+end;
+
+procedure TGlobe.MouseRelease(AAction: TAction; AState: TState);
+var
+  lon, lat: Double;
+begin
+  CartToPolar(Trunc(AAction.AbsoluteXMouse), Trunc(AAction.AbsoluteYMouse), lon, lat);
+  if AAction.Details.button.button = Options.GeoDragScrollButton then
+    StopScrolling(AAction);
+  if (lon = lon) and (lat = lat) then
+    inherited MouseRelease(AAction, AState);
+end;
+
+procedure TGlobe.MouseClick(AAction: TAction; AState: TState);
+var
+  lon, lat: Double;
+begin
+  if AAction.Details.button.button = SDL_BUTTON_WHEELUP then ZoomIn
+  else if AAction.Details.button.button = SDL_BUTTON_WHEELDOWN then ZoomOut;
+
+  CartToPolar(Trunc(AAction.AbsoluteXMouse), Trunc(AAction.AbsoluteYMouse), lon, lat);
+  if FIsMouseScrolling then
+  begin
+    if (AAction.Details.button.button <> Options.GeoDragScrollButton) and
+       ((SDL_GetMouseState(nil, nil) and SDL_BUTTON(Options.GeoDragScrollButton)) = 0) then
+    begin
+      if (not FMouseMovedOverThreshold) and (SDL_GetTicks - FMouseScrollingStartTime <= Cardinal(Options.DragScrollTimeTolerance)) then
+        Center(FLonBeforeMouseScrolling, FLatBeforeMouseScrolling);
+      FIsMouseScrolled := False;
+      FIsMouseScrolling := False;
+      StopScrolling(AAction);
+    end;
+  end;
+  if FIsMouseScrolling then
+  begin
+    if AAction.Details.button.button = Options.GeoDragScrollButton then
+    begin
+      FIsMouseScrolling := False;
+      StopScrolling(AAction);
+    end
+    else
+      Exit;
+    if (not FMouseMovedOverThreshold) and (SDL_GetTicks - FMouseScrollingStartTime <= Cardinal(Options.DragScrollTimeTolerance)) then
+    begin
+      FIsMouseScrolled := False;
+      StopScrolling(AAction);
+      Center(FLonBeforeMouseScrolling, FLatBeforeMouseScrolling);
+    end;
+    if FIsMouseScrolled then Exit;
+  end;
+  if (lon = lon) and (lat = lat) then
+  begin
+    inherited MouseClick(AAction, AState);
+    if AAction.Details.button.button = SDL_BUTTON_RIGHT then
+      Center(lon, lat);
+  end;
+end;
+
+procedure TGlobe.KeyboardPress(AAction: TAction; AState: TState);
+begin
+  inherited;
+  if AAction.Details.key.keysym.sym = Options.KeyGeoToggleDetail then ToggleDetail;
+  if AAction.Details.key.keysym.sym = Options.KeyGeoToggleRadar then ToggleRadarLines;
+end;
+
+procedure TGlobe.StopScrolling(AAction: TAction);
+begin
+  SDL_WarpMouse(FXBeforeMouseScrolling, FYBeforeMouseScrolling);
+  AAction.SetMouseAction(FXBeforeMouseScrolling, FYBeforeMouseScrolling, X, Y);
+end;
+
+initialization
+  GS := TGlobeStatic.Create;
+finalization
+  GS.Free;
+end.

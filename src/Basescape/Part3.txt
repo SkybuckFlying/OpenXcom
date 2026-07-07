@@ -1,0 +1,1006 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦FILE:ManufactureState.pas;encoding=utf8;eol=lf⟧
+unit ManufactureState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Unicode, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Base, Savegame.SavedGame, Mod.RuleManufacture,
+  Savegame.Production, NewManufactureListState, ManufactureInfoState;
+
+type
+  TManufactureState = class(TState)
+  private
+    FBase: TBase;
+    FBtnNew, FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtAvailable, FTxtAllocated, FTxtSpace, FTxtFunds,
+    FTxtItem, FTxtEngineers, FTxtProduced, FTxtCost, FTxtTimeLeft: TText;
+    FLstManufacture: TTextList;
+
+    procedure FillProductionList;
+    procedure LstManufactureClick(Sender: TObject; Action: TAction);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnNewProductionClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TManufactureState.Create(AOwner: TComponent; Base: TBase);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnNew := TTextButton.Create(148, 16, 8, 176);
+  FBtnOk := TTextButton.Create(148, 16, 164, 176);
+  FTxtTitle := TText.Create(310, 17, 5, 8);
+  FTxtAvailable := TText.Create(150, 9, 8, 24);
+  FTxtAllocated := TText.Create(150, 9, 160, 24);
+  FTxtSpace := TText.Create(150, 9, 8, 34);
+  FTxtFunds := TText.Create(150, 9, 160, 34);
+  FTxtItem := TText.Create(80, 9, 10, 52);
+  FTxtEngineers := TText.Create(56, 18, 112, 44);
+  FTxtProduced := TText.Create(56, 18, 168, 44);
+  FTxtCost := TText.Create(44, 27, 222, 44);
+  FTxtTimeLeft := TText.Create(60, 27, 260, 44);
+  FLstManufacture := TTextList.Create(288, 88, 8, 80);
+
+  SetInterface('manufactureMenu');
+  Add(FWindow, 'window', 'manufactureMenu');
+  Add(FBtnNew, 'button', 'manufactureMenu');
+  Add(FBtnOk, 'button', 'manufactureMenu');
+  Add(FTxtTitle, 'text1', 'manufactureMenu');
+  Add(FTxtAvailable, 'text1', 'manufactureMenu');
+  Add(FTxtAllocated, 'text1', 'manufactureMenu');
+  Add(FTxtSpace, 'text1', 'manufactureMenu');
+  Add(FTxtFunds, 'text1', 'manufactureMenu');
+  Add(FTxtItem, 'text2', 'manufactureMenu');
+  Add(FTxtEngineers, 'text2', 'manufactureMenu');
+  Add(FTxtProduced, 'text2', 'manufactureMenu');
+  Add(FTxtCost, 'text2', 'manufactureMenu');
+  Add(FTxtTimeLeft, 'text2', 'manufactureMenu');
+  Add(FLstManufacture, 'list', 'manufactureMenu');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK17.SCR'));
+  FBtnNew.SetText(Translate('STR_NEW_PRODUCTION'));
+  FBtnNew.OnMouseClick := BtnNewProductionClick;
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_CURRENT_PRODUCTION'));
+  FTxtItem.SetText(Translate('STR_ITEM'));
+  FTxtEngineers.SetText(Translate('STR_ENGINEERS__ALLOCATED'));
+  FTxtEngineers.SetWordWrap(True);
+  FTxtProduced.SetText(Translate('STR_UNITS_PRODUCED'));
+  FTxtProduced.SetWordWrap(True);
+  FTxtCost.SetText(Translate('STR_COST__PER__UNIT'));
+  FTxtCost.SetWordWrap(True);
+  FTxtTimeLeft.SetText(Translate('STR_DAYS_HOURS_LEFT'));
+  FTxtTimeLeft.SetWordWrap(True);
+
+  FLstManufacture.SetColumns([115, 15, 52, 56, 48]);
+  FLstManufacture.SetAlign(ALIGN_RIGHT);
+  FLstManufacture.SetAlign(ALIGN_LEFT, 0);
+  FLstManufacture.SetSelectable(True);
+  FLstManufacture.SetBackground(FWindow);
+  FLstManufacture.SetMargin(2);
+  FLstManufacture.SetWordWrap(True);
+  FLstManufacture.OnMouseClick := LstManufactureClick;
+  FillProductionList;
+end;
+
+destructor TManufactureState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TManufactureState.Init;
+begin
+  inherited;
+  FillProductionList;
+end;
+
+procedure TManufactureState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TManufactureState.BtnNewProductionClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TNewManufactureListState.Create(Self, FBase));
+end;
+
+procedure TManufactureState.FillProductionList;
+var
+  prod: TProduction;
+  s1, s2, s3, s4: string;
+  timeLeft, hoursLeft, daysLeft: Integer;
+begin
+  FLstManufacture.ClearList;
+  for prod in FBase.GetProductions do
+  begin
+    s1 := IntToStr(prod.GetAssignedEngineers);
+    if prod.GetInfiniteAmount then
+      s2 := IntToStr(prod.GetAmountProduced) + '/∞'
+    else
+      s2 := IntToStr(prod.GetAmountProduced) + '/' + IntToStr(prod.GetAmountTotal);
+    if prod.GetSellItems then s2 := s2 + ' $';
+    s3 := Unicode.FormatFunding(prod.GetRules.GetManufactureCost);
+    if prod.GetInfiniteAmount then
+      s4 := '∞'
+    else if prod.GetAssignedEngineers > 0 then
+    begin
+      timeLeft := prod.GetAmountTotal * prod.GetRules.GetManufactureTime - prod.GetTimeSpent;
+      hoursLeft := (timeLeft + prod.GetAssignedEngineers - 1) div prod.GetAssignedEngineers;
+      daysLeft := hoursLeft div 24;
+      hoursLeft := hoursLeft mod 24;
+      s4 := IntToStr(daysLeft) + '/' + IntToStr(hoursLeft);
+    end
+    else
+      s4 := '-';
+    FLstManufacture.AddRow([Translate(prod.GetRules.GetName), s1, s2, s3, s4]);
+  end;
+  FTxtAvailable.SetText(Translate('STR_ENGINEERS_AVAILABLE').Arg(FBase.GetAvailableEngineers));
+  FTxtAllocated.SetText(Translate('STR_ENGINEERS_ALLOCATED').Arg(FBase.GetAllocatedEngineers));
+  FTxtSpace.SetText(Translate('STR_WORKSHOP_SPACE_AVAILABLE').Arg(FBase.GetFreeWorkshops));
+  FTxtFunds.SetText(Translate('STR_CURRENT_FUNDS').Arg(Unicode.FormatFunding(FGame.GetSavedGame.GetFunds)));
+end;
+
+procedure TManufactureState.LstManufactureClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TManufactureInfoState.Create(Self, FBase, FBase.GetProductions[FLstManufacture.GetSelectedRow]));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:ManufactureInfoState.pas;encoding=utf8;eol=lf⟧
+unit ManufactureInfoState;
+
+interface
+
+uses
+  Classes, SysUtils, Math,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Unicode, Engine.Options,
+  Interface.Window, Interface.TextButton, Interface.ToggleTextButton,
+  Interface.Text, Interface.ArrowButton,
+  Savegame.Base, Savegame.Production, Mod.RuleManufacture,
+  Engine.Timer, Menu.ErrorMessageState, Mod.RuleInterface,
+  Generics.Collections;
+
+type
+  TManufactureInfoState = class(TState)
+  private
+    FBase: TBase;
+    FItem: TRuleManufacture;
+    FProduction: TProduction;
+    FWindow: TWindow;
+    FBtnStop, FBtnOk: TTextButton;
+    FTxtTitle, FTxtAvailableEngineer, FTxtAvailableSpace, FTxtMonthlyProfit,
+    FTxtAllocatedEngineer, FTxtUnitToProduce, FTxtUnitUp, FTxtUnitDown,
+    FTxtEngineerUp, FTxtEngineerDown, FTxtAllocated, FTxtTodo: TText;
+    FBtnSell: TToggleTextButton;
+    FBtnUnitUp, FBtnUnitDown, FBtnEngineerUp, FBtnEngineerDown: TArrowButton;
+    FTimerMoreEngineer, FTimerLessEngineer, FTimerMoreUnit, FTimerLessUnit: TTimer;
+    FSurfaceEngineers, FSurfaceUnits: TInteractiveSurface;
+    FProducedItemsValue: Integer;
+
+    procedure InitProfitInfo;
+    function GetMonthlyNetFunds: Integer;
+    procedure SetAssignedEngineer;
+    procedure MoreEngineer(Change: Integer);
+    procedure LessEngineer(Change: Integer);
+    procedure MoreUnit(Change: Integer);
+    procedure LessUnit(Change: Integer);
+    procedure ExitState;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Item: TRuleManufacture); overload;
+    constructor Create(AOwner: TComponent; Base: TBase; Production: TProduction); overload;
+    destructor Destroy; override;
+    procedure BtnSellClick(Sender: TObject; Action: TAction);
+    procedure BtnStopClick(Sender: TObject; Action: TAction);
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure MoreEngineerPress(Sender: TObject; Action: TAction);
+    procedure MoreEngineerRelease(Sender: TObject; Action: TAction);
+    procedure MoreEngineerClick(Sender: TObject; Action: TAction);
+    procedure LessEngineerPress(Sender: TObject; Action: TAction);
+    procedure LessEngineerRelease(Sender: TObject; Action: TAction);
+    procedure LessEngineerClick(Sender: TObject; Action: TAction);
+    procedure MoreUnitPress(Sender: TObject; Action: TAction);
+    procedure MoreUnitRelease(Sender: TObject; Action: TAction);
+    procedure MoreUnitClick(Sender: TObject; Action: TAction);
+    procedure LessUnitPress(Sender: TObject; Action: TAction);
+    procedure LessUnitRelease(Sender: TObject; Action: TAction);
+    procedure LessUnitClick(Sender: TObject; Action: TAction);
+    procedure OnMoreEngineer;
+    procedure OnLessEngineer;
+    procedure OnMoreUnit;
+    procedure OnLessUnit;
+    procedure HandleWheelEngineer(Sender: TObject; Action: TAction);
+    procedure HandleWheelUnit(Sender: TObject; Action: TAction);
+    procedure Think; override;
+  end;
+
+implementation
+
+constructor TManufactureInfoState.Create(AOwner: TComponent; Base: TBase; Item: TRuleManufacture);
+begin
+  FBase := Base;
+  FItem := Item;
+  FProduction := nil;
+  BuildUi;
+end;
+
+constructor TManufactureInfoState.Create(AOwner: TComponent; Base: TBase; Production: TProduction);
+begin
+  FBase := Base;
+  FItem := nil;
+  FProduction := Production;
+  BuildUi;
+end;
+
+procedure TManufactureInfoState.BuildUi;
+begin
+  inherited Create(nil);
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 320, 160, 0, 20, POPUP_BOTH);
+  FTxtTitle := TText.Create(320, 17, 0, 30);
+  FBtnOk := TTextButton.Create(136, 16, 168, 155);
+  FBtnStop := TTextButton.Create(136, 16, 16, 155);
+  FBtnSell := TToggleTextButton.Create(60, 16, 244, 61);
+  FTxtAvailableEngineer := TText.Create(160, 9, 16, 50);
+  FTxtAvailableSpace := TText.Create(160, 9, 16, 60);
+  FTxtMonthlyProfit := TText.Create(160, 9, 168, 50);
+  FTxtAllocatedEngineer := TText.Create(112, 32, 16, 80);
+  FTxtUnitToProduce := TText.Create(112, 48, 168, 64);
+  FTxtEngineerUp := TText.Create(90, 9, 40, 118);
+  FTxtEngineerDown := TText.Create(90, 9, 40, 138);
+  FTxtUnitUp := TText.Create(90, 9, 192, 118);
+  FTxtUnitDown := TText.Create(90, 9, 192, 138);
+  FBtnEngineerUp := TArrowButton.Create(ARROW_BIG_UP, 13, 14, 132, 114);
+  FBtnEngineerDown := TArrowButton.Create(ARROW_BIG_DOWN, 13, 14, 132, 136);
+  FBtnUnitUp := TArrowButton.Create(ARROW_BIG_UP, 13, 14, 284, 114);
+  FBtnUnitDown := TArrowButton.Create(ARROW_BIG_DOWN, 13, 14, 284, 136);
+  FTxtAllocated := TText.Create(40, 16, 128, 88);
+  FTxtTodo := TText.Create(40, 16, 280, 88);
+
+  FSurfaceEngineers := TInteractiveSurface.Create(160, 150, 0, 25);
+  FSurfaceEngineers.OnMouseClick := HandleWheelEngineer;
+  FSurfaceUnits := TInteractiveSurface.Create(160, 150, 160, 25);
+  FSurfaceUnits.OnMouseClick := HandleWheelUnit;
+
+  SetInterface('manufactureInfo');
+  Add(FSurfaceEngineers);
+  Add(FSurfaceUnits);
+  Add(FWindow, 'window', 'manufactureInfo');
+  Add(FTxtTitle, 'text', 'manufactureInfo');
+  Add(FTxtAvailableEngineer, 'text', 'manufactureInfo');
+  Add(FTxtAvailableSpace, 'text', 'manufactureInfo');
+  Add(FTxtMonthlyProfit, 'text', 'manufactureInfo');
+  Add(FTxtAllocatedEngineer, 'text', 'manufactureInfo');
+  Add(FTxtAllocated, 'text', 'manufactureInfo');
+  Add(FTxtUnitToProduce, 'text', 'manufactureInfo');
+  Add(FTxtTodo, 'text', 'manufactureInfo');
+  Add(FTxtEngineerUp, 'text', 'manufactureInfo');
+  Add(FTxtEngineerDown, 'text', 'manufactureInfo');
+  Add(FBtnEngineerUp, 'button1', 'manufactureInfo');
+  Add(FBtnEngineerDown, 'button1', 'manufactureInfo');
+  Add(FTxtUnitUp, 'text', 'manufactureInfo');
+  Add(FTxtUnitDown, 'text', 'manufactureInfo');
+  Add(FBtnUnitUp, 'button1', 'manufactureInfo');
+  Add(FBtnUnitDown, 'button1', 'manufactureInfo');
+  Add(FBtnOk, 'button2', 'manufactureInfo');
+  Add(FBtnStop, 'button2', 'manufactureInfo');
+  Add(FBtnSell, 'button1', 'manufactureInfo');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK17.SCR'));
+  FTxtTitle.SetText(Translate(IfThen(FItem <> nil, FItem.GetName, FProduction.GetRules.GetName)));
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+
+  FTxtAllocatedEngineer.SetText(Translate('STR_ENGINEERS__ALLOCATED'));
+  FTxtAllocatedEngineer.SetBig;
+  FTxtAllocatedEngineer.SetWordWrap(True);
+  FTxtAllocatedEngineer.SetVerticalAlign(ALIGN_BOTTOM);
+  FTxtAllocated.SetBig;
+  FTxtTodo.SetBig;
+
+  FTxtUnitToProduce.SetText(Translate('STR_UNITS_TO_PRODUCE'));
+  FTxtUnitToProduce.SetBig;
+  FTxtUnitToProduce.SetWordWrap(True);
+  FTxtUnitToProduce.SetVerticalAlign(ALIGN_BOTTOM);
+
+  FTxtEngineerUp.SetText(Translate('STR_INCREASE_UC'));
+  FTxtEngineerDown.SetText(Translate('STR_DECREASE_UC'));
+  FBtnEngineerUp.OnMousePress := MoreEngineerPress;
+  FBtnEngineerUp.OnMouseRelease := MoreEngineerRelease;
+  FBtnEngineerUp.OnMouseClick := MoreEngineerClick;
+  FBtnEngineerDown.OnMousePress := LessEngineerPress;
+  FBtnEngineerDown.OnMouseRelease := LessEngineerRelease;
+  FBtnEngineerDown.OnMouseClick := LessEngineerClick;
+
+  FBtnUnitUp.OnMousePress := MoreUnitPress;
+  FBtnUnitUp.OnMouseRelease := MoreUnitRelease;
+  FBtnUnitUp.OnMouseClick := MoreUnitClick;
+  FBtnUnitDown.OnMousePress := LessUnitPress;
+  FBtnUnitDown.OnMouseRelease := LessUnitRelease;
+  FBtnUnitDown.OnMouseClick := LessUnitClick;
+
+  FTxtUnitUp.SetText(Translate('STR_INCREASE_UC'));
+  FTxtUnitDown.SetText(Translate('STR_DECREASE_UC'));
+
+  FBtnSell.SetText(Translate('STR_SELL_PRODUCTION'));
+  FBtnSell.OnMouseClick := BtnSellClick;
+
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnStop.SetText(Translate('STR_STOP_PRODUCTION'));
+  FBtnStop.OnMouseClick := BtnStopClick;
+
+  if FItem <> nil then
+    FProduction := TProduction.Create(FItem, 1)
+  else
+    FProduction := FProduction; // already set
+  FBase.AddProduction(FProduction);
+  FBtnSell.SetPressed(FProduction.GetSellItems);
+  InitProfitInfo;
+  SetAssignedEngineer;
+
+  FTimerMoreEngineer := TTimer.Create(250);
+  FTimerMoreEngineer.OnTimer := OnMoreEngineer;
+  FTimerLessEngineer := TTimer.Create(250);
+  FTimerLessEngineer.OnTimer := OnLessEngineer;
+  FTimerMoreUnit := TTimer.Create(250);
+  FTimerMoreUnit.OnTimer := OnMoreUnit;
+  FTimerLessUnit := TTimer.Create(250);
+  FTimerLessUnit.OnTimer := OnLessUnit;
+end;
+
+destructor TManufactureInfoState.Destroy;
+begin
+  FTimerMoreEngineer.Free;
+  FTimerLessEngineer.Free;
+  FTimerMoreUnit.Free;
+  FTimerLessUnit.Free;
+  inherited;
+end;
+
+procedure TManufactureInfoState.InitProfitInfo;
+var
+  ItemMap: TDictionary<string, Integer>;
+  pair: TPair<string, Integer>;
+  sellValue: Integer;
+begin
+  FProducedItemsValue := 0;
+  ItemMap := FProduction.GetRules.GetProducedItems;
+  for pair in ItemMap do
+  begin
+    if FProduction.GetRules.GetCategory = 'STR_CRAFT' then
+      sellValue := FGame.GetMod.GetCraft(pair.Key, True).GetSellCost
+    else
+      sellValue := FGame.GetMod.GetItem(pair.Key, True).GetSellCost;
+    FProducedItemsValue := FProducedItemsValue + sellValue * pair.Value;
+  end;
+end;
+
+function TManufactureInfoState.GetMonthlyNetFunds: Integer;
+const
+  AVG_HOURS_PER_MONTH = 730; // approximate
+var
+  saleValue: Integer;
+  numEngineers: Integer;
+  manHoursPerMonth: Integer;
+  itemsPerMonth: Single;
+begin
+  saleValue := IfThen(FBtnSell.GetPressed, FProducedItemsValue, 0);
+  numEngineers := FProduction.GetAssignedEngineers;
+  manHoursPerMonth := AVG_HOURS_PER_MONTH * numEngineers;
+  if not FProduction.GetInfiniteAmount then
+  begin
+    manHoursPerMonth := Min(manHoursPerMonth,
+      FProduction.GetRules.GetManufactureTime * (FProduction.GetAmountTotal - FProduction.GetAmountProduced));
+  end;
+  itemsPerMonth := manHoursPerMonth / FProduction.GetRules.GetManufactureTime;
+  Result := Round((saleValue - FProduction.GetRules.GetManufactureCost) * itemsPerMonth);
+end;
+
+procedure TManufactureInfoState.SetAssignedEngineer;
+begin
+  FTxtAvailableEngineer.SetText(Translate('STR_ENGINEERS_AVAILABLE_UC').Arg(FBase.GetAvailableEngineers));
+  FTxtAvailableSpace.SetText(Translate('STR_WORKSHOP_SPACE_AVAILABLE_UC').Arg(FBase.GetFreeWorkshops));
+  FTxtAllocated.SetText('>' + Unicode.TOK_COLOR_FLIP + IntToStr(FProduction.GetAssignedEngineers));
+  if FProduction.GetInfiniteAmount then
+    FTxtTodo.SetText('>' + Unicode.TOK_COLOR_FLIP + '∞')
+  else
+    FTxtTodo.SetText('>' + Unicode.TOK_COLOR_FLIP + IntToStr(FProduction.GetAmountTotal));
+  FTxtMonthlyProfit.SetText(Translate('STR_MONTHLY_PROFIT').Arg(Unicode.FormatFunding(GetMonthlyNetFunds)));
+end;
+
+procedure TManufactureInfoState.MoreEngineer(Change: Integer);
+var
+  available, space: Integer;
+begin
+  if Change <= 0 then Exit;
+  available := FBase.GetAvailableEngineers;
+  space := FBase.GetFreeWorkshops;
+  if (available > 0) and (space > 0) then
+  begin
+    Change := Min(Min(available, space), Change);
+    FProduction.SetAssignedEngineers(FProduction.GetAssignedEngineers + Change);
+    FBase.SetEngineers(FBase.GetEngineers - Change);
+    SetAssignedEngineer;
+  end;
+end;
+
+procedure TManufactureInfoState.LessEngineer(Change: Integer);
+var
+  assigned: Integer;
+begin
+  if Change <= 0 then Exit;
+  assigned := FProduction.GetAssignedEngineers;
+  if assigned > 0 then
+  begin
+    Change := Min(assigned, Change);
+    FProduction.SetAssignedEngineers(assigned - Change);
+    FBase.SetEngineers(FBase.GetEngineers + Change);
+    SetAssignedEngineer;
+  end;
+end;
+
+procedure TManufactureInfoState.MoreUnit(Change: Integer);
+var
+  units, availableHangars: Integer;
+begin
+  if Change <= 0 then Exit;
+  if (FProduction.GetRules.GetCategory = 'STR_CRAFT') and
+     (FBase.GetAvailableHangars - FBase.GetUsedHangars <= 0) then
+  begin
+    FTimerMoreUnit.Stop;
+    FGame.PushState(TErrorMessageState.Create(Self,
+      Translate('STR_NO_FREE_HANGARS_FOR_CRAFT_PRODUCTION'),
+      FPalette,
+      FGame.GetMod.GetInterface('basescape').GetElement('errorMessage').Color,
+      'BACK17.SCR',
+      FGame.GetMod.GetInterface('basescape').GetElement('errorPalette').Color));
+    Exit;
+  end;
+  units := FProduction.GetAmountTotal;
+  Change := Min(MaxInt - units, Change);
+  if FProduction.GetRules.GetCategory = 'STR_CRAFT' then
+    Change := Min(FBase.GetAvailableHangars - FBase.GetUsedHangars, Change);
+  FProduction.SetAmountTotal(units + Change);
+  SetAssignedEngineer;
+end;
+
+procedure TManufactureInfoState.LessUnit(Change: Integer);
+var
+  units: Integer;
+begin
+  if Change <= 0 then Exit;
+  units := FProduction.GetAmountTotal;
+  Change := Min(units - (FProduction.GetAmountProduced + 1), Change);
+  FProduction.SetAmountTotal(units - Change);
+  SetAssignedEngineer;
+end;
+
+procedure TManufactureInfoState.ExitState;
+begin
+  FGame.PopState;
+  if FItem <> nil then
+    FGame.PopState;
+end;
+
+// Event handlers
+procedure TManufactureInfoState.BtnSellClick(Sender: TObject; Action: TAction);
+begin
+  SetAssignedEngineer;
+end;
+
+procedure TManufactureInfoState.BtnStopClick(Sender: TObject; Action: TAction);
+begin
+  FBase.RemoveProduction(FProduction);
+  ExitState;
+end;
+
+procedure TManufactureInfoState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  if FItem <> nil then
+    FProduction.StartItem(FBase, FGame.GetSavedGame, FGame.GetMod);
+  FProduction.SetSellItems(FBtnSell.GetPressed);
+  ExitState;
+end;
+
+procedure TManufactureInfoState.MoreEngineerPress(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then FTimerMoreEngineer.Start;
+end;
+
+procedure TManufactureInfoState.MoreEngineerRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    FTimerMoreEngineer.SetInterval(250);
+    FTimerMoreEngineer.Stop;
+  end;
+end;
+
+procedure TManufactureInfoState.MoreEngineerClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then MoreEngineer(MaxInt);
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then MoreEngineer(1);
+end;
+
+procedure TManufactureInfoState.LessEngineerPress(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then FTimerLessEngineer.Start;
+end;
+
+procedure TManufactureInfoState.LessEngineerRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    FTimerLessEngineer.SetInterval(250);
+    FTimerLessEngineer.Stop;
+  end;
+end;
+
+procedure TManufactureInfoState.LessEngineerClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then LessEngineer(MaxInt);
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then LessEngineer(1);
+end;
+
+procedure TManufactureInfoState.MoreUnitPress(Sender: TObject; Action: TAction);
+begin
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (FProduction.GetAmountTotal < MaxInt) then
+    FTimerMoreUnit.Start;
+end;
+
+procedure TManufactureInfoState.MoreUnitRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    FTimerMoreUnit.SetInterval(250);
+    FTimerMoreUnit.Stop;
+  end;
+end;
+
+procedure TManufactureInfoState.MoreUnitClick(Sender: TObject; Action: TAction);
+begin
+  if FProduction.GetInfiniteAmount then Exit;
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+  begin
+    if FProduction.GetRules.GetCategory = 'STR_CRAFT' then
+      MoreUnit(MaxInt)
+    else
+    begin
+      FProduction.SetInfiniteAmount(True);
+      SetAssignedEngineer;
+    end;
+  end
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    MoreUnit(1);
+end;
+
+procedure TManufactureInfoState.LessUnitPress(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then FTimerLessUnit.Start;
+end;
+
+procedure TManufactureInfoState.LessUnitRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    FTimerLessUnit.SetInterval(250);
+    FTimerLessUnit.Stop;
+  end;
+end;
+
+procedure TManufactureInfoState.LessUnitClick(Sender: TObject; Action: TAction);
+begin
+  if (Action.GetDetails.button.button = SDL_BUTTON_RIGHT) or
+     (Action.GetDetails.button.button = SDL_BUTTON_LEFT) then
+  begin
+    FProduction.SetInfiniteAmount(False);
+    if (Action.GetDetails.button.button = SDL_BUTTON_RIGHT) or
+       (FProduction.GetAmountTotal <= FProduction.GetAmountProduced) then
+    begin
+      FProduction.SetAmountTotal(FProduction.GetAmountProduced + 1);
+      SetAssignedEngineer;
+    end;
+    if Action.GetDetails.button.button = SDL_BUTTON_LEFT then LessUnit(1);
+  end;
+end;
+
+procedure TManufactureInfoState.OnMoreEngineer;
+begin
+  FTimerMoreEngineer.SetInterval(50);
+  MoreEngineer(1);
+end;
+
+procedure TManufactureInfoState.OnLessEngineer;
+begin
+  FTimerLessEngineer.SetInterval(50);
+  LessEngineer(1);
+end;
+
+procedure TManufactureInfoState.OnMoreUnit;
+begin
+  FTimerMoreUnit.SetInterval(50);
+  MoreUnit(1);
+end;
+
+procedure TManufactureInfoState.OnLessUnit;
+begin
+  FTimerLessUnit.SetInterval(50);
+  LessUnit(1);
+end;
+
+procedure TManufactureInfoState.HandleWheelEngineer(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_WHEELUP then
+    MoreEngineer(Options.ChangeValueByMouseWheel)
+  else if Action.GetDetails.button.button = SDL_BUTTON_WHEELDOWN then
+    LessEngineer(Options.ChangeValueByMouseWheel);
+end;
+
+procedure TManufactureInfoState.HandleWheelUnit(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_WHEELUP then
+    MoreUnit(Options.ChangeValueByMouseWheel)
+  else if Action.GetDetails.button.button = SDL_BUTTON_WHEELDOWN then
+    LessUnit(Options.ChangeValueByMouseWheel);
+end;
+
+procedure TManufactureInfoState.Think;
+begin
+  inherited;
+  FTimerMoreEngineer.Think(Self, 0);
+  FTimerLessEngineer.Think(Self, 0);
+  FTimerMoreUnit.Think(Self, 0);
+  FTimerLessUnit.Think(Self, 0);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:ManufactureStartState.pas;encoding=utf8;eol=lf⟧
+unit ManufactureStartState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options, Engine.Unicode,
+  Interface.Window, Interface.TextButton, Interface.Text, Interface.TextList,
+  Savegame.Base, Savegame.ItemContainer, Mod.RuleManufacture,
+  Savegame.SavedGame, ManufactureInfoState, Menu.ErrorMessageState,
+  Mod.RuleInterface;
+
+type
+  TManufactureStartState = class(TState)
+  private
+    FBase: TBase;
+    FItem: TRuleManufacture;
+    FWindow: TWindow;
+    FBtnCancel, FBtnStart: TTextButton;
+    FTxtTitle, FTxtManHour, FTxtCost, FTxtWorkSpace,
+    FTxtRequiredItemsTitle, FTxtItemNameColumn, FTxtUnitRequiredColumn,
+    FTxtUnitAvailableColumn: TText;
+    FLstRequiredItems: TTextList;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Item: TRuleManufacture);
+    destructor Destroy; override;
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+    procedure BtnStartClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TManufactureStartState.Create(AOwner: TComponent; Base: TBase; Item: TRuleManufacture);
+var
+  requiredItems: TDictionary<string, Integer>;
+  pair: TPair<string, Integer>;
+  row: Integer;
+  availableWorkspace: Integer;
+  productionPossible: Boolean;
+  s1, s2: string;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FItem := Item;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 320, 160, 0, 20);
+  FBtnCancel := TTextButton.Create(136, 16, 16, 155);
+  FTxtTitle := TText.Create(320, 17, 0, 30);
+  FTxtManHour := TText.Create(290, 9, 16, 50);
+  FTxtCost := TText.Create(290, 9, 16, 60);
+  FTxtWorkSpace := TText.Create(290, 9, 16, 70);
+  FTxtRequiredItemsTitle := TText.Create(290, 9, 16, 84);
+  FTxtItemNameColumn := TText.Create(60, 16, 30, 92);
+  FTxtUnitRequiredColumn := TText.Create(60, 16, 155, 92);
+  FTxtUnitAvailableColumn := TText.Create(60, 16, 230, 92);
+  FLstRequiredItems := TTextList.Create(270, 40, 30, 108);
+  FBtnStart := TTextButton.Create(136, 16, 168, 155);
+
+  SetInterface('allocateManufacture');
+  Add(FWindow, 'window', 'allocateManufacture');
+  Add(FTxtTitle, 'text', 'allocateManufacture');
+  Add(FTxtManHour, 'text', 'allocateManufacture');
+  Add(FTxtCost, 'text', 'allocateManufacture');
+  Add(FTxtWorkSpace, 'text', 'allocateManufacture');
+  Add(FBtnCancel, 'button', 'allocateManufacture');
+  Add(FTxtRequiredItemsTitle, 'text', 'allocateManufacture');
+  Add(FTxtItemNameColumn, 'text', 'allocateManufacture');
+  Add(FTxtUnitRequiredColumn, 'text', 'allocateManufacture');
+  Add(FTxtUnitAvailableColumn, 'text', 'allocateManufacture');
+  Add(FLstRequiredItems, 'list', 'allocateManufacture');
+  Add(FBtnStart, 'button', 'allocateManufacture');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK17.SCR'));
+  FTxtTitle.SetText(Translate(FItem.GetName));
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtManHour.SetText(Translate('STR_ENGINEER_HOURS_TO_PRODUCE_ONE_UNIT').Arg(FItem.GetManufactureTime));
+  FTxtCost.SetText(Translate('STR_COST_PER_UNIT_').Arg(Unicode.FormatFunding(FItem.GetManufactureCost)));
+  FTxtWorkSpace.SetText(Translate('STR_WORK_SPACE_REQUIRED').Arg(FItem.GetRequiredSpace));
+  FBtnCancel.SetText(Translate('STR_CANCEL_UC'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+
+  requiredItems := FItem.GetRequiredItems;
+  availableWorkspace := FBase.GetFreeWorkshops;
+  productionPossible := FItem.HaveEnoughMoneyForOneMoreUnit(FGame.GetSavedGame.GetFunds) and (availableWorkspace > 0);
+
+  FTxtRequiredItemsTitle.SetText(Translate('STR_SPECIAL_MATERIALS_REQUIRED'));
+  FTxtRequiredItemsTitle.SetAlign(ALIGN_CENTER);
+  FTxtItemNameColumn.SetText(Translate('STR_ITEM_REQUIRED'));
+  FTxtItemNameColumn.SetWordWrap(True);
+  FTxtUnitRequiredColumn.SetText(Translate('STR_UNITS_REQUIRED'));
+  FTxtUnitRequiredColumn.SetWordWrap(True);
+  FTxtUnitAvailableColumn.SetText(Translate('STR_UNITS_AVAILABLE'));
+  FTxtUnitAvailableColumn.SetWordWrap(True);
+
+  FLstRequiredItems.SetColumns([140, 75, 55]);
+  FLstRequiredItems.SetBackground(FWindow);
+
+  row := 0;
+  for pair in requiredItems do
+  begin
+    s1 := IntToStr(pair.Value);
+    if FGame.GetMod.GetItem(pair.Key) <> nil then
+    begin
+      s2 := IntToStr(FBase.GetStorageItems.GetItem(pair.Key));
+      productionPossible := productionPossible and (FBase.GetStorageItems.GetItem(pair.Key) >= pair.Value);
+    end
+    else if FGame.GetMod.GetCraft(pair.Key) <> nil then
+    begin
+      s2 := IntToStr(FBase.GetCraftCount(pair.Key));
+      productionPossible := productionPossible and (FBase.GetCraftCount(pair.Key) >= pair.Value);
+    end
+    else
+      s2 := '0';
+    FLstRequiredItems.AddRow([Translate(pair.Key), s1, s2]);
+    FLstRequiredItems.SetCellColor(row, 1, FLstRequiredItems.GetSecondaryColor);
+    FLstRequiredItems.SetCellColor(row, 2, FLstRequiredItems.GetSecondaryColor);
+    Inc(row);
+  end;
+
+  FTxtRequiredItemsTitle.Visible := not requiredItems.IsEmpty;
+  FTxtItemNameColumn.Visible := not requiredItems.IsEmpty;
+  FTxtUnitRequiredColumn.Visible := not requiredItems.IsEmpty;
+  FTxtUnitAvailableColumn.Visible := not requiredItems.IsEmpty;
+  FLstRequiredItems.Visible := not requiredItems.IsEmpty;
+
+  FBtnStart.SetText(Translate('STR_START_PRODUCTION'));
+  FBtnStart.OnMouseClick := BtnStartClick;
+  FBtnStart.OnKeyboardPress := BtnStartClick;
+  FBtnStart.Visible := productionPossible;
+end;
+
+destructor TManufactureStartState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TManufactureStartState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TManufactureStartState.BtnStartClick(Sender: TObject; Action: TAction);
+begin
+  if (FItem.GetCategory = 'STR_CRAFT') and (FBase.GetAvailableHangars - FBase.GetUsedHangars <= 0) then
+    FGame.PushState(TErrorMessageState.Create(Self,
+      Translate('STR_NO_FREE_HANGARS_FOR_CRAFT_PRODUCTION'),
+      FPalette,
+      FGame.GetMod.GetInterface('basescape').GetElement('errorMessage').Color,
+      'BACK17.SCR',
+      FGame.GetMod.GetInterface('basescape').GetElement('errorPalette').Color))
+  else if FItem.GetRequiredSpace > FBase.GetFreeWorkshops then
+    FGame.PushState(TErrorMessageState.Create(Self,
+      Translate('STR_NOT_ENOUGH_WORK_SPACE'),
+      FPalette,
+      FGame.GetMod.GetInterface('basescape').GetElement('errorMessage').Color,
+      'BACK17.SCR',
+      FGame.GetMod.GetInterface('basescape').GetElement('errorPalette').Color))
+  else
+    FGame.PushState(TManufactureInfoState.Create(Self, FBase, FItem));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:NewManufactureListState.pas;encoding=utf8;eol=lf⟧
+unit NewManufactureListState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.Window, Interface.TextButton, Interface.Text, Interface.TextList,
+  Interface.ComboBox,
+  Savegame.Base, Savegame.SavedGame, Mod.RuleManufacture,
+  ManufactureStartState;
+
+type
+  TNewManufactureListState = class(TState)
+  private
+    FBase: TBase;
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtItem, FTxtCategory: TText;
+    FLstManufacture: TTextList;
+    FCbxCategory: TComboBox;
+    FPossibleProductions: TList<TRuleManufacture>;
+    FCatStrings: TStringList;
+    FDisplayedStrings: TStringList;
+
+    procedure FillProductionList;
+    procedure CbxCategoryChange(Sender: TObject; Action: TAction);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure LstProdClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TNewManufactureListState.Create(AOwner: TComponent; Base: TBase);
+var
+  i: Integer;
+  rule: TRuleManufacture;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 320, 156, 0, 22, POPUP_BOTH);
+  FBtnOk := TTextButton.Create(304, 16, 8, 154);
+  FTxtTitle := TText.Create(320, 17, 0, 30);
+  FTxtItem := TText.Create(156, 9, 10, 62);
+  FTxtCategory := TText.Create(130, 9, 166, 62);
+  FLstManufacture := TTextList.Create(288, 80, 8, 70);
+  FCbxCategory := TComboBox.Create(Self, 146, 16, 166, 46);
+
+  SetInterface('selectNewManufacture');
+  Add(FWindow, 'window', 'selectNewManufacture');
+  Add(FBtnOk, 'button', 'selectNewManufacture');
+  Add(FTxtTitle, 'text', 'selectNewManufacture');
+  Add(FTxtItem, 'text', 'selectNewManufacture');
+  Add(FTxtCategory, 'text', 'selectNewManufacture');
+  Add(FLstManufacture, 'list', 'selectNewManufacture');
+  Add(FCbxCategory, 'catBox', 'selectNewManufacture');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK17.SCR'));
+  FTxtTitle.SetText(Translate('STR_PRODUCTION_ITEMS'));
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtItem.SetText(Translate('STR_ITEM'));
+  FTxtCategory.SetText(Translate('STR_CATEGORY'));
+
+  FLstManufacture.SetColumns([156, 130]);
+  FLstManufacture.SetSelectable(True);
+  FLstManufacture.SetBackground(FWindow);
+  FLstManufacture.SetMargin(2);
+  FLstManufacture.OnMouseClick := LstProdClick;
+
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+
+  FPossibleProductions := TList<TRuleManufacture>.Create;
+  FGame.GetSavedGame.GetAvailableProductions(FPossibleProductions, FGame.GetMod, FBase);
+
+  FCatStrings := TStringList.Create;
+  FCatStrings.Add('STR_ALL_ITEMS');
+  for rule in FPossibleProductions do
+    if FCatStrings.IndexOf(rule.GetCategory) = -1 then
+      FCatStrings.Add(rule.GetCategory);
+
+  FCbxCategory.SetOptions(FCatStrings, True);
+  FCbxCategory.OnChange := CbxCategoryChange;
+end;
+
+destructor TNewManufactureListState.Destroy;
+begin
+  FPossibleProductions.Free;
+  FCatStrings.Free;
+  FDisplayedStrings.Free;
+  inherited;
+end;
+
+procedure TNewManufactureListState.Init;
+begin
+  inherited;
+  FillProductionList;
+end;
+
+procedure TNewManufactureListState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TNewManufactureListState.LstProdClick(Sender: TObject; Action: TAction);
+var
+  rule: TRuleManufacture;
+  name: string;
+begin
+  name := FDisplayedStrings[FLstManufacture.GetSelectedRow];
+  for rule in FPossibleProductions do
+    if rule.GetName = name then
+    begin
+      FGame.PushState(TManufactureStartState.Create(Self, FBase, rule));
+      Break;
+    end;
+end;
+
+procedure TNewManufactureListState.CbxCategoryChange(Sender: TObject; Action: TAction);
+begin
+  FillProductionList;
+end;
+
+procedure TNewManufactureListState.FillProductionList;
+var
+  rule: TRuleManufacture;
+  cat: string;
+begin
+  FLstManufacture.ClearList;
+  FDisplayedStrings := TStringList.Create;
+  FGame.GetSavedGame.GetAvailableProductions(FPossibleProductions, FGame.GetMod, FBase);
+  cat := FCatStrings[FCbxCategory.GetSelected];
+  for rule in FPossibleProductions do
+  begin
+    if (rule.GetCategory = cat) or (cat = 'STR_ALL_ITEMS') then
+    begin
+      FLstManufacture.AddRow([Translate(rule.GetName), Translate(rule.GetCategory)]);
+      FDisplayedStrings.Add(rule.GetName);
+    end;
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

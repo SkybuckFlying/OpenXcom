@@ -1,0 +1,2209 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦INDEX⟧
+{"batch":6,"files":["BattlescapeGenerator.pas"]}
+⟦/INDEX⟧
+⟦FILE:BattlescapeGenerator.pas;encoding=utf8;sha256=⟧
+unit BattlescapeGenerator;
+
+interface
+
+uses
+  System.SysUtils, System.Generics.Collections, System.Math, System.Classes,
+  Engine.Game, Mod.Mod, Savegame.SavedBattleGame, Savegame.Craft, Savegame.Ufo,
+  Savegame.Base, Savegame.MissionSite, Savegame.AlienBase, Savegame.Tile,
+  Savegame.BattleUnit, Savegame.BattleItem, Savegame.Node, Savegame.Vehicle,
+  Savegame.Soldier, Savegame.ItemContainer, Savegame.BaseFacility,
+  Mod.RuleTerrain, Mod.MapBlock, Mod.MapScript, Mod.MapDataSet, Mod.MapData,
+  Mod.RuleUfo, Mod.RuleCraft, Mod.RuleInventory, Mod.Armor, Mod.UnitMod,
+  Mod.AlienRace, Mod.AlienDeployment, Mod.RuleBaseFacility, Mod.Texture,
+  Engine.FileMap, Engine.Options, Engine.RNG, Engine.Logger, Engine.Exception;
+
+type
+  TDeploymentData = record
+    AlienRank: Integer;
+    LowQty: Integer;
+    HighQty: Integer;
+    DQty: Integer;
+    ExtraQty: Integer;
+    PercentageOutsideUfo: Integer;
+    ItemSets: TArray<TItemSet>;
+  end;
+
+  TBattlescapeGenerator = class
+  private
+    FGame: TGame;
+    FSave: TSavedBattleGame;
+    FMod: TMod;
+    FCraft: TCraft;
+    FUfo: TUfo;
+    FBase: TBase;
+    FMission: TMissionSite;
+    FAlienBase: TAlienBase;
+    FTerrain: TRuleTerrain;
+    FMapsizeX, FMapsizeY, FMapsizeZ: Integer;
+    FWorldTexture: TTexture;
+    FWorldShade: Integer;
+    FUnitSequence: Integer;
+    FCraftInventoryTile: TTile;
+    FAlienRace: string;
+    FAlienItemLevel: Integer;
+    FAllowAutoLoadout: Boolean;
+    FBaseInventory: Boolean;
+    FGenerateFuel: Boolean;
+    FCraftDeployed: Boolean;
+    FCraftZ: Integer;
+    FCraftPos: TRect;
+    FUfoPos: TList<TRect>;
+    FBlocksToDo: Integer;
+    FBlocks: TArray<TArray<TMapBlock>>;
+    FLandingZone: TArray<TArray<Boolean>>;
+    FSegments: TArray<TArray<Integer>>;
+    FDrillMap: TArray<TArray<Integer>>;
+    FDummy: TMapBlock;
+    procedure Init(ResetTerrain: Boolean);
+    procedure GenerateMap(const Script: TList<TMapScript>);
+    function AddXCOMVehicle(V: TVehicle): TBattleUnit;
+    function AddXCOMUnit(AUnit: TBattleUnit): TBattleUnit;
+    function AddAlien(Rules: TUnit; AlienRank: Integer; Outside: Boolean): TBattleUnit;
+    function AddCivilian(Rules: TUnit): TBattleUnit;
+    function PlaceItemByLayout(Item: TBattleItem): Boolean;
+    function AddItem(Item: TBattleItem; AUnit: TBattleUnit; AllowSecondClip: Boolean = False): Boolean;
+    function LoadMAP(MapBlock: TMapBlock; XOff, YOff: Integer; Terrain: TRuleTerrain; ObjectIDOffset: Integer; Discovered: Boolean = False; ACraft: Boolean = False): Integer;
+    procedure LoadRMP(MapBlock: TMapBlock; XOff, YOff: Integer; Segment: Integer);
+    procedure FuelPowerSources;
+    procedure ExplodePowerSources;
+    procedure DeployXCOM;
+    function CanPlaceXCOMUnit(Tile: TTile): Boolean;
+    procedure DeployAliens(Deployment: TAlienDeployment);
+    procedure DeployCivilians(Max: Integer);
+    function PlaceUnitNearFriend(AUnit: TBattleUnit): Boolean;
+    procedure LoadWeapons;
+    function AddCraft(CraftMap: TMapBlock; Command: TMapScript; var CraftPos: TRect): Boolean;
+    function AddLine(LineType: TMapDirection; const Rects: TList<TRect>): Boolean;
+    function AddBlock(X, Y: Integer; Block: TMapBlock): Boolean;
+    procedure LoadNodes;
+    procedure AttachNodeLinks;
+    function SelectPosition(const Rects: TList<TRect>; var X, Y, SizeX, SizeY: Integer): Boolean;
+    procedure GenerateBaseMap;
+    procedure ClearModule(X, Y, SizeX, SizeY: Integer);
+    procedure DrillModules(Data: TTunnelData; const Rects: TList<TRect>; Dir: TMapDirection);
+    function RemoveBlocks(Command: TMapScript): Boolean;
+    procedure SetDepth(Deploy: TAlienDeployment; NextStage: Boolean);
+    procedure SetMusic(Deploy: TAlienDeployment; NextStage: Boolean);
+  public
+    constructor Create(AGame: TGame);
+    destructor Destroy; override;
+    procedure SetCraft(ACraft: TCraft);
+    procedure SetUfo(AUfo: TUfo);
+    procedure SetWorldTexture(ATexture: TTexture);
+    procedure SetWorldShade(AShade: Integer);
+    procedure SetAlienRace(const AAlienRace: string);
+    procedure SetAlienItemlevel(AAlienItemLevel: Integer);
+    procedure SetBase(ABase: TBase);
+    procedure SetMissionSite(AMission: TMissionSite);
+    procedure SetAlienBase(AAlienBase: TAlienBase);
+    procedure SetTerrain(ATerrain: TRuleTerrain);
+    procedure Run;
+    procedure NextStage;
+    procedure RunInventory(ACraft: TCraft);
+    procedure SetupObjectives(Deploy: TAlienDeployment);
+    class procedure AutoEquip(Units: TList<TBattleUnit>; AMod: TMod; AddToSave: TSavedBattleGame;
+      CraftInv: TList<TBattleItem>; GroundRuleInv: TRuleInventory; WorldShade: Integer;
+      AllowAutoLoadout, OverrideEquipmentLayout: Boolean);
+  end;
+
+implementation
+
+uses
+  Savegame.BattleUnit, Savegame.BattleItem, Savegame.Node, Savegame.Vehicle,
+  Mod.AlienDeployment, Mod.MapBlock, Mod.MapDataSet, Mod.MapData,
+  Mod.RuleUfo, Mod.RuleCraft, Mod.RuleInventory, Mod.Armor, Mod.UnitMod,
+  Mod.AlienRace, Mod.RuleBaseFacility, Engine.FileMap, Engine.Options,
+  Engine.RNG, Engine.Logger, Engine.Exception, Engine.Game,
+  Battlescape.TileEngine, Battlescape.Inventory, Battlescape.AIModule;
+
+{ TBattlescapeGenerator }
+
+constructor TBattlescapeGenerator.Create(AGame: TGame);
+begin
+  inherited Create;
+  FGame := AGame;
+  FSave := FGame.GetSavedGame.GetSavedBattle;
+  FMod := FGame.GetMod;
+  FCraft := nil;
+  FUfo := nil;
+  FBase := nil;
+  FMission := nil;
+  FAlienBase := nil;
+  FTerrain := nil;
+  FWorldTexture := nil;
+  FWorldShade := 0;
+  FUnitSequence := 0;
+  FCraftInventoryTile := nil;
+  FAlienRace := '';
+  FAlienItemLevel := 0;
+  FAllowAutoLoadout := not Options.DisableAutoEquip;
+  FBaseInventory := False;
+  FGenerateFuel := True;
+  FCraftDeployed := False;
+  FCraftZ := 0;
+  FCraftPos := Rect(0,0,0,0);
+  FUfoPos := TList<TRect>.Create;
+  FBlocksToDo := 0;
+  FDummy := nil;
+end;
+
+destructor TBattlescapeGenerator.Destroy;
+begin
+  FUfoPos.Free;
+  inherited;
+end;
+
+procedure TBattlescapeGenerator.Init(ResetTerrain: Boolean);
+var
+  I, J: Integer;
+begin
+  SetLength(FBlocks, FMapsizeX div 10, FMapsizeY div 10);
+  SetLength(FLandingZone, FMapsizeX div 10, FMapsizeY div 10);
+  SetLength(FSegments, FMapsizeX div 10, FMapsizeY div 10);
+  SetLength(FDrillMap, FMapsizeX div 10, FMapsizeY div 10);
+  for I := 0 to High(FBlocks) do
+    for J := 0 to High(FBlocks[I]) do
+    begin
+      FBlocks[I][J] := nil;
+      FLandingZone[I][J] := False;
+      FSegments[I][J] := 0;
+      FDrillMap[I][J] := MD_NONE;
+    end;
+  FBlocksToDo := (FMapsizeX div 10) * (FMapsizeY div 10);
+  FSave.InitMap(FMapsizeX, FMapsizeY, FMapsizeZ, ResetTerrain);
+  FSave.InitUtilities(FMod);
+end;
+
+procedure TBattlescapeGenerator.GenerateMap(const Script: TList<TMapScript>);
+var
+  I, J, X, Y, Z: Integer;
+  Command: TMapScript;
+  Success: Boolean;
+  Conditionals: TDictionary<Integer, Boolean>;
+  CraftMap: TMapBlock;
+  UfoMaps: TList<TMapBlock>;
+  MapDataSetIDOffset, CraftDataSetIDOffset: Integer;
+  UfoTerrain: TRuleTerrain;
+  UfoPosTemp: TRect;
+  Block: TMapBlock;
+begin
+  FSave.SetAmbientSound(FTerrain.GetAmbience);
+  FSave.SetAmbientVolume(FTerrain.GetAmbientVolume);
+  FDummy := TMapBlock.Create('dummy');
+  Init(True);
+  CraftMap := nil;
+  UfoMaps := TList<TMapBlock>.Create;
+  Conditionals := TDictionary<Integer, Boolean>.Create;
+  MapDataSetIDOffset := 0;
+  CraftDataSetIDOffset := 0;
+  UfoTerrain := nil;
+
+  for var DataSet in FTerrain.GetMapDataSets do
+  begin
+    DataSet.LoadData(FMod.GetMCDPatch(DataSet.GetName));
+    FSave.GetMapDataSets.Add(DataSet);
+    Inc(MapDataSetIDOffset);
+  end;
+
+  if FSave.GetMissionType = 'STR_BASE_DEFENSE' then
+    GenerateBaseMap;
+
+  for Command in Script do
+  begin
+    if (Command.GetLabel > 0) and Conditionals.ContainsKey(Command.GetLabel) then
+      raise Exception.Create('Map generator: multiple commands sharing same label.');
+    Success := False;
+    if Command.GetConditionals.Count > 0 then
+    begin
+      var Execute := True;
+      for var Cond in Command.GetConditionals do
+      begin
+        if Conditionals.ContainsKey(Abs(Cond)) then
+        begin
+          if ((Cond > 0) and (not Conditionals[Cond])) or
+             ((Cond < 0) and (Conditionals[Abs(Cond)])) then
+          begin
+            Execute := False;
+            Break;
+          end;
+        end
+        else
+          raise Exception.Create('Map generator: conditional command expects undefined label.');
+      end;
+      if not Execute then Continue;
+    end;
+
+    if RNG.Percent(Command.GetChancesOfExecution) then
+    begin
+      Command.Init;
+      for var Exec := 0 to Command.GetExecutions - 1 do
+      begin
+        X := 0; Y := 0;
+        Block := nil;
+        case Command.GetType of
+          MSC_ADDBLOCK:
+            begin
+              Block := Command.GetNextBlock(FTerrain);
+              if (Block <> nil) and SelectPosition(Command.GetRects, X, Y, Block.GetSizeX, Block.GetSizeY) then
+                Success := AddBlock(X, Y, Block) or Success;
+            end;
+          MSC_ADDLINE:
+            Success := AddLine(Command.GetDirection, Command.GetRects);
+          MSC_ADDCRAFT:
+            if FCraft <> nil then
+            begin
+              CraftMap := FCraft.GetRules.GetBattlescapeTerrainData.GetRandomMapBlock(999, 999, 0, False);
+              if AddCraft(CraftMap, Command, FCraftPos) then
+              begin
+                for X := FCraftPos.Left to FCraftPos.Right - 1 do
+                  for Y := FCraftPos.Top to FCraftPos.Bottom - 1 do
+                    if FBlocks[X][Y] <> nil then
+                      LoadMAP(FBlocks[X][Y], X * 10, Y * 10, FTerrain, 0);
+                FCraftDeployed := True;
+                Success := True;
+              end;
+            end;
+          MSC_ADDUFO:
+            begin
+              if FMod.GetUfo(Command.GetUFOName) <> nil then
+                UfoTerrain := FMod.GetUfo(Command.GetUFOName).GetBattlescapeTerrainData
+              else if FUfo <> nil then
+                UfoTerrain := FUfo.GetRules.GetBattlescapeTerrainData;
+              if UfoTerrain <> nil then
+              begin
+                var UfoMap := UfoTerrain.GetRandomMapBlock(999, 999, 0, False);
+                if AddCraft(UfoMap, Command, UfoPosTemp) then
+                begin
+                  FUfoPos.Add(UfoPosTemp);
+                  UfoMaps.Add(UfoMap);
+                  for X := UfoPosTemp.Left to UfoPosTemp.Right - 1 do
+                    for Y := UfoPosTemp.Top to UfoPosTemp.Bottom - 1 do
+                      if FBlocks[X][Y] <> nil then
+                        LoadMAP(FBlocks[X][Y], X * 10, Y * 10, FTerrain, 0);
+                  Success := True;
+                end;
+              end;
+            end;
+          MSC_DIGTUNNEL:
+            begin
+              DrillModules(Command.GetTunnelData, Command.GetRects, Command.GetDirection);
+              Success := True;
+            end;
+          MSC_FILLAREA:
+            begin
+              Block := Command.GetNextBlock(FTerrain);
+              while Block <> nil do
+              begin
+                if SelectPosition(Command.GetRects, X, Y, Block.GetSizeX, Block.GetSizeY) then
+                  Success := AddBlock(X, Y, Block) or Success
+                else
+                  Break;
+                Block := Command.GetNextBlock(FTerrain);
+              end;
+            end;
+          MSC_CHECKBLOCK:
+            begin
+              for var Rect in Command.GetRects do
+                for X := Rect.Left to Rect.Right - 1 do
+                  for Y := Rect.Top to Rect.Bottom - 1 do
+                    if (X < FMapsizeX div 10) and (Y < FMapsizeY div 10) then
+                    begin
+                      if Command.GetGroups.Count > 0 then
+                      begin
+                        for var Grp in Command.GetGroups do
+                          if (FBlocks[X][Y] <> nil) and FBlocks[X][Y].IsInGroup(Grp) then
+                            Success := True;
+                      end
+                      else if Command.GetBlocks.Count > 0 then
+                      begin
+                        for var BlkIdx in Command.GetBlocks do
+                          if (BlkIdx < FTerrain.GetMapBlocks.Count) and (FBlocks[X][Y] = FTerrain.GetMapBlocks[BlkIdx]) then
+                            Success := True;
+                      end
+                      else
+                        Success := (FBlocks[X][Y] <> nil);
+                    end;
+            end;
+          MSC_REMOVE:
+            Success := RemoveBlocks(Command);
+          MSC_RESIZE:
+            begin
+              if FSave.GetMissionType = 'STR_BASE_DEFENSE' then
+                raise Exception.Create('Base defense map cannot be resized.');
+              if FBlocksToDo < ((FMapsizeX div 10) * (FMapsizeY div 10)) then
+                raise Exception.Create('Cannot resize map after adding blocks.');
+              if Command.GetSizeX > 0 then
+                FMapsizeX := Command.GetSizeX * 10;
+              if Command.GetSizeY > 0 then
+                FMapsizeY := Command.GetSizeY * 10;
+              if Command.GetSizeZ > 0 then
+                FMapsizeZ := Command.GetSizeZ;
+              Init(False);
+            end;
+        end;
+      end;
+      if Command.GetLabel > 0 then
+        Conditionals.AddOrSetValue(Command.GetLabel, Success);
+    end;
+  end;
+
+  if FBlocksToDo > 0 then
+    raise Exception.Create('Map failed to fully generate.');
+
+  LoadNodes;
+
+  if (UfoMaps.Count > 0) and (UfoTerrain <> nil) then
+  begin
+    for var DataSet in UfoTerrain.GetMapDataSets do
+    begin
+      DataSet.LoadData(FMod.GetMCDPatch(DataSet.GetName));
+      FSave.GetMapDataSets.Add(DataSet);
+      Inc(CraftDataSetIDOffset);
+    end;
+    for var Idx := 0 to UfoMaps.Count - 1 do
+    begin
+      LoadMAP(UfoMaps[Idx], FUfoPos[Idx].Left * 10, FUfoPos[Idx].Top * 10, UfoTerrain, MapDataSetIDOffset);
+      LoadRMP(UfoMaps[Idx], FUfoPos[Idx].Left * 10, FUfoPos[Idx].Top * 10, Node.UFOSEGMENT);
+      for X := FUfoPos[Idx].Left to FUfoPos[Idx].Right - 1 do
+        for Y := FUfoPos[Idx].Top to FUfoPos[Idx].Bottom - 1 do
+          FSegments[X][Y] := Node.UFOSEGMENT;
+    end;
+  end;
+
+  if CraftMap <> nil then
+  begin
+    for var DataSet in FCraft.GetRules.GetBattlescapeTerrainData.GetMapDataSets do
+    begin
+      DataSet.LoadData(FMod.GetMCDPatch(DataSet.GetName));
+      FSave.GetMapDataSets.Add(DataSet);
+    end;
+    LoadMAP(CraftMap, FCraftPos.Left * 10, FCraftPos.Top * 10, FCraft.GetRules.GetBattlescapeTerrainData,
+            MapDataSetIDOffset + CraftDataSetIDOffset, True, True);
+    LoadRMP(CraftMap, FCraftPos.Left * 10, FCraftPos.Top * 10, Node.CRAFTSEGMENT);
+    for X := FCraftPos.Left to FCraftPos.Right - 1 do
+      for Y := FCraftPos.Top to FCraftPos.Bottom - 1 do
+        FSegments[X][Y] := Node.CRAFTSEGMENT;
+    for X := FCraftPos.Left * 10 - 1 to FCraftPos.Right * 10 + 1 do
+      for Y := FCraftPos.Top * 10 - 1 to FCraftPos.Bottom * 10 + 1 do
+        for Z := FSave.GetMapSizeZ - 1 downto FCraftZ do
+          if FSave.GetTile(Position(X,Y,Z)) <> nil then
+            FSave.GetTile(Position(X,Y,Z)).SetDiscovered(True, 2);
+  end;
+
+  FDummy.Free;
+  UfoMaps.Free;
+  Conditionals.Free;
+
+  // Fill empty floors on level 0
+  for X := 0 to FMapsizeX - 1 do
+    for Y := 0 to FMapsizeY - 1 do
+      if FSave.GetTile(Position(X,Y,0)).GetMapData(O_FLOOR) = nil then
+        FSave.GetTile(Position(X,Y,0)).SetMapData(MapDataSet.GetScorchedEarthTile, 1, 0, O_FLOOR);
+
+  AttachNodeLinks;
+end;
+
+function TBattlescapeGenerator.AddXCOMVehicle(V: TVehicle): TBattleUnit;
+var
+  UnitRule: TUnit;
+  ArmorRule: TModArmor;
+  Item, AmmoItem: TBattleItem;
+begin
+  Result := nil;
+  UnitRule := FMod.GetUnit(V.GetRules.GetType, True);
+  ArmorRule := FMod.GetArmor(UnitRule.GetArmor, True);
+  Result := AddXCOMUnit(TBattleUnit.Create(UnitRule, FACTION_PLAYER, FUnitSequence, ArmorRule, nil, FSave.GetDepth));
+  if Result <> nil then
+  begin
+    Inc(FUnitSequence);
+    Item := TBattleItem.Create(FMod.GetItem(V.GetRules.GetType, True), FSave.GetCurrentItemId);
+    if not AddItem(Item, Result) then
+      Item.Free
+    else
+    begin
+      if V.GetRules.GetCompatibleAmmo.Count > 0 then
+      begin
+        AmmoItem := TBattleItem.Create(FMod.GetItem(V.GetRules.GetCompatibleAmmo[0], True), FSave.GetCurrentItemId);
+        AddItem(AmmoItem, Result);
+        AmmoItem.SetAmmoQuantity(V.GetAmmo);
+      end;
+      Result.SetTurretType(V.GetRules.GetTurretType);
+      if not UnitRule.GetBuiltInWeapons.IsEmpty then
+        for var WeaponType in UnitRule.GetBuiltInWeapons[0] do
+        begin
+          var RuleItem := FMod.GetItem(WeaponType);
+          if RuleItem <> nil then
+          begin
+            var Weapon := TBattleItem.Create(RuleItem, FSave.GetCurrentItemId);
+            if not AddItem(Weapon, Result) then
+              Weapon.Free;
+          end;
+        end;
+    end;
+  end;
+end;
+
+function TBattlescapeGenerator.AddXCOMUnit(AUnit: TBattleUnit): TBattleUnit;
+var
+  Node: TNode;
+  Pos: TPosition;
+  CanPlace: Boolean;
+begin
+  Result := nil;
+  if FBaseInventory then
+  begin
+    if AUnit.HasInventory then
+    begin
+      FSave.GetUnits.Add(AUnit);
+      AUnit.SetSpecialWeapon(FSave, FMod);
+      Exit(AUnit);
+    end;
+  end
+  else
+  begin
+    if (FCraft = nil) or (not FCraftDeployed) then
+    begin
+      Node := FSave.GetSpawnNode(NR_XCOM, AUnit);
+      if Node <> nil then
+      begin
+        FSave.SetUnitPosition(AUnit, Node.GetPosition);
+        FCraftInventoryTile := FSave.GetTile(Node.GetPosition);
+        AUnit.SetDirection(RNG.Generate(0,7));
+        FSave.GetUnits.Add(AUnit);
+        FSave.GetTileEngine.CalculateFOV(AUnit);
+        AUnit.SetSpecialWeapon(FSave, FMod);
+        Exit(AUnit);
+      end
+      else if FSave.GetMissionType <> 'STR_BASE_DEFENSE' then
+      begin
+        if PlaceUnitNearFriend(AUnit) then
+        begin
+          FCraftInventoryTile := FSave.GetTile(AUnit.GetPosition);
+          AUnit.SetDirection(RNG.Generate(0,7));
+          FSave.GetUnits.Add(AUnit);
+          FSave.GetTileEngine.CalculateFOV(AUnit);
+          AUnit.SetSpecialWeapon(FSave, FMod);
+          Exit(AUnit);
+        end;
+      end;
+    end
+    else if (FCraft <> nil) and (FCraft.GetRules.GetDeployment.Count > 0) then
+    begin
+      for var Deploy in FCraft.GetRules.GetDeployment do
+      begin
+        Pos := Position(Deploy[0] + (FCraftPos.Left * 10), Deploy[1] + (FCraftPos.Top * 10), Deploy[2] + FCraftZ);
+        CanPlace := True;
+        for var X := 0 to AUnit.GetArmor.GetSize - 1 do
+          for var Y := 0 to AUnit.GetArmor.GetSize - 1 do
+            if not CanPlaceXCOMUnit(FSave.GetTile(Pos + Position(X,Y,0))) then
+              CanPlace := False;
+        if CanPlace then
+        begin
+          if FSave.SetUnitPosition(AUnit, Pos) then
+          begin
+            FSave.GetUnits.Add(AUnit);
+            AUnit.SetDirection(Deploy[3]);
+            AUnit.SetSpecialWeapon(FSave, FMod);
+            Exit(AUnit);
+          end;
+        end;
+      end;
+    end
+    else
+    begin
+      for var I := 0 to FSave.GetMapSizeXYZ - 1 do
+        if CanPlaceXCOMUnit(FSave.GetTiles[I]) then
+          if FSave.SetUnitPosition(AUnit, FSave.GetTiles[I].GetPosition) then
+          begin
+            FSave.GetUnits.Add(AUnit);
+            AUnit.SetSpecialWeapon(FSave, FMod);
+            Exit(AUnit);
+          end;
+    end;
+  end;
+  AUnit.Free;
+end;
+
+function TBattlescapeGenerator.CanPlaceXCOMUnit(Tile: TTile): Boolean;
+begin
+  Result := (Tile <> nil) and
+            (Tile.GetMapData(O_FLOOR) <> nil) and
+            (Tile.GetMapData(O_FLOOR).GetSpecialType = START_POINT) and
+            (Tile.GetMapData(O_OBJECT) = nil) and
+            (Tile.GetMapData(O_FLOOR).GetTUCost(MT_WALK) < 255);
+  if Result then
+    if FCraftInventoryTile = nil then
+      FCraftInventoryTile := Tile;
+end;
+
+procedure TBattlescapeGenerator.DeployXCOM;
+var
+  GroundInv: TRuleInventory;
+  Unit: TBattleUnit;
+  Soldier: TSoldier;
+  Item: TBattleItem;
+  Craft: TCraft;
+begin
+  GroundInv := FMod.GetInventory('STR_GROUND', True);
+  if FCraft <> nil then
+    FBase := FCraft.GetBase;
+
+  if not FBaseInventory then
+  begin
+    if FCraft <> nil then
+      for var V in FCraft.GetVehicles do
+      begin
+        Unit := AddXCOMVehicle(V);
+        if (Unit <> nil) and (FSave.GetSelectedUnit = nil) then
+          FSave.SetSelectedUnit(Unit);
+      end
+    else if FBase <> nil then
+    begin
+      for var V in FBase.GetVehicles do
+      begin
+        Unit := AddXCOMVehicle(V);
+        if (Unit <> nil) and (FSave.GetSelectedUnit = nil) then
+          FSave.SetSelectedUnit(Unit);
+      end;
+      if FGame.GetSavedGame.GetMonthsPassed = -1 then
+        for Craft in FBase.GetCrafts do
+          for var V in Craft.GetVehicles do
+          begin
+            Unit := AddXCOMVehicle(V);
+            if (Unit <> nil) and (FSave.GetSelectedUnit = nil) then
+              FSave.SetSelectedUnit(Unit);
+          end;
+    end;
+  end;
+
+  for Soldier in FBase.GetSoldiers do
+  begin
+    if ((FCraft <> nil) and (Soldier.GetCraft = FCraft)) or
+       ((FCraft = nil) and (Soldier.GetWoundRecovery = 0) and
+        ((Soldier.GetCraft = nil) or (Soldier.GetCraft.GetStatus <> 'STR_OUT'))) then
+    begin
+      Unit := AddXCOMUnit(TBattleUnit.Create(Soldier, FSave.GetDepth));
+      if (Unit <> nil) and (FSave.GetSelectedUnit = nil) then
+        FSave.SetSelectedUnit(Unit);
+    end;
+  end;
+
+  if FSave.GetUnits.Count = 0 then
+    raise Exception.Create('No XCom units could be placed on the map.');
+
+  for Unit in FSave.GetUnits do
+    if Unit.GetFaction = FACTION_PLAYER then
+    begin
+      FCraftInventoryTile.SetUnit(Unit);
+      Unit.SetVisible(False);
+    end;
+
+  if FCraft <> nil then
+  begin
+    for var KV in FCraft.GetItems.GetContents do
+      for var Count := 1 to KV.Value do
+        FCraftInventoryTile.AddItem(TBattleItem.Create(FMod.GetItem(KV.Key, True), FSave.GetCurrentItemId), GroundInv);
+  end
+  else
+  begin
+    if FGame.GetSavedGame.GetMonthsPassed <> -1 then
+    begin
+      var Iter := FBase.GetStorageItems.GetContents.Iterator;
+      while Iter.HasNext do
+      begin
+        var Pair := Iter.Next;
+        var Rule := FMod.GetItem(Pair.Key, True);
+        if Rule.CanBeEquippedBeforeBaseDefense and (Rule.GetBigSprite > -1) and
+           (Rule.GetBattleType <> BT_NONE) and (Rule.GetBattleType <> BT_CORPSE) and
+           (not Rule.IsFixed) and FGame.GetSavedGame.IsResearched(Rule.GetRequirements) then
+        begin
+          for var Count := 1 to Pair.Value do
+            FCraftInventoryTile.AddItem(TBattleItem.Create(Rule, FSave.GetCurrentItemId), GroundInv);
+          FBase.GetStorageItems.RemoveItem(Pair.Key, Pair.Value);
+        end;
+      end;
+    end;
+    for Craft in FBase.GetCrafts do
+      if Craft.GetStatus <> 'STR_OUT' then
+        for var KV in Craft.GetItems.GetContents do
+          for var Count := 1 to KV.Value do
+            FCraftInventoryTile.AddItem(TBattleItem.Create(FMod.GetItem(KV.Key, True), FSave.GetCurrentItemId), GroundInv);
+  end;
+
+  for Item in FCraftInventoryTile.GetInventory do
+  begin
+    Item.SetXCOMProperty(True);
+    if Item.GetRules.GetBattleType = BT_AMMO then Continue;
+    PlaceItemByLayout(Item);
+  end;
+
+  LoadWeapons;
+
+  for Item in FCraftInventoryTile.GetInventory do
+    if Item.GetRules.GetBattleType = BT_AMMO then
+      PlaceItemByLayout(Item);
+
+  AutoEquip(FSave.GetUnits, FMod, FSave, FCraftInventoryTile.GetInventory, GroundInv,
+            FWorldShade, FAllowAutoLoadout, False);
+end;
+
+procedure TBattlescapeGenerator.AutoEquip(Units: TList<TBattleUnit>; AMod: TMod; AddToSave: TSavedBattleGame;
+  CraftInv: TList<TBattleItem>; GroundRuleInv: TRuleInventory; WorldShade: Integer;
+  AllowAutoLoadout, OverrideEquipmentLayout: Boolean);
+var
+  Pass, I: Integer;
+  Item: TBattleItem;
+  Unit: TBattleUnit;
+begin
+  for Pass := 0 to 3 do
+  begin
+    I := 0;
+    while I < CraftInv.Count do
+    begin
+      Item := CraftInv[I];
+      if Item.GetSlot = GroundRuleInv then
+      begin
+        var Add := False;
+        case Pass of
+          0: Add := Item.GetRules.IsRifle;
+          1: Add := Item.GetRules.IsPistol;
+          2: Add := Item.GetRules.GetBattleType = BT_AMMO;
+          3: Add := (not Item.GetRules.IsPistol) and (not Item.GetRules.IsRifle) and
+                    ((Item.GetRules.GetBattleType <> BT_FLARE) or (WorldShade > TileEngine.MAX_DARKNESS_TO_SEE_UNITS));
+        end;
+        if Add then
+        begin
+          var Placed := False;
+          for Unit in Units do
+          begin
+            if (not Unit.HasInventory) or (Unit.GetGeoscapeSoldier = nil) or
+               ((not OverrideEquipmentLayout) and (Unit.GetGeoscapeSoldier.GetEquipmentLayout.Count > 0)) then Continue;
+            var AllowSecondClip := (Pass = 3);
+            if AddItem(Item, Unit, AMod, AddToSave, AllowAutoLoadout, AllowSecondClip) then
+            begin
+              CraftInv.Delete(I);
+              Placed := True;
+              Break;
+            end;
+          end;
+          if Placed then Continue;
+        end;
+      end;
+      Inc(I);
+    end;
+  end;
+
+  I := 0;
+  while I < CraftInv.Count do
+  begin
+    Item := CraftInv[I];
+    if Item.GetSlot <> GroundRuleInv then
+      CraftInv.Delete(I)
+    else
+    begin
+      if AddToSave <> nil then
+        AddToSave.GetItems.Add(Item);
+      Inc(I);
+    end;
+  end;
+end;
+
+function TBattlescapeGenerator.AddItem(Item: TBattleItem; AUnit: TBattleUnit; AMod: TMod; AddToSave: TSavedBattleGame;
+  AllowAutoLoadout, AllowSecondClip: Boolean): Boolean;
+var
+  RightHand, LeftHand: TRuleInventory;
+  Placed, Loaded: Boolean;
+  RightWeapon, LeftWeapon: TBattleItem;
+  Weight, Tally: Integer;
+begin
+  Result := False;
+  RightHand := AMod.GetInventory('STR_RIGHT_HAND', True);
+  LeftHand := AMod.GetInventory('STR_LEFT_HAND', True);
+  Placed := False;
+  Loaded := False;
+  RightWeapon := AUnit.GetItem('STR_RIGHT_HAND');
+  LeftWeapon := AUnit.GetItem('STR_LEFT_HAND');
+
+  if (AUnit.GetFaction = FACTION_PLAYER) and AUnit.HasInventory then
+  begin
+    Weight := AUnit.GetCarriedWeight + Item.GetRules.GetWeight;
+    if (Item.GetAmmoItem <> nil) and (Item.GetAmmoItem <> Item) then
+      Weight := Weight + Item.GetAmmoItem.GetRules.GetWeight;
+    if Item.GetRules.GetCompatibleAmmo.IsEmpty then
+    begin
+      Tally := 0;
+      for var I in AUnit.GetInventory do
+        if Item.GetRules.GetType = I.GetRules.GetType then
+          if AllowSecondClip and (Item.GetRules.GetBattleType = BT_AMMO) then
+          begin
+            Inc(Tally);
+            if Tally = 2 then Exit(False);
+          end
+          else
+            Exit(False);
+    end;
+  end;
+
+  if Item.GetRules.IsFixed then
+  begin
+    if (RightWeapon = nil) or (LeftWeapon = nil) then
+    begin
+      Item.MoveToOwner(AUnit);
+      Item.SetSlot(IfThen(RightWeapon = nil, RightHand, LeftHand));
+      Placed := True;
+      if AddToSave <> nil then AddToSave.GetItems.Add(Item);
+      Item.SetXCOMProperty(AUnit.GetFaction = FACTION_PLAYER);
+      Exit(True);
+    end;
+  end;
+
+  case Item.GetRules.GetBattleType of
+    BT_FIREARM, BT_MELEE:
+      begin
+        if (Item.GetAmmoItem <> nil) or (AUnit.GetFaction <> FACTION_PLAYER) or (not AUnit.HasInventory) then
+          Loaded := True;
+        if Loaded and ((AUnit.GetGeoscapeSoldier = nil) or AllowAutoLoadout) then
+        begin
+          if (RightWeapon = nil) and (AUnit.GetBaseStats.Strength * 0.66 >= Weight) then
+          begin
+            Item.MoveToOwner(AUnit);
+            Item.SetSlot(RightHand);
+            Placed := True;
+          end
+          else if (LeftWeapon = nil) and (AUnit.GetFaction <> FACTION_PLAYER) then
+          begin
+            Item.MoveToOwner(AUnit);
+            Item.SetSlot(LeftHand);
+            Placed := True;
+          end;
+        end;
+      end;
+    BT_AMMO:
+      begin
+        if (RightWeapon <> nil) and (RightWeapon.GetRules.IsFixed or (AUnit.GetFaction <> FACTION_PLAYER)) and
+           (not RightWeapon.GetRules.GetCompatibleAmmo.IsEmpty) and (RightWeapon.GetAmmoItem = nil) and
+           (RightWeapon.SetAmmoItem(Item) = 0) then
+        begin
+          Item.SetSlot(RightHand);
+          Placed := True;
+          Break;
+        end;
+        if (LeftWeapon <> nil) and (LeftWeapon.GetRules.IsFixed or (AUnit.GetFaction <> FACTION_PLAYER)) and
+           (not LeftWeapon.GetRules.GetCompatibleAmmo.IsEmpty) and (LeftWeapon.GetAmmoItem = nil) and
+           (LeftWeapon.SetAmmoItem(Item) = 0) then
+        begin
+          Item.SetSlot(LeftHand);
+          Placed := True;
+          Break;
+        end;
+        var Keep := (AUnit.GetFaction <> FACTION_PLAYER);
+        if RightWeapon <> nil then
+          for var AmmoType in RightWeapon.GetRules.GetCompatibleAmmo do
+            if AmmoType = Item.GetRules.GetType then Keep := True;
+        if LeftWeapon <> nil then
+          for var AmmoType in LeftWeapon.GetRules.GetCompatibleAmmo do
+            if AmmoType = Item.GetRules.GetType then Keep := True;
+        if not Keep then Break;
+        // fall through
+      end;
+    else
+      if (AUnit.GetGeoscapeSoldier = nil) or AllowAutoLoadout then
+        if AUnit.GetBaseStats.Strength >= Weight then
+          for var SlotName in AMod.GetInvsList do
+          begin
+            var Slot := AMod.GetInventory(SlotName);
+            if Slot.GetType = INV_SLOT then
+              for var RuleSlot in Slot.GetSlots do
+                if not Inventory.OverlapItems(AUnit, Item, Slot, RuleSlot.X, RuleSlot.Y) and
+                   Slot.FitItemInSlot(Item.GetRules, RuleSlot.X, RuleSlot.Y) then
+                begin
+                  Item.MoveToOwner(AUnit);
+                  Item.SetSlot(Slot);
+                  Item.SetSlotX(RuleSlot.X);
+                  Item.SetSlotY(RuleSlot.Y);
+                  Placed := True;
+                  Break;
+                end;
+            if Placed then Break;
+          end;
+  end;
+
+  if Placed and (AddToSave <> nil) then AddToSave.GetItems.Add(Item);
+  Item.SetXCOMProperty(AUnit.GetFaction = FACTION_PLAYER);
+  Result := Placed;
+end;
+
+function TBattlescapeGenerator.PlaceItemByLayout(Item: TBattleItem): Boolean;
+var
+  Ground: TRuleInventory;
+  Loaded: Boolean;
+  Unit: TBattleUnit;
+  LayoutItems: TList<TEquipmentLayoutItem>;
+begin
+  Result := False;
+  Ground := FMod.GetInventory('STR_GROUND', True);
+  if Item.GetSlot = Ground then
+  begin
+    for Unit in FSave.GetUnits do
+    begin
+      if (Unit.GetArmor.GetSize > 1) or (Unit.GetGeoscapeSoldier = nil) or
+         Unit.GetGeoscapeSoldier.GetEquipmentLayout.IsEmpty then Continue;
+      LayoutItems := Unit.GetGeoscapeSoldier.GetEquipmentLayout;
+      for var Layout in LayoutItems do
+      begin
+        if (Item.GetRules.GetType <> Layout.GetItemType) or
+           (Unit.GetItem(Layout.GetSlot, Layout.GetSlotX, Layout.GetSlotY) <> nil) then Continue;
+        if Layout.GetAmmoItem = 'NONE' then
+          Loaded := True
+        else
+        begin
+          Loaded := False;
+          for var Ammo in FCraftInventoryTile.GetInventory do
+            if (Ammo.GetRules.GetType = Layout.GetAmmoItem) and (Ammo.GetSlot = Ground) and
+               (Item.SetAmmoItem(Ammo) = 0) then
+            begin
+              FSave.GetItems.Add(Ammo);
+              Ammo.SetSlot(FMod.GetInventory('STR_RIGHT_HAND', True));
+              Loaded := True;
+              Break;
+            end;
+        end;
+        if Loaded then
+        begin
+          Item.MoveToOwner(Unit);
+          Item.SetSlot(FMod.GetInventory(Layout.GetSlot, True));
+          Item.SetSlotX(Layout.GetSlotX);
+          Item.SetSlotY(Layout.GetSlotY);
+          if Options.IncludePrimeStateInSavedLayout and
+             ((Item.GetRules.GetBattleType = BT_GRENADE) or (Item.GetRules.GetBattleType = BT_PROXIMITYGRENADE)) then
+            Item.SetFuseTimer(Layout.GetFuseTimer);
+          FSave.GetItems.Add(Item);
+          Exit(True);
+        end;
+      end;
+    end;
+  end;
+end;
+
+function TBattlescapeGenerator.LoadMAP(MapBlock: TMapBlock; XOff, YOff: Integer; Terrain: TRuleTerrain;
+  ObjectIDOffset: Integer; Discovered, ACraft: Boolean): Integer;
+var
+  SizeX, SizeY, SizeZ, X, Y, Z: Integer;
+  Value: array[0..3] of Byte;
+  TerrainObjectID: Cardinal;
+  MapDataSetID, MapDataID: Integer;
+  Md: TMapData;
+  Filename: string;
+  F: TFileStream;
+begin
+  Result := 0;
+  Filename := 'MAPS/' + MapBlock.GetName + '.MAP';
+  if not FileMap.FileExists(Filename) then
+    raise Exception.Create(Filename + ' not found');
+  F := TFileStream.Create(FileMap.GetFilePath(Filename), fmOpenRead);
+  try
+    F.ReadBuffer(SizeX, 1);
+    F.ReadBuffer(SizeY, 1);
+    F.ReadBuffer(SizeZ, 1);
+    MapBlock.SetSizeZ(SizeZ);
+
+    if SizeZ > FSave.GetMapSizeZ then
+      raise Exception.Create('Height of map ' + Filename + ' too big for this mission.');
+    if (SizeX <> MapBlock.GetSizeX) or (SizeY <> MapBlock.GetSizeY) then
+      raise Exception.Create('Map block size mismatch in ' + Filename);
+
+    Z := SizeZ - 1;
+    for var I := FSave.GetMapSizeZ - 1 downto 1 do
+    begin
+      if FSave.GetTile(Position(XOff, YOff, I)).GetMapData(O_FLOOR) <> nil then
+      begin
+        Z := Z + I;
+        if ACraft then FCraftZ := I;
+        Break;
+      end;
+    end;
+
+    if Z > FSave.GetMapSizeZ - 1 then
+    begin
+      if FSave.GetMissionType = 'STR_BASE_DEFENSE' then
+        raise Exception.Create('Base defense map too tall, check log.');
+      raise Exception.Create('Craft/UFO map too tall.');
+    end;
+
+    while F.Read(Value, 4) = 4 do
+    begin
+      for var Part := O_FLOOR to O_OBJECT do
+      begin
+        TerrainObjectID := Value[Part];
+        if TerrainObjectID > 0 then
+        begin
+          MapDataSetID := ObjectIDOffset;
+          MapDataID := TerrainObjectID;
+          Md := Terrain.GetMapData(MapDataID, MapDataSetID);
+          if ObjectIDOffset > 0 then
+            FSave.GetTile(Position(X, Y, Z)).SetMapData(nil, -1, -1, O_OBJECT);
+          FSave.GetTile(Position(X, Y, Z)).SetMapData(Md, MapDataID, MapDataSetID, TilePart(Part));
+        end;
+      end;
+      FSave.GetTile(Position(X, Y, Z)).SetDiscovered(Discovered or MapBlock.IsFloorRevealed(Z), 2);
+      Inc(X);
+      if X = SizeX + XOff then
+      begin
+        X := XOff;
+        Inc(Y);
+      end;
+      if Y = SizeY + YOff then
+      begin
+        Y := YOff;
+        Dec(Z);
+      end;
+    end;
+
+    if F.Position <> F.Size then
+      raise Exception.Create('Invalid MAP file: ' + Filename);
+
+    if FGenerateFuel then
+      FGenerateFuel := MapBlock.GetItems.IsEmpty;
+
+    for var KV in MapBlock.GetItems do
+      for var Pos in KV.Value do
+      begin
+        var Rule := FMod.GetItem(KV.Key, True);
+        var Item := TBattleItem.Create(Rule, FSave.GetCurrentItemId);
+        FSave.GetItems.Add(Item);
+        FSave.GetTile(Pos + Position(XOff, YOff, 0)).AddItem(Item, FMod.GetInventory('STR_GROUND', True));
+      end;
+
+    Result := SizeZ;
+  finally
+    F.Free;
+  end;
+end;
+
+procedure TBattlescapeGenerator.LoadRMP(MapBlock: TMapBlock; XOff, YOff: Integer; Segment: Integer);
+var
+  Value: array[0..23] of Byte;
+  Filename: string;
+  F: TFileStream;
+  NodeOffset, NodesAdded: Integer;
+  BadNodes: TList<Integer>;
+  Node: TNode;
+  PosX, PosY, PosZ, I, ConnectID: Integer;
+begin
+  Filename := 'ROUTES/' + MapBlock.GetName + '.RMP';
+  if not FileMap.FileExists(Filename) then
+    raise Exception.Create(Filename + ' not found');
+  F := TFileStream.Create(FileMap.GetFilePath(Filename), fmOpenRead);
+  BadNodes := TList<Integer>.Create;
+  try
+    NodeOffset := FSave.GetNodes.Count;
+    NodesAdded := 0;
+    while F.Read(Value, 24) = 24 do
+    begin
+      PosX := Value[1];
+      PosY := Value[0];
+      PosZ := Value[2];
+      if (PosX >= 0) and (PosX < MapBlock.GetSizeX) and
+         (PosY >= 0) and (PosY < MapBlock.GetSizeY) and
+         (PosZ >= 0) and (PosZ < MapBlock.GetSizeZ) then
+      begin
+        Node := TNode.Create(FSave.GetNodes.Count, Position(XOff + PosX, YOff + PosY, MapBlock.GetSizeZ - 1 - PosZ),
+                             Segment, Value[19], Value[20], Value[21], Value[22], Value[23]);
+        for I := 0 to 4 do
+        begin
+          ConnectID := Value[4 + I * 3];
+          if ConnectID <= 250 then
+            ConnectID := ConnectID + NodeOffset
+          else
+            ConnectID := ConnectID - 256;
+          Node.GetNodeLinks.Add(ConnectID);
+        end;
+      end
+      else
+      begin
+        Node := TNode.Create;
+        Node.SetDummy(True);
+        BadNodes.Add(NodesAdded);
+      end;
+      FSave.GetNodes.Add(Node);
+      Inc(NodesAdded);
+    end;
+
+    for var BadIdx in BadNodes do
+    begin
+      var Counter := NodesAdded;
+      for var N in FSave.GetNodes do
+        if not N.IsDummy then
+          for var Link in N.GetNodeLinks do
+            if Link - NodeOffset = BadIdx then
+              Link := -1;
+      Dec(Counter);
+    end;
+
+    if F.Position <> F.Size then
+      raise Exception.Create('Invalid RMP file: ' + Filename);
+  finally
+    F.Free;
+    BadNodes.Free;
+  end;
+end;
+
+procedure TBattlescapeGenerator.FuelPowerSources;
+begin
+  for var I := 0 to FSave.GetMapSizeXYZ - 1 do
+    if (FSave.GetTiles[I].GetMapData(O_OBJECT) <> nil) and
+       (FSave.GetTiles[I].GetMapData(O_OBJECT).GetSpecialType = UFO_POWER_SOURCE) then
+    begin
+      var Fuel := TBattleItem.Create(FMod.GetItem(FMod.GetAlienFuelName, True), FSave.GetCurrentItemId);
+      FSave.GetItems.Add(Fuel);
+      FSave.GetTiles[I].AddItem(Fuel, FMod.GetInventory('STR_GROUND', True));
+    end;
+end;
+
+procedure TBattlescapeGenerator.ExplodePowerSources;
+begin
+  for var I := 0 to FSave.GetMapSizeXYZ - 1 do
+    if (FSave.GetTiles[I].GetMapData(O_OBJECT) <> nil) and
+       (FSave.GetTiles[I].GetMapData(O_OBJECT).GetSpecialType = UFO_POWER_SOURCE) and
+       RNG.Percent(75) then
+    begin
+      var Pos := Position(FSave.GetTiles[I].GetPosition.X * 16,
+                          FSave.GetTiles[I].GetPosition.Y * 16,
+                          FSave.GetTiles[I].GetPosition.Z * 24 + 12);
+      FSave.GetTileEngine.Explode(Pos, 180 + RNG.Generate(0,70), DT_HE, 10);
+    end;
+  var T := FSave.GetTileEngine.CheckForTerrainExplosions;
+  while T <> nil do
+  begin
+    var P := Position(T.GetPosition.X * 16, T.GetPosition.Y * 16, T.GetPosition.Z * 24);
+    P := P + Position(8,8,0);
+    FSave.GetTileEngine.Explode(P, T.GetExplosive, DT_HE, T.GetExplosive div 10);
+    T := FSave.GetTileEngine.CheckForTerrainExplosions;
+  end;
+end;
+
+procedure TBattlescapeGenerator.DeployAliens(Deployment: TAlienDeployment);
+var
+  Race: TAlienRace;
+  Month, Quantity, DeltaQuantity, ItemLevel: Integer;
+  AlienName: string;
+  Rule: TUnit;
+  Unit: TBattleUnit;
+begin
+  if not Deployment.GetRace.IsEmpty and (FGame.GetSavedGame.GetMonthsPassed > -1) then
+    FAlienRace := Deployment.GetRace;
+  if (FSave.GetDepth > 0) and (FAlienRace.IndexOf('_UNDERWATER') = -1) then
+    FAlienRace := FAlienRace + '_UNDERWATER';
+  Race := FMod.GetAlienRace(FAlienRace);
+  if Race = nil then
+    raise Exception.Create('Unknown race: ' + FAlienRace);
+
+  if FGame.GetSavedGame.GetMonthsPassed <> -1 then
+    Month := Min(FGame.GetSavedGame.GetMonthsPassed, FMod.GetAlienItemLevels.Count - 1)
+  else
+    Month := FAlienItemLevel;
+
+  for var Data in Deployment.GetDeploymentData do
+  begin
+    AlienName := Race.GetMember(Data.AlienRank);
+    DeltaQuantity := IfThen(FMod.IsDemigod, Data.DQty, RNG.Generate(0, Data.DQty));
+    if FGame.GetSavedGame.GetDifficulty < DIFF_VETERAN then
+      Quantity := Data.LowQty + DeltaQuantity
+    else if FGame.GetSavedGame.GetDifficulty < DIFF_SUPERHUMAN then
+      Quantity := Data.LowQty + ((Data.HighQty - Data.LowQty) div 2) + DeltaQuantity
+    else
+      Quantity := Data.HighQty + DeltaQuantity;
+    Quantity := Quantity + IfThen(FMod.IsDemigod, Data.ExtraQty, RNG.Generate(0, Data.ExtraQty));
+
+    for var I := 1 to Quantity do
+    begin
+      var Outside := RNG.Percent(Data.PercentageOutsideUfo);
+      if FUfo = nil then Outside := False;
+      Rule := FMod.GetUnit(AlienName, True);
+      Unit := AddAlien(Rule, Data.AlienRank, Outside);
+      ItemLevel := StrToInt(FMod.GetAlienItemLevels[Month][RNG.Generate(0,9)]);
+      if Unit <> nil then
+      begin
+        if not Rule.GetBuiltInWeapons.IsEmpty then
+        begin
+          var LevelIdx := Min(ItemLevel, Rule.GetBuiltInWeapons.Count - 1);
+          for var WeaponType in Rule.GetBuiltInWeapons[LevelIdx] do
+          begin
+            var RuleItem := FMod.GetItem(WeaponType);
+            if RuleItem <> nil then
+            begin
+              var Item := TBattleItem.Create(RuleItem, FSave.GetCurrentItemId);
+              if not AddItem(Item, Unit, FMod, FSave, FAllowAutoLoadout, False) then
+                Item.Free;
+            end;
+          end;
+        end;
+        if Rule.IsLivingWeapon then
+        begin
+          var TerroristWeapon := Copy(Rule.GetRace, 5) + '_WEAPON';
+          var RuleItem := FMod.GetItem(TerroristWeapon);
+          if RuleItem <> nil then
+          begin
+            var Item := TBattleItem.Create(RuleItem, FSave.GetCurrentItemId);
+            if AddItem(Item, Unit, FMod, FSave, FAllowAutoLoadout, False) then
+              Unit.SetTurretType(Item.GetRules.GetTurretType)
+            else
+              Item.Free;
+          end;
+        end
+        else
+        begin
+          if Data.ItemSets.IsEmpty then
+            raise Exception.Create('Item set not defined');
+          if ItemLevel >= Data.ItemSets.Count then ItemLevel := Data.ItemSets.Count - 1;
+          for var ItemType in Data.ItemSets[ItemLevel].Items do
+          begin
+            var RuleItem := FMod.GetItem(ItemType);
+            if RuleItem <> nil then
+            begin
+              var Item := TBattleItem.Create(RuleItem, FSave.GetCurrentItemId);
+              if not AddItem(Item, Unit, FMod, FSave, FAllowAutoLoadout, False) then
+                Item.Free;
+            end;
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function TBattlescapeGenerator.AddAlien(Rules: TUnit; AlienRank: Integer; Outside: Boolean): TBattleUnit;
+var
+  Unit: TBattleUnit;
+  Node: TNode;
+  I, Difficulty: Integer;
+  Craft: TPosition;
+begin
+  Unit := TBattleUnit.Create(Rules, FACTION_HOSTILE, FUnitSequence,
+                             FMod.GetArmor(Rules.GetArmor, True),
+                             FMod.GetStatAdjustment(FGame.GetSavedGame.GetDifficulty), FSave.GetDepth);
+  Inc(FUnitSequence);
+  Node := nil;
+  if AlienRank > 7 then AlienRank := 7;
+
+  for I := 0 to 6 do
+    if Outside then
+      Node := FSave.GetSpawnNode(0, Unit)
+    else
+      Node := FSave.GetSpawnNode(Node.NodeRank[AlienRank][I], Unit);
+
+  Difficulty := FGame.GetSavedGame.GetDifficultyCoefficient;
+
+  if (Node <> nil) and FSave.SetUnitPosition(Unit, Node.GetPosition) then
+  begin
+    Unit.SetAIModule(TAIModule.Create(FSave, Unit, Node));
+    Unit.SetRankInt(AlienRank);
+    Unit.SetSpecialWeapon(FSave, FMod);
+    var Dir := FSave.GetTileEngine.FaceWindow(Node.GetPosition);
+    Craft := FSave.GetUnits[0].GetPosition;
+    if FSave.GetTileEngine.Distance(Node.GetPosition, Craft) <= 20 then
+      if RNG.Percent(20 * Difficulty) then Dir := Unit.DirectionTo(Craft);
+    if Dir <> -1 then Unit.SetDirection(Dir) else Unit.SetDirection(RNG.Generate(0,7));
+    FSave.GetUnits.Add(Unit);
+    Result := Unit;
+  end
+  else if FMod.IsDemigod and PlaceUnitNearFriend(Unit) then
+  begin
+    Unit.SetAIModule(TAIModule.Create(FSave, Unit, nil));
+    Unit.SetRankInt(AlienRank);
+    Unit.SetSpecialWeapon(FSave, FMod);
+    var Dir := FSave.GetTileEngine.FaceWindow(Unit.GetPosition);
+    Craft := FSave.GetUnits[0].GetPosition;
+    if FSave.GetTileEngine.Distance(Unit.GetPosition, Craft) <= 20 then
+      if RNG.Percent(20 * Difficulty) then Dir := Unit.DirectionTo(Craft);
+    if Dir <> -1 then Unit.SetDirection(Dir) else Unit.SetDirection(RNG.Generate(0,7));
+    FSave.GetUnits.Add(Unit);
+    Result := Unit;
+  end
+  else
+  begin
+    Unit.Free;
+    Result := nil;
+  end;
+end;
+
+function TBattlescapeGenerator.AddCivilian(Rules: TUnit): TBattleUnit;
+var
+  Unit: TBattleUnit;
+  Node: TNode;
+begin
+  Unit := TBattleUnit.Create(Rules, FACTION_NEUTRAL, FUnitSequence,
+                             FMod.GetArmor(Rules.GetArmor, True), nil, FSave.GetDepth);
+  Inc(FUnitSequence);
+  Node := FSave.GetSpawnNode(0, Unit);
+  if Node <> nil then
+  begin
+    FSave.SetUnitPosition(Unit, Node.GetPosition);
+    Unit.SetAIModule(TAIModule.Create(FSave, Unit, Node));
+    Unit.SetDirection(RNG.Generate(0,7));
+    FSave.GetUnits.Add(Unit);
+    Exit(Unit);
+  end
+  else if PlaceUnitNearFriend(Unit) then
+  begin
+    Unit.SetAIModule(TAIModule.Create(FSave, Unit, nil));
+    Unit.SetDirection(RNG.Generate(0,7));
+    FSave.GetUnits.Add(Unit);
+    Exit(Unit);
+  end
+  else
+  begin
+    Unit.Free;
+    Exit(nil);
+  end;
+end;
+
+procedure TBattlescapeGenerator.DeployCivilians(Max: Integer);
+var
+  Number, Month, ItemLevel: Integer;
+  Pick: Integer;
+  Rule: TUnit;
+  Civ: TBattleUnit;
+begin
+  if Max <= 0 then Exit;
+  Number := RNG.Generate(Max div 2, Max);
+  if Number <= 0 then Exit;
+  Month := IfThen(FGame.GetSavedGame.GetMonthsPassed <> -1,
+                  Min(FGame.GetSavedGame.GetMonthsPassed, FMod.GetAlienItemLevels.Count - 1),
+                  FAlienItemLevel);
+  for var I := 1 to Number do
+  begin
+    Pick := RNG.Generate(0, FTerrain.GetCivilianTypes.Count - 1);
+    Rule := FMod.GetUnit(FTerrain.GetCivilianTypes[Pick], True);
+    Civ := AddCivilian(Rule);
+    if Civ <> nil then
+    begin
+      ItemLevel := StrToInt(FMod.GetAlienItemLevels[Month][RNG.Generate(0,9)]);
+      if not Rule.GetBuiltInWeapons.IsEmpty then
+      begin
+        if ItemLevel >= Rule.GetBuiltInWeapons.Count then ItemLevel := Rule.GetBuiltInWeapons.Count - 1;
+        for var WeaponType in Rule.GetBuiltInWeapons[ItemLevel] do
+        begin
+          var RuleItem := FMod.GetItem(WeaponType);
+          if RuleItem <> nil then
+          begin
+            var Item := TBattleItem.Create(RuleItem, FSave.GetCurrentItemId);
+            if AddItem(Item, Civ, FMod, FSave, FAllowAutoLoadout, False) then
+              if RuleItem.GetTurretType <> -1 then
+                Civ.SetTurretType(RuleItem.GetTurretType)
+            else
+              Item.Free;
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function TBattlescapeGenerator.PlaceUnitNearFriend(AUnit: TBattleUnit): Boolean;
+var
+  EntryPoint: TPosition;
+  Tries: Integer;
+  K: TBattleUnit;
+  LargeUnit: Boolean;
+begin
+  if FSave.GetUnits.Count = 0 then Exit(False);
+  for var I := 1 to 10 do
+  begin
+    EntryPoint := Position(-1,-1,-1);
+    Tries := 100;
+    LargeUnit := False;
+    while (EntryPoint = Position(-1,-1,-1)) and (Tries > 0) do
+    begin
+      K := FSave.GetUnits[RNG.Generate(0, FSave.GetUnits.Count - 1)];
+      if (K.GetFaction = AUnit.GetFaction) and (K.GetPosition <> Position(-1,-1,-1)) and
+         (K.GetArmor.GetSize >= AUnit.GetArmor.GetSize) then
+      begin
+        EntryPoint := K.GetPosition;
+        LargeUnit := (K.GetArmor.GetSize <> 1);
+      end;
+      Dec(Tries);
+    end;
+    if (Tries > 0) and FSave.PlaceUnitNearPosition(AUnit, EntryPoint, LargeUnit) then
+      Exit(True);
+  end;
+  Result := False;
+end;
+
+procedure TBattlescapeGenerator.LoadWeapons;
+var
+  I, J: Integer;
+  Item, Ammo: TBattleItem;
+begin
+  I := 0;
+  while I < FCraftInventoryTile.GetInventory.Count do
+  begin
+    Item := FCraftInventoryTile.GetInventory[I];
+    if (not Item.GetRules.IsFixed) and
+       (not Item.GetRules.GetCompatibleAmmo.IsEmpty) and
+       (Item.GetAmmoItem = nil) and
+       ((Item.GetRules.GetBattleType = BT_FIREARM) or (Item.GetRules.GetBattleType = BT_MELEE)) then
+    begin
+      var Loaded := False;
+      for J := 0 to FCraftInventoryTile.GetInventory.Count - 1 do
+      begin
+        Ammo := FCraftInventoryTile.GetInventory[J];
+        if (Ammo.GetSlot = FMod.GetInventory('STR_GROUND', True)) and (Item.SetAmmoItem(Ammo) = 0) then
+        begin
+          FSave.GetItems.Add(Ammo);
+          Ammo.SetSlot(FMod.GetInventory('STR_RIGHT_HAND', True));
+          Loaded := True;
+          Break;
+        end;
+      end;
+    end;
+    if Item.GetSlot <> FMod.GetInventory('STR_GROUND', True) then
+      FCraftInventoryTile.GetInventory.Delete(I)
+    else
+      Inc(I);
+  end;
+end;
+
+procedure TBattlescapeGenerator.LoadNodes;
+var
+  Segment, X, Y: Integer;
+begin
+  Segment := 0;
+  for Y := 0 to (FMapsizeY div 10) - 1 do
+    for X := 0 to (FMapsizeX div 10) - 1 do
+    begin
+      FSegments[X][Y] := Segment;
+      if (FBlocks[X][Y] <> nil) and (FBlocks[X][Y] <> FDummy) then
+      begin
+        if not (FBlocks[X][Y].IsInGroup(MT_LANDINGZONE) and FLandingZone[X][Y]) then
+        begin
+          LoadRMP(FBlocks[X][Y], X * 10, Y * 10, Segment);
+          Inc(Segment);
+        end;
+      end;
+    end;
+end;
+
+procedure TBattlescapeGenerator.AttachNodeLinks;
+var
+  Node: TNode;
+  SegmentX, SegmentY: Integer;
+  NeighbourSegments: array[0..3] of Integer;
+  NeighbourDirections: array[0..3] of Integer;
+  NeighbourDirectionsInverted: array[0..3] of Integer;
+  I, J: Integer;
+begin
+  for Node in FSave.GetNodes do
+  begin
+    if Node.IsDummy then Continue;
+    SegmentX := Node.GetPosition.X div 10;
+    SegmentY := Node.GetPosition.Y div 10;
+    NeighbourDirections[0] := -2; NeighbourDirections[1] := -3;
+    NeighbourDirections[2] := -4; NeighbourDirections[3] := -5;
+    NeighbourDirectionsInverted[0] := -4; NeighbourDirectionsInverted[1] := -5;
+    NeighbourDirectionsInverted[2] := -2; NeighbourDirectionsInverted[3] := -3;
+
+    if SegmentX = (FMapsizeX div 10) - 1 then
+      NeighbourSegments[0] := -1
+    else
+      NeighbourSegments[0] := FSegments[SegmentX + 1][SegmentY];
+    if SegmentY = (FMapsizeY div 10) - 1 then
+      NeighbourSegments[1] := -1
+    else
+      NeighbourSegments[1] := FSegments[SegmentX][SegmentY + 1];
+    if SegmentX = 0 then
+      NeighbourSegments[2] := -1
+    else
+      NeighbourSegments[2] := FSegments[SegmentX - 1][SegmentY];
+    if SegmentY = 0 then
+      NeighbourSegments[3] := -1
+    else
+      NeighbourSegments[3] := FSegments[SegmentX][SegmentY - 1];
+
+    for I := 0 to Node.GetNodeLinks.Count - 1 do
+    begin
+      for J := 0 to 3 do
+        if Node.GetNodeLinks[I] = NeighbourDirections[J] then
+          for var OtherNode in FSave.GetNodes do
+            if (not OtherNode.IsDummy) and (OtherNode.GetSegment = NeighbourSegments[J]) then
+              for var K := 0 to OtherNode.GetNodeLinks.Count - 1 do
+                if OtherNode.GetNodeLinks[K] = NeighbourDirectionsInverted[J] then
+                begin
+                  OtherNode.GetNodeLinks[K] := Node.GetID;
+                  Node.GetNodeLinks[I] := OtherNode.GetID;
+                end;
+    end;
+  end;
+end;
+
+function TBattlescapeGenerator.SelectPosition(const Rects: TList<TRect>; var X, Y, SizeX, SizeY: Integer): Boolean;
+var
+  Available: TList<TRect>;
+  Valid: TList<TPair<Integer,Integer>>;
+  WholeMap: TRect;
+  R: TRect;
+  X2, Y2: Integer;
+begin
+  Result := False;
+  Available := TList<TRect>.Create;
+  Valid := TList<TPair<Integer,Integer>>.Create;
+  try
+    WholeMap := Rect(0,0,FMapsizeX div 10, FMapsizeY div 10);
+    SizeX := SizeX div 10;
+    SizeY := SizeY div 10;
+    if Rects.Count = 0 then
+      Available.Add(WholeMap)
+    else
+      for R in Rects do
+        Available.Add(R);
+
+    for R in Available do
+    begin
+      if (SizeX > R.Width) or (SizeY > R.Height) then Continue;
+      for X2 := R.Left to R.Right - SizeX - 1 do
+        for Y2 := R.Top to R.Bottom - SizeY - 1 do
+          if (X2 + SizeX <= WholeMap.Right) and (Y2 + SizeY <= WholeMap.Bottom) then
+          begin
+            var Add := True;
+            for var XCheck := X2 to X2 + SizeX - 1 do
+              for var YCheck := Y2 to Y2 + SizeY - 1 do
+                if FBlocks[XCheck][YCheck] <> nil then Add := False;
+            if Add then Valid.Add(TPair<Integer,Integer>.Create(X2,Y2));
+          end;
+    end;
+    if Valid.Count = 0 then Exit(False);
+    var Sel := Valid[RNG.Generate(0, Valid.Count - 1)];
+    X := Sel.Key;
+    Y := Sel.Value;
+    Result := True;
+  finally
+    Available.Free;
+    Valid.Free;
+  end;
+end;
+
+function TBattlescapeGenerator.AddCraft(CraftMap: TMapBlock; Command: TMapScript; var CraftPos: TRect): Boolean;
+var
+  X, Y: Integer;
+begin
+  CraftPos := Rect(0,0,CraftMap.GetSizeX div 10, CraftMap.GetSizeY div 10);
+  Result := SelectPosition(Command.GetRects, CraftPos.Left, CraftPos.Top, CraftPos.Width*10, CraftPos.Height*10);
+  if Result then
+  begin
+    for X := 0 to CraftPos.Width - 1 do
+      for Y := 0 to CraftPos.Height - 1 do
+      begin
+        FLandingZone[CraftPos.Left + X][CraftPos.Top + Y] := True;
+        var Block := Command.GetNextBlock(FTerrain);
+        if (Block <> nil) and (FBlocks[CraftPos.Left + X][CraftPos.Top + Y] = nil) then
+        begin
+          FBlocks[CraftPos.Left + X][CraftPos.Top + Y] := Block;
+          Dec(FBlocksToDo);
+        end;
+      end;
+  end;
+end;
+
+function TBattlescapeGenerator.AddLine(LineType: TMapDirection; const Rects: TList<TRect>): Boolean;
+var
+  RoadX, RoadY, Tries, Limit, I: Integer;
+  IteratorValue: ^Integer;
+  Comparator, TypeToAdd: TMapBlockType;
+begin
+  Result := False;
+  if LineType = MD_BOTH then
+  begin
+    if AddLine(MD_VERTICAL, Rects) then
+      Result := AddLine(MD_HORIZONTAL, Rects);
+    Exit;
+  end;
+
+  Tries := 0;
+  RoadX := 0; RoadY := 0;
+  IteratorValue := @RoadX;
+  Comparator := MT_NSROAD;
+  TypeToAdd := MT_EWROAD;
+  Limit := FMapsizeX div 10;
+  if LineType = MD_VERTICAL then
+  begin
+    IteratorValue := @RoadY;
+    Comparator := MT_EWROAD;
+    TypeToAdd := MT_NSROAD;
+    Limit := FMapsizeY div 10;
+  end;
+
+  while not Result do
+  begin
+    if not SelectPosition(Rects, RoadX, RoadY, 10, 10) then Exit(False);
+    Result := True;
+    for I := 0 to Limit - 1 do
+    begin
+      if LineType = MD_VERTICAL then RoadY := I else RoadX := I;
+      if (FBlocks[RoadX][RoadY] <> nil) and (not FBlocks[RoadX][RoadY].IsInGroup(Comparator)) then
+      begin
+        Result := False;
+        Break;
+      end;
+    end;
+    Inc(Tries);
+    if Tries > 20 then Exit(False);
+  end;
+
+  for I := 0 to Limit - 1 do
+  begin
+    if LineType = MD_VERTICAL then RoadY := I else RoadX := I;
+    if FBlocks[RoadX][RoadY] = nil then
+      AddBlock(RoadX, RoadY, FTerrain.GetRandomMapBlock(10, 10, TypeToAdd))
+    else if FBlocks[RoadX][RoadY].IsInGroup(Comparator) then
+    begin
+      FBlocks[RoadX][RoadY] := FTerrain.GetRandomMapBlock(10, 10, MT_CROSSING);
+      ClearModule(RoadX * 10, RoadY * 10, 10, 10);
+      LoadMAP(FBlocks[RoadX][RoadY], RoadX * 10, RoadY * 10, FTerrain, 0);
+    end;
+  end;
+  Result := True;
+end;
+
+function TBattlescapeGenerator.AddBlock(X, Y: Integer; Block: TMapBlock): Boolean;
+var
+  XSize, YSize, XD, YD: Integer;
+begin
+  XSize := (Block.GetSizeX - 1) div 10;
+  YSize := (Block.GetSizeY - 1) div 10;
+  for XD := 0 to XSize do
+    for YD := 0 to YSize do
+      if FBlocks[X + XD][Y + YD] <> nil then Exit(False);
+
+  for XD := 0 to XSize do
+    for YD := 0 to YSize do
+    begin
+      FBlocks[X + XD][Y + YD] := FDummy;
+      Dec(FBlocksToDo);
+    end;
+
+  for XD := 0 to XSize do
+    FDrillMap[X + XD][Y + YSize] := MD_VERTICAL;
+  for YD := 0 to YSize do
+    FDrillMap[X + XSize][Y + YD] := MD_HORIZONTAL;
+  FDrillMap[X + XSize][Y + YSize] := MD_BOTH;
+
+  FBlocks[X][Y] := Block;
+  var Visible := (FSave.GetMissionType = 'STR_BASE_DEFENSE');
+  LoadMAP(FBlocks[X][Y], X * 10, Y * 10, FTerrain, 0, Visible);
+  Result := True;
+end;
+
+procedure TBattlescapeGenerator.GenerateBaseMap;
+var
+  Facility: TBaseFacility;
+  X, Y, XLimit, YLimit, Num, GroundLevel: Integer;
+  MapName, NewName: string;
+  MapNum: Integer;
+  Tile, TileEast, TileSouth: TTile;
+begin
+  for Facility in FBase.GetFacilities do
+    if Facility.GetBuildTime = 0 then
+    begin
+      Num := 0;
+      XLimit := Facility.GetX + Facility.GetRules.GetSize - 1;
+      YLimit := Facility.GetY + Facility.GetRules.GetSize - 1;
+      for Y := Facility.GetY to YLimit do
+        for X := Facility.GetX to XLimit do
+        begin
+          MapName := Facility.GetRules.GetMapName;
+          NewName := Copy(MapName, 1, Length(MapName)-2);
+          MapNum := StrToInt(Copy(MapName, Length(MapName)-1, 2)) + Num;
+          if MapNum < 10 then NewName := NewName + '0';
+          NewName := NewName + IntToStr(MapNum);
+          AddBlock(X, Y, FTerrain.GetMapBlock(NewName));
+          FDrillMap[X][Y] := MD_NONE;
+          Inc(Num);
+          if Facility.GetRules.GetStorage > 0 then
+          begin
+            GroundLevel := FSave.GetMapSizeZ - 1;
+            while (GroundLevel >= 0) and
+                  (FSave.GetTile(Position(X * 10, Y * 10, GroundLevel)).HasNoFloor(0)) do
+              Dec(GroundLevel);
+            for var K := X * 10 to (X + 1) * 10 - 1 do
+              for var L := Y * 10 to (Y + 1) * 10 - 1 do
+                if ((K + L) mod 2 = 0) then
+                begin
+                  Tile := FSave.GetTile(Position(K, L, GroundLevel));
+                  TileEast := FSave.GetTile(Position(K + 1, L, GroundLevel));
+                  TileSouth := FSave.GetTile(Position(K, L + 1, GroundLevel));
+                  if (Tile <> nil) and (Tile.GetMapData(O_FLOOR) <> nil) and
+                     (Tile.GetMapData(O_OBJECT) = nil) and
+                     (TileEast <> nil) and (TileEast.GetMapData(O_WESTWALL) = nil) and
+                     (TileSouth <> nil) and (TileSouth.GetMapData(O_NORTHWALL) = nil) then
+                    FSave.GetStorageSpace.Add(Position(K, L, GroundLevel));
+                end;
+            if FCraftInventoryTile = nil then
+              FCraftInventoryTile := FSave.GetTile(Position((X * 10) + 5, (Y * 10) + 5, GroundLevel - 1));
+          end;
+        end;
+      for X := Facility.GetX to XLimit do
+        FDrillMap[X][YLimit] := MD_VERTICAL;
+      for Y := Facility.GetY to YLimit do
+        FDrillMap[XLimit][Y] := MD_HORIZONTAL;
+      FDrillMap[XLimit][YLimit] := MD_BOTH;
+    end;
+  FSave.CalculateModuleMap;
+end;
+
+procedure TBattlescapeGenerator.ClearModule(X, Y, SizeX, SizeY: Integer);
+var
+  Z, DX, DY: Integer;
+begin
+  for Z := 0 to FSave.GetMapSizeZ - 1 do
+    for DX := X to X + SizeX - 1 do
+      for DY := Y to Y + SizeY - 1 do
+        for var Part := O_FLOOR to O_OBJECT do
+          FSave.GetTile(Position(DX,DY,Z)).SetMapData(nil, -1, -1, TilePart(Part));
+end;
+
+procedure TBattlescapeGenerator.DrillModules(Data: TTunnelData; const Rects: TList<TRect>; Dir: TMapDirection);
+var
+  WWall, NWall, Corner, Floor: TMCDReplacement;
+  Rect: TRect;
+  I, J, K: Integer;
+  Tile: TTile;
+  Md: TMapData;
+begin
+  WWall := Data.GetMCDReplacement('westWall');
+  NWall := Data.GetMCDReplacement('northWall');
+  Corner := Data.GetMCDReplacement('corner');
+  Floor := Data.GetMCDReplacement('floor');
+  Rect := Rect(3,3,6,6);
+  if Rects.Count > 0 then Rect := Rects[0];
+
+  for I := 0 to (FMapsizeX div 10) - 1 do
+    for J := 0 to (FMapsizeY div 10) - 1 do
+    begin
+      if FBlocks[I][J] = nil then Continue;
+      if (Dir <> MD_VERTICAL) and (I < (FMapsizeX div 10) - 1) and
+         ((FDrillMap[I][J] = MD_HORIZONTAL) or (FDrillMap[I][J] = MD_BOTH)) and
+         (FBlocks[I+1][J] <> nil) then
+      begin
+        for K := Rect.Top to Rect.Bottom - 1 do
+        begin
+          Tile := FSave.GetTile(Position((I*10)+9, (J*10)+K, Data.Level));
+          if Tile <> nil then
+          begin
+            Tile.SetMapData(nil, -1, -1, O_WESTWALL);
+            Tile.SetMapData(nil, -1, -1, O_OBJECT);
+            if Floor <> nil then
+            begin
+              Md := FTerrain.GetMapDataSets[Floor.Set].GetObject(Floor.Entry);
+              Tile.SetMapData(Md, Floor.Entry, Floor.Set, O_FLOOR);
+            end;
+            Tile := FSave.GetTile(Position((I+1)*10, (J*10)+K, Data.Level));
+            Tile.SetMapData(nil, -1, -1, O_WESTWALL);
+            if (Tile.GetMapData(O_OBJECT) <> nil) and (Tile.GetMapData(O_OBJECT).GetTUCost(MT_WALK) = 0) then
+              Tile.SetMapData(nil, -1, -1, O_OBJECT);
+          end;
+        end;
+        if NWall <> nil then
+        begin
+          Md := FTerrain.GetMapDataSets[NWall.Set].GetObject(NWall.Entry);
+          Tile := FSave.GetTile(Position((I*10)+9, (J*10)+Rect.Top, Data.Level));
+          Tile.SetMapData(Md, NWall.Entry, NWall.Set, O_NORTHWALL);
+          Tile := FSave.GetTile(Position((I*10)+9, (J*10)+Rect.Bottom, Data.Level));
+          Tile.SetMapData(Md, NWall.Entry, NWall.Set, O_NORTHWALL);
+        end;
+        if Corner <> nil then
+        begin
+          Md := FTerrain.GetMapDataSets[Corner.Set].GetObject(Corner.Entry);
+          Tile := FSave.GetTile(Position((I+1)*10, (J*10)+Rect.Top, Data.Level));
+          if Tile.GetMapData(O_NORTHWALL) = nil then
+            Tile.SetMapData(Md, Corner.Entry, Corner.Set, O_NORTHWALL);
+        end;
+      end;
+
+      if (Dir <> MD_HORIZONTAL) and (J < (FMapsizeY div 10) - 1) and
+         ((FDrillMap[I][J] = MD_VERTICAL) or (FDrillMap[I][J] = MD_BOTH)) and
+         (FBlocks[I][J+1] <> nil) then
+      begin
+        for K := Rect.Left to Rect.Right - 1 do
+        begin
+          Tile := FSave.GetTile(Position((I*10)+K, (J*10)+9, Data.Level));
+          if Tile <> nil then
+          begin
+            Tile.SetMapData(nil, -1, -1, O_NORTHWALL);
+            Tile.SetMapData(nil, -1, -1, O_OBJECT);
+            if Floor <> nil then
+            begin
+              Md := FTerrain.GetMapDataSets[Floor.Set].GetObject(Floor.Entry);
+              Tile.SetMapData(Md, Floor.Entry, Floor.Set, O_FLOOR);
+            end;
+            Tile := FSave.GetTile(Position((I*10)+K, (J+1)*10, Data.Level));
+            Tile.SetMapData(nil, -1, -1, O_NORTHWALL);
+            if (Tile.GetMapData(O_OBJECT) <> nil) and (Tile.GetMapData(O_OBJECT).GetTUCost(MT_WALK) = 0) then
+              Tile.SetMapData(nil, -1, -1, O_OBJECT);
+          end;
+        end;
+        if WWall <> nil then
+        begin
+          Md := FTerrain.GetMapDataSets[WWall.Set].GetObject(WWall.Entry);
+          Tile := FSave.GetTile(Position((I*10)+Rect.Left, (J*10)+9, Data.Level));
+          Tile.SetMapData(Md, WWall.Entry, WWall.Set, O_WESTWALL);
+          Tile := FSave.GetTile(Position((I*10)+Rect.Right, (J*10)+9, Data.Level));
+          Tile.SetMapData(Md, WWall.Entry, WWall.Set, O_WESTWALL);
+        end;
+        if Corner <> nil then
+        begin
+          Md := FTerrain.GetMapDataSets[Corner.Set].GetObject(Corner.Entry);
+          Tile := FSave.GetTile(Position((I*10)+Rect.Left, (J+1)*10, Data.Level));
+          if Tile.GetMapData(O_WESTWALL) = nil then
+            Tile.SetMapData(Md, Corner.Entry, Corner.Set, O_WESTWALL);
+        end;
+      end;
+    end;
+end;
+
+function TBattlescapeGenerator.RemoveBlocks(Command: TMapScript): Boolean;
+var
+  Deleted: TList<TPair<Integer,Integer>>;
+  X, Y, DelX, DelY: Integer;
+begin
+  Result := False;
+  Deleted := TList<TPair<Integer,Integer>>.Create;
+  try
+    for var Rect in Command.GetRects do
+      for X := Rect.Left to Rect.Right - 1 do
+        for Y := Rect.Top to Rect.Bottom - 1 do
+          if (FBlocks[X][Y] <> nil) and (FBlocks[X][Y] <> FDummy) then
+          begin
+            var Add := False;
+            if Command.GetGroups.Count > 0 then
+              for var Grp in Command.GetGroups do
+                if FBlocks[X][Y].IsInGroup(Grp) then Add := True;
+            if (not Add) and (Command.GetBlocks.Count > 0) then
+              for var BlkIdx in Command.GetBlocks do
+                if (BlkIdx < FTerrain.GetMapBlocks.Count) and (FBlocks[X][Y] = FTerrain.GetMapBlocks[BlkIdx]) then Add := True;
+            if Add then
+            begin
+              var Pair := TPair<Integer,Integer>.Create(X,Y);
+              if not Deleted.Contains(Pair) then Deleted.Add(Pair);
+            end;
+          end;
+
+    for var Pair in Deleted do
+    begin
+      X := Pair.Key; Y := Pair.Value;
+      ClearModule(X * 10, Y * 10, FBlocks[X][Y].GetSizeX, FBlocks[X][Y].GetSizeY);
+      DelX := FBlocks[X][Y].GetSizeX div 10;
+      DelY := FBlocks[X][Y].GetSizeY div 10;
+      for var DX := X to X + DelX - 1 do
+        for var DY := Y to Y + DelY - 1 do
+        begin
+          FBlocks[DX][DY] := nil;
+          Inc(FBlocksToDo);
+        end;
+      Result := True;
+    end;
+  finally
+    Deleted.Free;
+  end;
+end;
+
+procedure TBattlescapeGenerator.SetDepth(Deploy: TAlienDeployment; NextStage: Boolean);
+begin
+  if (FSave.GetDepth > 0) and not NextStage then Exit;
+  if Deploy.GetMaxDepth > 0 then
+    FSave.SetDepth(RNG.Generate(Deploy.GetMinDepth, Deploy.GetMaxDepth))
+  else if (FTerrain.GetMaxDepth > 0) or NextStage then
+    FSave.SetDepth(RNG.Generate(FTerrain.GetMinDepth, FTerrain.GetMaxDepth));
+end;
+
+procedure TBattlescapeGenerator.SetMusic(Deploy: TAlienDeployment; NextStage: Boolean);
+begin
+  if not Deploy.GetMusic.IsEmpty then
+    FSave.SetMusic(Deploy.GetMusic[RNG.Generate(0, Deploy.GetMusic.Count - 1)])
+  else if not FTerrain.GetMusic.IsEmpty then
+    FSave.SetMusic(FTerrain.GetMusic[RNG.Generate(0, FTerrain.GetMusic.Count - 1)])
+  else if NextStage then
+    FSave.SetMusic('');
+end;
+
+procedure TBattlescapeGenerator.SetCraft(ACraft: TCraft);
+begin
+  FCraft := ACraft;
+  FCraft.SetInBattlescape(True);
+end;
+
+procedure TBattlescapeGenerator.SetUfo(AUfo: TUfo);
+begin
+  FUfo := AUfo;
+  FUfo.SetInBattlescape(True);
+end;
+
+procedure TBattlescapeGenerator.SetWorldTexture(ATexture: TTexture);
+begin
+  FWorldTexture := ATexture;
+end;
+
+procedure TBattlescapeGenerator.SetWorldShade(AShade: Integer);
+begin
+  FWorldShade := Min(Max(AShade, 0), 15);
+end;
+
+procedure TBattlescapeGenerator.SetAlienRace(const AAlienRace: string);
+begin
+  FAlienRace := AAlienRace;
+end;
+
+procedure TBattlescapeGenerator.SetAlienItemlevel(AAlienItemLevel: Integer);
+begin
+  FAlienItemLevel := AAlienItemLevel;
+end;
+
+procedure TBattlescapeGenerator.SetBase(ABase: TBase);
+begin
+  FBase := ABase;
+  FBase.SetInBattlescape(True);
+end;
+
+procedure TBattlescapeGenerator.SetMissionSite(AMission: TMissionSite);
+begin
+  FMission := AMission;
+  FMission.SetInBattlescape(True);
+end;
+
+procedure TBattlescapeGenerator.SetAlienBase(AAlienBase: TAlienBase);
+begin
+  FAlienBase := AAlienBase;
+  FAlienBase.SetInBattlescape(True);
+end;
+
+procedure TBattlescapeGenerator.SetTerrain(ATerrain: TRuleTerrain);
+begin
+  FTerrain := ATerrain;
+end;
+
+procedure TBattlescapeGenerator.Run;
+var
+  Deploy: TAlienDeployment;
+  Script: TList<TMapScript>;
+begin
+  Deploy := FMod.GetDeployment(IfThen(FUfo <> nil, FUfo.GetRules.GetType, FSave.GetMissionType), True);
+  FSave.SetTurnLimit(Deploy.GetTurnLimit);
+  FSave.SetChronoTrigger(Deploy.GetChronoTrigger);
+  FSave.SetCheatTurn(Deploy.GetCheatTurn);
+  Deploy.GetDimensions(FMapsizeX, FMapsizeY, FMapsizeZ);
+  FUnitSequence := BattleUnit.MAX_SOLDIER_ID;
+
+  if FTerrain = nil then
+  begin
+    if (FWorldTexture = nil) or FWorldTexture.GetTerrain.IsEmpty or (not Deploy.GetTerrains.IsEmpty) then
+    begin
+      if not Deploy.GetTerrains.IsEmpty then
+        FTerrain := FMod.GetTerrain(Deploy.GetTerrains[RNG.Generate(0, Deploy.GetTerrains.Count - 1)], True)
+      else
+        FTerrain := FMod.GetTerrain(FMod.GetTerrainList[0], True);
+    end
+    else
+    begin
+      var Target := FUfo as TTarget;
+      if FMission <> nil then Target := FMission;
+      FTerrain := FMod.GetTerrain(FWorldTexture.GetRandomTerrain(Target), True);
+    end;
+  end;
+  if FTerrain = nil then
+    raise Exception.Create('No valid terrain found.');
+
+  SetDepth(Deploy, False);
+  if Deploy.GetShade <> -1 then
+    FWorldShade := Deploy.GetShade;
+
+  Script := FMod.GetMapScript(FTerrain.GetScript);
+  if FMod.GetMapScript(Deploy.GetScript) <> nil then
+    Script := FMod.GetMapScript(Deploy.GetScript)
+  else if not Deploy.GetScript.IsEmpty then
+    raise Exception.Create('Script not found: ' + Deploy.GetScript);
+  if Script = nil then
+    raise Exception.Create('Script not found: ' + FTerrain.GetScript);
+
+  GenerateMap(Script);
+  SetupObjectives(Deploy);
+  DeployXCOM;
+
+  var UnitCount := FSave.GetUnits.Count;
+  DeployAliens(Deploy);
+  if UnitCount = FSave.GetUnits.Count then
+    raise Exception.Create('No alien units could be placed.');
+
+  DeployCivilians(Deploy.GetCivilians);
+  if FGenerateFuel then FuelPowerSources;
+  if (FUfo <> nil) and (FUfo.GetStatus = Ufo.CRASHED) then ExplodePowerSources;
+
+  SetMusic(Deploy, False);
+  FSave.SetGlobalShade(FWorldShade);
+  FSave.GetTileEngine.CalculateSunShading;
+  FSave.GetTileEngine.CalculateTerrainLighting;
+  FSave.GetTileEngine.CalculateUnitLighting;
+end;
+
+procedure TBattlescapeGenerator.NextStage;
+var
+  Ground: TRuleInventory;
+  Unit: TBattleUnit;
+  Item: TBattleItem;
+  TakeHomeGuaranteed, TakeHomeConditional: TList<TBattleItem>;
+  TakeToNextStage, CarryToNextStage, RemoveFromGame: TList<TBattleItem>;
+  AliensAlive: Integer;
+  Deploy: TAlienDeployment;
+  Script: TList<TMapScript>;
+  HighestSoldierID: Integer;
+  SelectedFirstSoldier: Boolean;
+  Node: TNode;
+begin
+  Ground := FMod.GetInventory('STR_GROUND', True);
+  TakeHomeGuaranteed := FSave.GetGuaranteedRecoveredItems;
+  TakeHomeConditional := FSave.GetConditionalRecoveredItems;
+  TakeToNextStage := TList<TBattleItem>.Create;
+  CarryToNextStage := TList<TBattleItem>.Create;
+  RemoveFromGame := TList<TBattleItem>.Create;
+
+  // Process units
+  AliensAlive := 0;
+  for Unit in FSave.GetUnits do
+  begin
+    Unit.ClearVisibleUnits;
+    Unit.ClearVisibleTiles;
+    var IsInExit := Unit.IsInExitArea(END_POINT) or Unit.LiesInExitArea(Unit.GetTile, END_POINT);
+    if (Unit.GetStatus <> STATUS_DEAD) and
+       (((Unit.GetOriginalFaction = FACTION_PLAYER) and FSave.IsAborted and (not IsInExit)) or
+        (Unit.GetOriginalFaction <> FACTION_PLAYER)) then
+    begin
+      if (Unit.GetOriginalFaction = FACTION_HOSTILE) and (not Unit.IsOut) then
+        if Unit.GetOriginalFaction = Unit.GetFaction then Inc(AliensAlive);
+      Unit.GoToTimeOut;
+      Unit.SetAIModule(nil);
+    end;
+    if Unit.GetTile <> nil then
+    begin
+      for var X := 0 to Unit.GetArmor.GetSize - 1 do
+        for var Y := 0 to Unit.GetArmor.GetSize - 1 do
+          FSave.GetTile(Unit.GetPosition + Position(X,Y,0)).SetUnit(nil);
+    end;
+    Unit.SetFire(0);
+    Unit.SetTile(nil);
+    Unit.SetPosition(Position(-1,-1,-1), False);
+  end;
+
+  // Process items
+  for Item in FSave.GetItems do
+    if not Item.IsAmmo then
+    begin
+      var ToContainer := RemoveFromGame;
+      if ((Item.GetUnit <> nil) and (Item.GetUnit.GetGeoscapeSoldier <> nil)) or
+         (Item.GetRules.IsRecoverable and (Item.GetOwner = nil)) then
+      begin
+        if Item.GetFuseTimer = -1 then
+        begin
+          if AliensAlive = 0 then
+          begin
+            if (Item.GetUnit <> nil) and
+               ((Item.GetUnit.GetOriginalFaction <> FACTION_PLAYER) or
+                (Item.GetUnit.GetStatus = STATUS_DEAD)) or
+               (not FGame.GetSavedGame.IsResearched(Item.GetRules.GetRequirements)) then
+              ToContainer := TakeHomeGuaranteed
+            else
+              ToContainer := TakeToNextStage;
+          end
+          else
+          begin
+            var Tile := Item.GetTile;
+            if Tile <> nil then
+            begin
+              ToContainer := TakeHomeConditional;
+              if (Tile.GetMapData(O_FLOOR) <> nil) and
+                 (Tile.GetMapData(O_FLOOR).GetSpecialType = START_POINT) then
+                ToContainer := TakeHomeGuaranteed
+              else if (Tile.GetMapData(O_FLOOR) <> nil) and
+                      (Tile.GetMapData(O_FLOOR).GetSpecialType = END_POINT) then
+              begin
+                if (Item.GetUnit <> nil) and
+                   ((Item.GetUnit.GetOriginalFaction <> FACTION_PLAYER) or
+                    (Item.GetUnit.GetStatus = STATUS_DEAD)) then
+                  ToContainer := TakeHomeConditional
+                else
+                  ToContainer := TakeToNextStage;
+              end;
+            end;
+          end;
+        end;
+      end;
+      if (Item.GetOwner <> nil) and (Item.GetOwner.GetFaction = FACTION_PLAYER) then
+        ToContainer := CarryToNextStage;
+
+      if Item.GetAmmoItem <> nil then
+      begin
+        Item.GetAmmoItem.SetTile(nil);
+        ToContainer.Add(Item.GetAmmoItem);
+      end;
+      Item.SetTile(nil);
+      ToContainer.Add(Item);
+    end;
+
+  // Delete removed items
+  for Item in RemoveFromGame do
+  begin
+    if Item.GetOwner <> nil then
+      Item.GetOwner.GetInventory.Remove(Item);
+    Item.Free;
+  end;
+  FSave.GetItems.Clear;
+
+  for Item in CarryToNextStage do
+    FSave.GetItems.Add(Item);
+
+  // Setup next stage
+  Deploy := FMod.GetDeployment(FSave.GetMissionType, True);
+  FSave.SetTurnLimit(Deploy.GetTurnLimit);
+  FSave.SetChronoTrigger(Deploy.GetChronoTrigger);
+  FSave.SetCheatTurn(Deploy.GetCheatTurn);
+  Deploy.GetDimensions(FMapsizeX, FMapsizeY, FMapsizeZ);
+  var Pick := RNG.Generate(0, Deploy.GetTerrains.Count - 1);
+  FTerrain := FMod.GetTerrain(Deploy.GetTerrains[Pick], True);
+  SetDepth(Deploy, True);
+  FWorldShade := Deploy.GetShade;
+
+  Script := FMod.GetMapScript(FTerrain.GetScript);
+  if FMod.GetMapScript(Deploy.GetScript) <> nil then
+    Script := FMod.GetMapScript(Deploy.GetScript)
+  else if not Deploy.GetScript.IsEmpty then
+    raise Exception.Create('Script not found: ' + Deploy.GetScript);
+  if Script = nil then
+    raise Exception.Create('Script not found: ' + FTerrain.GetScript);
+
+  GenerateMap(Script);
+  SetupObjectives(Deploy);
+
+  HighestSoldierID := 0;
+  SelectedFirstSoldier := False;
+  for Unit in FSave.GetUnits do
+    if Unit.GetOriginalFaction = FACTION_PLAYER then
+      if not Unit.IsOut then
+      begin
+        Unit.SetTurnsSinceSpotted(255);
+        Unit.GetVisibleTiles.Clear;
+        Unit.SetCache(0);
+        if not SelectedFirstSoldier and (Unit.GetGeoscapeSoldier <> nil) then
+        begin
+          FSave.SetSelectedUnit(Unit);
+          SelectedFirstSoldier := True;
+        end;
+        Node := FSave.GetSpawnNode(NR_XCOM, Unit);
+        if Node = nil then Node := FSave.GetSpawnNode(NR_XCOM, Unit);
+        if (Node <> nil) or PlaceUnitNearFriend(Unit) then
+        begin
+          if Node <> nil then
+            FSave.SetUnitPosition(Unit, Node.GetPosition);
+          if FCraftInventoryTile = nil then
+            FCraftInventoryTile := Unit.GetTile;
+          FCraftInventoryTile.SetUnit(Unit);
+          Unit.SetVisible(False);
+          if Unit.GetId > HighestSoldierID then HighestSoldierID := Unit.GetId;
+          Unit.PrepareNewTurn(False);
+        end;
+      end;
+
+  if (FSave.GetSelectedUnit = nil) or FSave.GetSelectedUnit.IsOut or
+     (FSave.GetSelectedUnit.GetFaction <> FACTION_PLAYER) then
+    FSave.SelectNextPlayerUnit;
+
+  for Item in TakeToNextStage do
+  begin
+    FSave.GetItems.Add(Item);
+    if not Item.IsAmmo then
+    begin
+      FCraftInventoryTile.AddItem(Item, Ground);
+      if Item.GetUnit <> nil then
+      begin
+        FCraftInventoryTile.SetUnit(Item.GetUnit);
+        Item.GetUnit.SetPosition(FCraftInventoryTile.GetPosition);
+      end;
+    end;
+  end;
+
+  FUnitSequence := FSave.GetUnits.Last.GetId + 1;
+  var UnitCount := FSave.GetUnits.Count;
+  FAlienRace := Deploy.GetRace;
+  // try to get race from mission
+  if FAlienRace.IsEmpty then
+    for var MS in FGame.GetSavedGame.GetMissionSites do
+      if MS.IsInBattlescape then FAlienRace := MS.GetAlienRace;
+  if FAlienRace.IsEmpty then
+    for var AB in FGame.GetSavedGame.GetAlienBases do
+      if AB.IsInBattlescape then FAlienRace := AB.GetAlienRace;
+
+  DeployAliens(Deploy);
+  if UnitCount = FSave.GetUnits.Count then
+    raise Exception.Create('No alien units could be placed in next stage.');
+  DeployCivilians(Deploy.GetCivilians);
+  FSave.SetAborted(False);
+  SetMusic(Deploy, True);
+  FSave.SetGlobalShade(FWorldShade);
+  FSave.GetTileEngine.CalculateSunShading;
+  FSave.GetTileEngine.CalculateTerrainLighting;
+  FSave.GetTileEngine.CalculateUnitLighting;
+
+  TakeToNextStage.Free;
+  CarryToNextStage.Free;
+  RemoveFromGame.Free;
+end;
+
+procedure TBattlescapeGenerator.RunInventory(ACraft: TCraft);
+var
+  SetObj: TMapDataSet;
+  Data: TMapData;
+begin
+  FBaseInventory := True;
+  FMapsizeX := 2;
+  FMapsizeY := 2;
+  FMapsizeZ := 1;
+  FSave.InitMap(FMapsizeX, FMapsizeY, FMapsizeZ, True);
+  SetObj := TMapDataSet.Create('dummy');
+  Data := TMapData.Create(SetObj);
+  FCraftInventoryTile := FSave.GetTiles[0];
+  SetCraft(ACraft);
+  DeployXCOM;
+  Data.Free;
+  SetObj.Free;
+end;
+
+procedure TBattlescapeGenerator.SetupObjectives(Deploy: TAlienDeployment);
+var
+  TargetType, Objectives, ActualCount, I, J: Integer;
+begin
+  TargetType := Deploy.GetObjectiveType;
+  if TargetType > -1 then
+  begin
+    Objectives := Deploy.GetObjectivesRequired;
+    ActualCount := 0;
+    for I := 0 to FSave.GetMapSizeXYZ - 1 do
+      for J := O_FLOOR to O_OBJECT do
+        if (FSave.GetTiles[I].GetMapData(TilePart(J)) <> nil) and
+           (FSave.GetTiles[I].GetMapData(TilePart(J)).GetSpecialType = TargetType) then
+          Inc(ActualCount);
+    if ActualCount > 0 then
+    begin
+      FSave.SetObjectiveType(TargetType);
+      if (ActualCount < Objectives) or (Objectives = 0) then
+        FSave.SetObjectiveCount(ActualCount)
+      else
+        FSave.SetObjectiveCount(Objectives);
+    end;
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

@@ -1,0 +1,1637 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦FILE:CraftInfoState.pas;encoding=utf8;eol=lf⟧
+unit CraftInfoState;
+
+interface
+
+uses
+  Classes, SysUtils, Math,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options, Engine.Unicode,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextEdit,
+  Engine.SurfaceSet, Savegame.Craft, Mod.RuleCraft,
+  Savegame.CraftWeapon, Mod.RuleCraftWeapon,
+  Savegame.Base, Savegame.SavedGame,
+  CraftSoldiersState, CraftWeaponsState, CraftEquipmentState, CraftArmorState;
+
+type
+  TCraftInfoState = class(TState)
+  private
+    FBase: TBase;
+    FCraftId: Integer;
+    FCraft: TCraft;
+
+    FBtnOk, FBtnW1, FBtnW2, FBtnCrew, FBtnEquip, FBtnArmor: TTextButton;
+    FWindow: TWindow;
+    FEdtCraft: TTextEdit;
+    FTxtDamage, FTxtFuel: TText;
+    FTxtW1Name, FTxtW1Ammo, FTxtW2Name, FTxtW2Ammo: TText;
+    FSprite, FWeapon1, FWeapon2, FCrew, FEquip: TSurface;
+
+    function FormatTime(Total: Integer): string;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; CraftId: Integer);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnW1Click(Sender: TObject; Action: TAction);
+    procedure BtnW2Click(Sender: TObject; Action: TAction);
+    procedure BtnCrewClick(Sender: TObject; Action: TAction);
+    procedure BtnEquipClick(Sender: TObject; Action: TAction);
+    procedure BtnArmorClick(Sender: TObject; Action: TAction);
+    procedure EdtCraftChange(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TCraftInfoState.Create(AOwner: TComponent; Base: TBase; CraftId: Integer);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FCraftId := CraftId;
+
+  if FGame.GetSavedGame.GetMonthsPassed <> -1 then
+    FWindow := TWindow.Create(Self, 320, 200, 0, 0, POPUP_BOTH)
+  else
+    FWindow := TWindow.Create(Self, 320, 200, 0, 0, POPUP_NONE);
+  FBtnOk := TTextButton.Create(64, 24, 128, 168);
+  FBtnW1 := TTextButton.Create(24, 32, 14, 48);
+  FBtnW2 := TTextButton.Create(24, 32, 282, 48);
+  FBtnCrew := TTextButton.Create(64, 16, 14, 96);
+  FBtnEquip := TTextButton.Create(64, 16, 14, 120);
+  FBtnArmor := TTextButton.Create(64, 16, 14, 144);
+  FEdtCraft := TTextEdit.Create(Self, 140, 16, 80, 8);
+  FTxtDamage := TText.Create(100, 17, 14, 24);
+  FTxtFuel := TText.Create(82, 17, 228, 24);
+  FTxtW1Name := TText.Create(95, 16, 46, 48);
+  FTxtW1Ammo := TText.Create(75, 24, 46, 64);
+  FTxtW2Name := TText.Create(95, 16, 184, 48);
+  FTxtW2Ammo := TText.Create(75, 24, 204, 64);
+  FSprite := TSurface.Create(32, 40, 144, 52);
+  FWeapon1 := TSurface.Create(15, 17, 121, 63);
+  FWeapon2 := TSurface.Create(15, 17, 184, 63);
+  FCrew := TSurface.Create(220, 18, 85, 96);
+  FEquip := TSurface.Create(220, 18, 85, 121);
+
+  SetInterface('craftInfo');
+  Add(FWindow, 'window', 'craftInfo');
+  Add(FBtnOk, 'button', 'craftInfo');
+  Add(FBtnW1, 'button', 'craftInfo');
+  Add(FBtnW2, 'button', 'craftInfo');
+  Add(FBtnCrew, 'button', 'craftInfo');
+  Add(FBtnEquip, 'button', 'craftInfo');
+  Add(FBtnArmor, 'button', 'craftInfo');
+  Add(FEdtCraft, 'text1', 'craftInfo');
+  Add(FTxtDamage, 'text1', 'craftInfo');
+  Add(FTxtFuel, 'text1', 'craftInfo');
+  Add(FTxtW1Name, 'text2', 'craftInfo');
+  Add(FTxtW1Ammo, 'text3', 'craftInfo');
+  Add(FTxtW2Name, 'text2', 'craftInfo');
+  Add(FTxtW2Ammo, 'text3', 'craftInfo');
+  Add(FSprite);
+  Add(FWeapon1);
+  Add(FWeapon2);
+  Add(FCrew);
+  Add(FEquip);
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK14.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnW1.SetText('1');
+  FBtnW1.OnMouseClick := BtnW1Click;
+  FBtnW2.SetText('2');
+  FBtnW2.OnMouseClick := BtnW2Click;
+  FBtnCrew.SetText(Translate('STR_CREW'));
+  FBtnCrew.OnMouseClick := BtnCrewClick;
+  FBtnEquip.SetText(Translate('STR_EQUIPMENT_UC'));
+  FBtnEquip.OnMouseClick := BtnEquipClick;
+  FBtnArmor.SetText(Translate('STR_ARMOR'));
+  FBtnArmor.OnMouseClick := BtnArmorClick;
+  FEdtCraft.SetBig;
+  FEdtCraft.SetAlign(ALIGN_CENTER);
+  FEdtCraft.OnChange := EdtCraftChange;
+  FTxtW1Name.SetWordWrap(True);
+  FTxtW2Name.SetWordWrap(True);
+end;
+
+destructor TCraftInfoState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TCraftInfoState.Init;
+var
+  Texture: TSurfaceSet;
+  Frame: TSurface;
+  w1, w2: TCraftWeapon;
+  i, x: Integer;
+  ss: TStringStream;
+begin
+  inherited;
+  FCraft := FBase.GetCrafts[FCraftId];
+
+  FEdtCraft.SetText(FCraft.GetName(FGame.GetLanguage));
+  FSprite.Clear;
+  Texture := FGame.GetMod.GetSurfaceSet('BASEBITS.PCK');
+  Texture.GetFrame(FCraft.GetRules.GetSprite + 33).SetX(0);
+  Texture.GetFrame(FCraft.GetRules.GetSprite + 33).SetY(0);
+  Texture.GetFrame(FCraft.GetRules.GetSprite + 33).Blit(FSprite);
+
+  FTxtDamage.SetText(Translate('STR_DAMAGE_UC_').Arg(Unicode.FormatPercentage(FCraft.GetDamagePercentage)) +
+    IfThen(FCraft.GetStatus = 'STR_REPAIRS' and (FCraft.GetDamage > 0),
+    FormatTime(Ceil(FCraft.GetDamage / FCraft.GetRules.GetRepairRate)), ''));
+  FTxtFuel.SetText(Translate('STR_FUEL').Arg(Unicode.FormatPercentage(FCraft.GetFuelPercentage)) +
+    IfThen(FCraft.GetStatus = 'STR_REFUELLING' and (FCraft.GetRules.GetMaxFuel - FCraft.GetFuel > 0),
+    FormatTime(Ceil((FCraft.GetRules.GetMaxFuel - FCraft.GetFuel) / FCraft.GetRules.GetRefuelRate / 2.0)), ''));
+
+  if FCraft.GetRules.GetSoldiers > 0 then
+  begin
+    FCrew.Clear;
+    FEquip.Clear;
+    Frame := Texture.GetFrame(38);
+    Frame.SetY(0);
+    for i := 0 to FCraft.GetNumSoldiers - 1 do
+    begin
+      Frame.SetX(i * 10);
+      Frame.Blit(FCrew);
+    end;
+    Frame := Texture.GetFrame(40);
+    Frame.SetY(0);
+    x := 0;
+    for i := 0 to FCraft.GetNumVehicles - 1 do
+    begin
+      Frame.SetX(x);
+      Frame.Blit(FEquip);
+      Inc(x, 10);
+    end;
+    Frame := Texture.GetFrame(39);
+    for i := 0 to FCraft.GetNumEquipment - 1 do
+    begin
+      if (i mod 4) = 0 then
+      begin
+        Frame.SetX(x);
+        Frame.Blit(FEquip);
+        Inc(x, 10);
+      end;
+    end;
+  end
+  else
+  begin
+    FCrew.Visible := False;
+    FEquip.Visible := False;
+    FBtnCrew.Visible := False;
+    FBtnEquip.Visible := False;
+    FBtnArmor.Visible := False;
+  end;
+
+  if FCraft.GetRules.GetWeapons > 0 then
+  begin
+    w1 := FCraft.GetWeapons[0];
+    FWeapon1.Clear;
+    if w1 <> nil then
+    begin
+      Frame := Texture.GetFrame(w1.GetRules.GetSprite + 48);
+      Frame.SetX(0);
+      Frame.SetY(0);
+      Frame.Blit(FWeapon1);
+      FTxtW1Name.SetText(Unicode.TOK_COLOR_FLIP + Translate(w1.GetRules.GetType));
+      FTxtW1Ammo.SetText(Translate('STR_AMMO_').Arg(w1.GetAmmo) + #10 + Unicode.TOK_COLOR_FLIP +
+        Translate('STR_MAX').Arg(w1.GetRules.GetAmmoMax) +
+        IfThen(FCraft.GetStatus = 'STR_REARMING' and (w1.GetAmmo < w1.GetRules.GetAmmoMax),
+        FormatTime(Ceil((w1.GetRules.GetAmmoMax - w1.GetAmmo) / w1.GetRules.GetRearmRate)), ''));
+    end
+    else
+    begin
+      FTxtW1Name.SetText('');
+      FTxtW1Ammo.SetText('');
+    end;
+  end
+  else
+  begin
+    FWeapon1.Visible := False;
+    FBtnW1.Visible := False;
+    FTxtW1Name.Visible := False;
+    FTxtW1Ammo.Visible := False;
+  end;
+
+  if FCraft.GetRules.GetWeapons > 1 then
+  begin
+    w2 := FCraft.GetWeapons[1];
+    FWeapon2.Clear;
+    if w2 <> nil then
+    begin
+      Frame := Texture.GetFrame(w2.GetRules.GetSprite + 48);
+      Frame.SetX(0);
+      Frame.SetY(0);
+      Frame.Blit(FWeapon2);
+      FTxtW2Name.SetText(Unicode.TOK_COLOR_FLIP + Translate(w2.GetRules.GetType));
+      FTxtW2Ammo.SetText(Translate('STR_AMMO_').Arg(w2.GetAmmo) + #10 + Unicode.TOK_COLOR_FLIP +
+        Translate('STR_MAX').Arg(w2.GetRules.GetAmmoMax) +
+        IfThen(FCraft.GetStatus = 'STR_REARMING' and (w2.GetAmmo < w2.GetRules.GetAmmoMax),
+        FormatTime(Ceil((w2.GetRules.GetAmmoMax - w2.GetAmmo) / w2.GetRules.GetRearmRate)), ''));
+    end
+    else
+    begin
+      FTxtW2Name.SetText('');
+      FTxtW2Ammo.SetText('');
+    end;
+  end
+  else
+  begin
+    FWeapon2.Visible := False;
+    FBtnW2.Visible := False;
+    FTxtW2Name.Visible := False;
+    FTxtW2Ammo.Visible := False;
+  end;
+end;
+
+function TCraftInfoState.FormatTime(Total: Integer): string;
+var
+  days, hours: Integer;
+begin
+  days := Total div 24;
+  hours := Total mod 24;
+  Result := #10'(';
+  if days > 0 then
+    Result := Result + Translate('STR_DAY', days) + '/';
+  if hours > 0 then
+    Result := Result + Translate('STR_HOUR', hours);
+  Result := Result + ')';
+end;
+
+procedure TCraftInfoState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TCraftInfoState.BtnW1Click(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TCraftWeaponsState.Create(Self, FBase, FCraftId, 0));
+end;
+
+procedure TCraftInfoState.BtnW2Click(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TCraftWeaponsState.Create(Self, FBase, FCraftId, 1));
+end;
+
+procedure TCraftInfoState.BtnCrewClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TCraftSoldiersState.Create(Self, FBase, FCraftId));
+end;
+
+procedure TCraftInfoState.BtnEquipClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TCraftEquipmentState.Create(Self, FBase, FCraftId));
+end;
+
+procedure TCraftInfoState.BtnArmorClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TCraftArmorState.Create(Self, FBase, FCraftId));
+end;
+
+procedure TCraftInfoState.EdtCraftChange(Sender: TObject; Action: TAction);
+begin
+  if FEdtCraft.GetText = FCraft.GetDefaultName(FGame.GetLanguage) then
+    FCraft.SetName('')
+  else
+    FCraft.SetName(FEdtCraft.GetText);
+  if (Action.GetDetails.key.keysym.sym = SDLK_RETURN) or
+     (Action.GetDetails.key.keysym.sym = SDLK_KP_ENTER) then
+    FEdtCraft.SetText(FCraft.GetName(FGame.GetLanguage));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:CraftSoldiersState.pas;encoding=utf8;eol=lf⟧
+unit CraftSoldiersState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.ComboBox, Interface.TextButton, Interface.Window,
+  Interface.Text, Interface.TextList,
+  Savegame.Base, Savegame.Soldier, Savegame.Craft,
+  Savegame.SavedGame, SoldierInfoState, Mod.RuleInterface,
+  Math;
+
+type
+  TGetStatFn = function(Game: TGame; Soldier: TSoldier): Integer;
+
+  TSortFunctor = class
+  private
+    FGame: TGame;
+    FGetStatFn: TGetStatFn;
+  public
+    constructor Create(Game: TGame; GetStatFn: TGetStatFn);
+    function Compare(SoldierA, SoldierB: TSoldier): Boolean;
+  end;
+
+  TCraftSoldiersState = class(TState)
+  private
+    FBase: TBase;
+    FCraft: Integer;
+    FOtherCraftColor: Byte;
+    FOrigSoldierOrder: TList<TSoldier>;
+
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtName, FTxtRank, FTxtCraft, FTxtAvailable, FTxtUsed: TText;
+    FCbxSortBy: TComboBox;
+    FLstSoldiers: TTextList;
+    FSortFunctors: TList<TSortFunctor>;
+
+    procedure InitList;
+    procedure MoveSoldierUp(Action: TAction; Row: Integer; Max: Boolean = False);
+    procedure MoveSoldierDown(Action: TAction; Row: Integer; Max: Boolean = False);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Craft: Integer);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure CbxSortByChange(Sender: TObject; Action: TAction);
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowClick(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowClick(Sender: TObject; Action: TAction);
+    procedure LstSoldiersClick(Sender: TObject; Action: TAction);
+    procedure LstSoldiersMousePress(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+{ TSortFunctor }
+constructor TSortFunctor.Create(Game: TGame; GetStatFn: TGetStatFn);
+begin
+  FGame := Game;
+  FGetStatFn := GetStatFn;
+end;
+
+function TSortFunctor.Compare(SoldierA, SoldierB: TSoldier): Boolean;
+begin
+  Result := FGetStatFn(FGame, SoldierA) < FGetStatFn(FGame, SoldierB);
+end;
+
+// Stat functions
+function TuStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetCurrentStats.TU; end;
+function StaminaStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetCurrentStats.Stamina; end;
+function HealthStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetCurrentStats.Health; end;
+function BraveryStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetCurrentStats.Bravery; end;
+function ReactionsStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetCurrentStats.Reactions; end;
+function FiringStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetCurrentStats.Firing; end;
+function ThrowingStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetCurrentStats.Throwing; end;
+function StrengthStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetCurrentStats.Strength; end;
+function PsiStrengthStat(Game: TGame; S: TSoldier): Integer;
+begin
+  if (S.GetCurrentStats.PsiSkill > 0) or
+     (Options.PsiStrengthEval and Game.GetSavedGame.IsResearched(Game.GetMod.GetPsiRequirements)) then
+    Result := S.GetCurrentStats.PsiStrength
+  else
+    Result := 0;
+end;
+function PsiSkillStat(Game: TGame; S: TSoldier): Integer;
+begin
+  Result := Max(S.GetCurrentStats.PsiSkill, 0);
+end;
+function MeleeStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetCurrentStats.Melee; end;
+function RankStat(Game: TGame; S: TSoldier): Integer; begin Result := Ord(S.GetRank); end;
+function MissionsStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetMissions; end;
+function KillsStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetKills; end;
+function WoundRecoveryStat(Game: TGame; S: TSoldier): Integer; begin Result := S.GetWoundRecovery; end;
+
+constructor TCraftSoldiersState.Create(AOwner: TComponent; Base: TBase; Craft: Integer);
+var
+  sortOptions: TStringList;
+  procedure PushSortOption(const Id: string; Fn: TGetStatFn);
+  begin
+    sortOptions.Add(Translate(Id));
+    FSortFunctors.Add(TSortFunctor.Create(FGame, Fn));
+  end;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FCraft := Craft;
+  FOrigSoldierOrder := TList<TSoldier>.Create;
+  FOrigSoldierOrder.AddRange(FBase.GetSoldiers.ToArray);
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(148, 16, 164, 176);
+  FTxtTitle := TText.Create(300, 17, 16, 7);
+  FTxtName := TText.Create(114, 9, 16, 32);
+  FTxtRank := TText.Create(102, 9, 122, 32);
+  FTxtCraft := TText.Create(84, 9, 224, 32);
+  FTxtAvailable := TText.Create(110, 9, 16, 24);
+  FTxtUsed := TText.Create(110, 9, 122, 24);
+  FCbxSortBy := TComboBox.Create(Self, 148, 16, 8, 176, True);
+  FLstSoldiers := TTextList.Create(288, 128, 8, 40);
+
+  SetInterface('craftSoldiers');
+  Add(FWindow, 'window', 'craftSoldiers');
+  Add(FBtnOk, 'button', 'craftSoldiers');
+  Add(FTxtTitle, 'text', 'craftSoldiers');
+  Add(FTxtName, 'text', 'craftSoldiers');
+  Add(FTxtRank, 'text', 'craftSoldiers');
+  Add(FTxtCraft, 'text', 'craftSoldiers');
+  Add(FTxtAvailable, 'text', 'craftSoldiers');
+  Add(FTxtUsed, 'text', 'craftSoldiers');
+  Add(FLstSoldiers, 'list', 'craftSoldiers');
+  Add(FCbxSortBy, 'button', 'craftSoldiers');
+
+  FOtherCraftColor := FGame.GetMod.GetInterface('craftSoldiers').GetElement('otherCraft').Color;
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK02.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetText(Translate('STR_SELECT_SQUAD_FOR_CRAFT').Arg(
+    FBase.GetCrafts[FCraft].GetName(FGame.GetLanguage)));
+  FTxtName.SetText(Translate('STR_NAME_UC'));
+  FTxtRank.SetText(Translate('STR_RANK'));
+  FTxtCraft.SetText(Translate('STR_CRAFT'));
+
+  sortOptions := TStringList.Create;
+  try
+    sortOptions.Add(Translate('STR_ORIGINAL_ORDER'));
+    FSortFunctors := TList<TSortFunctor>.Create;
+    FSortFunctors.Add(nil);
+
+    PushSortOption('STR_RANK', RankStat);
+    PushSortOption('STR_MISSIONS2', MissionsStat);
+    PushSortOption('STR_KILLS2', KillsStat);
+    PushSortOption('STR_WOUND_RECOVERY2', WoundRecoveryStat);
+    PushSortOption('STR_TIME_UNITS', TuStat);
+    PushSortOption('STR_STAMINA', StaminaStat);
+    PushSortOption('STR_HEALTH', HealthStat);
+    PushSortOption('STR_BRAVERY', BraveryStat);
+    PushSortOption('STR_REACTIONS', ReactionsStat);
+    PushSortOption('STR_FIRING_ACCURACY', FiringStat);
+    PushSortOption('STR_THROWING_ACCURACY', ThrowingStat);
+    PushSortOption('STR_STRENGTH', StrengthStat);
+
+    // Psi options only if researched or has skill
+    if Options.PsiStrengthEval and FGame.GetSavedGame.IsResearched(FGame.GetMod.GetPsiRequirements) then
+      PushSortOption('STR_PSIONIC_STRENGTH', PsiStrengthStat);
+    if FBase.GetSoldiers.Exists( function(S: TSoldier): Boolean begin Result := S.GetCurrentStats.PsiSkill > 0; end) then
+      PushSortOption('STR_PSIONIC_SKILL', PsiSkillStat);
+
+    PushSortOption('STR_MELEE_ACCURACY', MeleeStat);
+
+    FCbxSortBy.SetOptions(sortOptions);
+    FCbxSortBy.SetSelected(0);
+    FCbxSortBy.OnChange := CbxSortByChange;
+    FCbxSortBy.SetText(Translate('STR_SORT_BY'));
+
+    FLstSoldiers.SetArrowColumn(192, ARROW_VERTICAL);
+    FLstSoldiers.SetColumns([106, 102, 72]);
+    FLstSoldiers.SetSelectable(True);
+    FLstSoldiers.SetBackground(FWindow);
+    FLstSoldiers.SetMargin(8);
+    FLstSoldiers.OnLeftArrowClick := LstItemsLeftArrowClick;
+    FLstSoldiers.OnRightArrowClick := LstItemsRightArrowClick;
+    FLstSoldiers.OnMouseClick := LstSoldiersClick;
+    FLstSoldiers.OnMousePress := LstSoldiersMousePress;
+  finally
+    sortOptions.Free;
+  end;
+end;
+
+destructor TCraftSoldiersState.Destroy;
+begin
+  FOrigSoldierOrder.Free;
+  FSortFunctors.Free;
+  inherited;
+end;
+
+procedure TCraftSoldiersState.CbxSortByChange(Sender: TObject; Action: TAction);
+var
+  idx: Integer;
+  comp: TSortFunctor;
+  Soldier: TSoldier;
+  it: TList<TSoldier>.TEnumerator;
+begin
+  idx := FCbxSortBy.GetSelected;
+  if idx = -1 then Exit;
+
+  comp := FSortFunctors[idx];
+  if comp <> nil then
+    FBase.GetSoldiers.Sort( TComparer<TSoldier>.Construct( comp.Compare ) )
+  else
+  begin
+    // restore original order
+    for Soldier in FOrigSoldierOrder do
+    begin
+      if FBase.GetSoldiers.Contains(Soldier) then
+      begin
+        FBase.GetSoldiers.Remove(Soldier);
+        FBase.GetSoldiers.Add(Soldier);
+      end;
+    end;
+  end;
+  InitList;
+end;
+
+procedure TCraftSoldiersState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TCraftSoldiersState.InitList;
+var
+  row: Integer;
+  c: TCraft;
+  Soldier: TSoldier;
+  color: Byte;
+begin
+  c := FBase.GetCrafts[FCraft];
+  FLstSoldiers.ClearList;
+  row := 0;
+  for Soldier in FBase.GetSoldiers do
+  begin
+    FLstSoldiers.AddRow([Soldier.GetName(True, 19), Translate(Soldier.GetRankString), Soldier.GetCraftString(FGame.GetLanguage)]);
+    if Soldier.GetCraft = c then
+      color := FLstSoldiers.GetSecondaryColor
+    else if Soldier.GetCraft <> nil then
+      color := FOtherCraftColor
+    else
+      color := FLstSoldiers.GetColor;
+    FLstSoldiers.SetRowColor(row, color);
+    Inc(row);
+  end;
+  FLstSoldiers.Draw;
+  FTxtAvailable.SetText(Translate('STR_SPACE_AVAILABLE').Arg(c.GetSpaceAvailable));
+  FTxtUsed.SetText(Translate('STR_SPACE_USED').Arg(c.GetSpaceUsed));
+end;
+
+procedure TCraftSoldiersState.Init;
+begin
+  inherited;
+  InitList;
+end;
+
+procedure TCraftSoldiersState.LstItemsLeftArrowClick(Sender: TObject; Action: TAction);
+var
+  row: Integer;
+begin
+  row := FLstSoldiers.GetSelectedRow;
+  if row > 0 then
+  begin
+    if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+      MoveSoldierUp(Action, row)
+    else if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+      MoveSoldierUp(Action, row, True);
+  end;
+  FCbxSortBy.SetText(Translate('STR_SORT_BY'));
+  FCbxSortBy.SetSelected(-1);
+end;
+
+procedure TCraftSoldiersState.MoveSoldierUp(Action: TAction; Row: Integer; Max: Boolean);
+var
+  s: TSoldier;
+begin
+  s := FBase.GetSoldiers[Row];
+  if Max then
+  begin
+    FBase.GetSoldiers.Delete(Row);
+    FBase.GetSoldiers.Insert(0, s);
+  end
+  else
+  begin
+    FBase.GetSoldiers[Row] := FBase.GetSoldiers[Row-1];
+    FBase.GetSoldiers[Row-1] := s;
+    if Row <> FLstSoldiers.GetScroll then
+      SDL_WarpMouse(Action.GetLeftBlackBand + Action.GetXMouse, Action.GetTopBlackBand + Action.GetYMouse - 8 * Trunc(Action.GetYScale))
+    else
+      FLstSoldiers.ScrollUp(False);
+  end;
+  InitList;
+end;
+
+procedure TCraftSoldiersState.LstItemsRightArrowClick(Sender: TObject; Action: TAction);
+var
+  row: Integer;
+begin
+  row := FLstSoldiers.GetSelectedRow;
+  if row < FBase.GetSoldiers.Count - 1 then
+  begin
+    if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+      MoveSoldierDown(Action, row)
+    else if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+      MoveSoldierDown(Action, row, True);
+  end;
+  FCbxSortBy.SetText(Translate('STR_SORT_BY'));
+  FCbxSortBy.SetSelected(-1);
+end;
+
+procedure TCraftSoldiersState.MoveSoldierDown(Action: TAction; Row: Integer; Max: Boolean);
+var
+  s: TSoldier;
+begin
+  s := FBase.GetSoldiers[Row];
+  if Max then
+  begin
+    FBase.GetSoldiers.Delete(Row);
+    FBase.GetSoldiers.Add(s);
+  end
+  else
+  begin
+    FBase.GetSoldiers[Row] := FBase.GetSoldiers[Row+1];
+    FBase.GetSoldiers[Row+1] := s;
+    if Row <> FLstSoldiers.GetVisibleRows - 1 + FLstSoldiers.GetScroll then
+      SDL_WarpMouse(Action.GetLeftBlackBand + Action.GetXMouse, Action.GetTopBlackBand + Action.GetYMouse + 8 * Trunc(Action.GetYScale))
+    else
+      FLstSoldiers.ScrollDown(False);
+  end;
+  InitList;
+end;
+
+procedure TCraftSoldiersState.LstSoldiersClick(Sender: TObject; Action: TAction);
+var
+  row: Integer;
+  c: TCraft;
+  s: TSoldier;
+  color: Byte;
+begin
+  if (Action.GetAbsoluteXMouse >= FLstSoldiers.GetArrowsLeftEdge) and
+     (Action.GetAbsoluteXMouse < FLstSoldiers.GetArrowsRightEdge) then
+    Exit;
+
+  row := FLstSoldiers.GetSelectedRow;
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    c := FBase.GetCrafts[FCraft];
+    s := FBase.GetSoldiers[row];
+    if s.GetCraft = c then
+    begin
+      s.SetCraft(nil);
+      FLstSoldiers.SetCellText(row, 2, Translate('STR_NONE_UC'));
+      color := FLstSoldiers.GetColor;
+    end
+    else if (s.GetCraft <> nil) and (s.GetCraft.GetStatus = 'STR_OUT') then
+      color := FOtherCraftColor
+    else if (c.GetSpaceAvailable > 0) and (s.GetWoundRecovery = 0) then
+    begin
+      s.SetCraft(c);
+      FLstSoldiers.SetCellText(row, 2, c.GetName(FGame.GetLanguage));
+      color := FLstSoldiers.GetSecondaryColor;
+    end
+    else
+      Exit;
+    FLstSoldiers.SetRowColor(row, color);
+    FTxtAvailable.SetText(Translate('STR_SPACE_AVAILABLE').Arg(c.GetSpaceAvailable));
+    FTxtUsed.SetText(Translate('STR_SPACE_USED').Arg(c.GetSpaceUsed));
+  end
+  else if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    FGame.PushState(TSoldierInfoState.Create(Self, FBase, row));
+end;
+
+procedure TCraftSoldiersState.LstSoldiersMousePress(Sender: TObject; Action: TAction);
+var
+  row: Integer;
+begin
+  if Options.ChangeValueByMouseWheel = 0 then Exit;
+  row := FLstSoldiers.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_WHEELUP) and (row > 0) and
+     (Action.GetAbsoluteXMouse >= FLstSoldiers.GetArrowsLeftEdge) and
+     (Action.GetAbsoluteXMouse <= FLstSoldiers.GetArrowsRightEdge) then
+    MoveSoldierUp(Action, row)
+  else if (Action.GetDetails.button.button = SDL_BUTTON_WHEELDOWN) and (row < FBase.GetSoldiers.Count - 1) and
+     (Action.GetAbsoluteXMouse >= FLstSoldiers.GetArrowsLeftEdge) and
+     (Action.GetAbsoluteXMouse <= FLstSoldiers.GetArrowsRightEdge) then
+    MoveSoldierDown(Action, row);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:CraftWeaponsState.pas;encoding=utf8;eol=lf⟧
+unit CraftWeaponsState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Craft, Savegame.CraftWeapon, Mod.RuleCraftWeapon,
+  Savegame.ItemContainer, Savegame.Base;
+
+type
+  TCraftWeaponsState = class(TState)
+  private
+    FBase: TBase;
+    FCraft, FWeapon: Integer;
+    FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtArmament, FTxtQuantity, FTxtAmmunition: TText;
+    FLstWeapons: TTextList;
+    FWeapons: TList<TRuleCraftWeapon>;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Craft, Weapon: Integer);
+    destructor Destroy; override;
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+    procedure LstWeaponsClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TCraftWeaponsState.Create(AOwner: TComponent; Base: TBase; Craft, Weapon: Integer);
+var
+  Weapons: TStringList;
+  w: TRuleCraftWeapon;
+  ss: TStringStream;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FCraft := Craft;
+  FWeapon := Weapon;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 220, 160, 50, 20, POPUP_BOTH);
+  FBtnCancel := TTextButton.Create(140, 16, 90, 156);
+  FTxtTitle := TText.Create(208, 17, 56, 28);
+  FTxtArmament := TText.Create(76, 9, 66, 52);
+  FTxtQuantity := TText.Create(50, 9, 140, 52);
+  FTxtAmmunition := TText.Create(68, 17, 200, 44);
+  FLstWeapons := TTextList.Create(188, 80, 58, 68);
+
+  SetInterface('craftWeapons');
+  Add(FWindow, 'window', 'craftWeapons');
+  Add(FBtnCancel, 'button', 'craftWeapons');
+  Add(FTxtTitle, 'text', 'craftWeapons');
+  Add(FTxtArmament, 'text', 'craftWeapons');
+  Add(FTxtQuantity, 'text', 'craftWeapons');
+  Add(FTxtAmmunition, 'text', 'craftWeapons');
+  Add(FLstWeapons, 'list', 'craftWeapons');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK14.SCR'));
+  FBtnCancel.SetText(Translate('STR_CANCEL_UC'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_SELECT_ARMAMENT'));
+  FTxtArmament.SetText(Translate('STR_ARMAMENT'));
+  FTxtQuantity.SetText(Translate('STR_QUANTITY_UC'));
+  FTxtAmmunition.SetText(Translate('STR_AMMUNITION_AVAILABLE'));
+  FTxtAmmunition.SetWordWrap(True);
+  FTxtAmmunition.SetVerticalAlign(ALIGN_BOTTOM);
+  FLstWeapons.SetColumns([94, 50, 36]);
+  FLstWeapons.SetSelectable(True);
+  FLstWeapons.SetBackground(FWindow);
+  FLstWeapons.SetMargin(8);
+
+  FWeapons := TList<TRuleCraftWeapon>.Create;
+  FLstWeapons.AddRow([Translate('STR_NONE_UC')]);
+  FWeapons.Add(nil);
+
+  Weapons := FGame.GetMod.GetCraftWeaponsList;
+  try
+    for w in Weapons do
+    begin
+      if FBase.GetStorageItems.GetItem(w.GetLauncherItem) > 0 then
+      begin
+        FWeapons.Add(w);
+        ss := TStringStream.Create;
+        try
+          ss.WriteString(IntToStr(FBase.GetStorageItems.GetItem(w.GetLauncherItem)));
+          FTxtAmmunition.SetText(ss.DataString);
+        finally
+          ss.Free;
+        end;
+        FLstWeapons.AddRow([Translate(w.GetType),
+          IntToStr(FBase.GetStorageItems.GetItem(w.GetLauncherItem)),
+          IfThen(w.GetClipItem <> '', IntToStr(FBase.GetStorageItems.GetItem(w.GetClipItem)), Translate('STR_NOT_AVAILABLE'))]);
+      end;
+    end;
+  finally
+    Weapons.Free;
+  end;
+  FLstWeapons.OnMouseClick := LstWeaponsClick;
+end;
+
+destructor TCraftWeaponsState.Destroy;
+begin
+  FWeapons.Free;
+  inherited;
+end;
+
+procedure TCraftWeaponsState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TCraftWeaponsState.LstWeaponsClick(Sender: TObject; Action: TAction);
+var
+  current: TCraftWeapon;
+  sel: TRuleCraftWeapon;
+begin
+  current := FBase.GetCrafts[FCraft].GetWeapons[FWeapon];
+  if current <> nil then
+  begin
+    FBase.GetStorageItems.AddItem(current.GetRules.GetLauncherItem);
+    FBase.GetStorageItems.AddItem(current.GetRules.GetClipItem, current.GetClipsLoaded(FGame.GetMod));
+    current.Free;
+    FBase.GetCrafts[FCraft].GetWeapons[FWeapon] := nil;
+  end;
+
+  sel := FWeapons[FLstWeapons.GetSelectedRow];
+  if sel <> nil then
+  begin
+    current := TCraftWeapon.Create(sel, 0);
+    current.SetRearming(True);
+    FBase.GetStorageItems.RemoveItem(sel.GetLauncherItem);
+    FBase.GetCrafts[FCraft].GetWeapons[FWeapon] := current;
+    if FBase.GetCrafts[FCraft].GetStatus = 'STR_READY' then
+      FBase.GetCrafts[FCraft].SetStatus('STR_REARMING');
+  end;
+  FGame.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:CraftEquipmentState.pas;encoding=utf8;eol=lf⟧
+unit CraftEquipmentState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Engine.Timer, Interface.TextButton, Interface.Window,
+  Interface.Text, Interface.TextList,
+  Mod.Armor, Savegame.Base, Savegame.Craft,
+  Mod.RuleCraft, Savegame.ItemContainer, Mod.RuleItem,
+  Savegame.Vehicle, Savegame.SavedGame,
+  Menu.ErrorMessageState, Battlescape.InventoryState,
+  Battlescape.BattlescapeGenerator, Savegame.SavedBattleGame,
+  Mod.RuleInterface, Math;
+
+type
+  TCraftEquipmentState = class(TState)
+  private
+    FBtnOk, FBtnClear, FBtnInventory: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtItem, FTxtStores, FTxtAvailable, FTxtUsed, FTxtCrew: TText;
+    FLstEquipment: TTextList;
+    FTimerLeft, FTimerRight: TTimer;
+    FSel, FCraft: Integer;
+    FBase: TBase;
+    FItems: TStringList;
+    FTotalItems: Integer;
+    FAmmoColor: Byte;
+
+    procedure UpdateQuantity;
+    procedure MoveLeftByValue(Change: Integer);
+    procedure MoveRightByValue(Change: Integer);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Craft: Integer);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure Think; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure LstEquipmentLeftArrowPress(Sender: TObject; Action: TAction);
+    procedure LstEquipmentLeftArrowRelease(Sender: TObject; Action: TAction);
+    procedure LstEquipmentLeftArrowClick(Sender: TObject; Action: TAction);
+    procedure LstEquipmentRightArrowPress(Sender: TObject; Action: TAction);
+    procedure LstEquipmentRightArrowRelease(Sender: TObject; Action: TAction);
+    procedure LstEquipmentRightArrowClick(Sender: TObject; Action: TAction);
+    procedure LstEquipmentMousePress(Sender: TObject; Action: TAction);
+    procedure MoveLeft;
+    procedure MoveRight;
+    procedure BtnClearClick(Sender: TObject; Action: TAction);
+    procedure BtnInventoryClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TCraftEquipmentState.Create(AOwner: TComponent; Base: TBase; Craft: Integer);
+var
+  c: TCraft;
+  items: TStringList;
+  rule: TRuleItem;
+  cQty: Integer;
+  row: Integer;
+  s: string;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FCraft := Craft;
+  c := FBase.GetCrafts[Craft];
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(IfThen((c.GetNumSoldiers > 0) or (FGame.GetSavedGame.GetMonthsPassed = -1), 148, 288), 16,
+    IfThen((c.GetNumSoldiers > 0) or (FGame.GetSavedGame.GetMonthsPassed = -1), 164, 16), 176);
+  FBtnClear := TTextButton.Create(148, 16, 8, 176);
+  FBtnInventory := TTextButton.Create(148, 16, 8, 176);
+  FTxtTitle := TText.Create(300, 17, 16, 7);
+  FTxtItem := TText.Create(144, 9, 16, 32);
+  FTxtStores := TText.Create(150, 9, 160, 32);
+  FTxtAvailable := TText.Create(110, 9, 16, 24);
+  FTxtUsed := TText.Create(110, 9, 130, 24);
+  FTxtCrew := TText.Create(71, 9, 244, 24);
+  FLstEquipment := TTextList.Create(288, 128, 8, 40);
+
+  SetInterface('craftEquipment');
+  FAmmoColor := FGame.GetMod.GetInterface('craftEquipment').GetElement('ammoColor').Color;
+  Add(FWindow, 'window', 'craftEquipment');
+  Add(FBtnOk, 'button', 'craftEquipment');
+  Add(FBtnClear, 'button', 'craftEquipment');
+  Add(FBtnInventory, 'button', 'craftEquipment');
+  Add(FTxtTitle, 'text', 'craftEquipment');
+  Add(FTxtItem, 'text', 'craftEquipment');
+  Add(FTxtStores, 'text', 'craftEquipment');
+  Add(FTxtAvailable, 'text', 'craftEquipment');
+  Add(FTxtUsed, 'text', 'craftEquipment');
+  Add(FTxtCrew, 'text', 'craftEquipment');
+  Add(FLstEquipment, 'list', 'craftEquipment');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK04.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnClear.SetText(Translate('STR_UNLOAD_CRAFT'));
+  FBtnClear.OnMouseClick := BtnClearClick;
+  FBtnClear.Visible := (FGame.GetSavedGame.GetMonthsPassed = -1);
+  FBtnInventory.SetText(Translate('STR_INVENTORY'));
+  FBtnInventory.OnMouseClick := BtnInventoryClick;
+  FBtnInventory.Visible := (c.GetNumSoldiers > 0) and (FGame.GetSavedGame.GetMonthsPassed <> -1);
+  FTxtTitle.SetBig;
+  FTxtTitle.SetText(Translate('STR_EQUIPMENT_FOR_CRAFT').Arg(c.GetName(FGame.GetLanguage)));
+  FTxtItem.SetText(Translate('STR_ITEM'));
+  FTxtStores.SetText(Translate('STR_STORES'));
+  FTxtAvailable.SetText(Translate('STR_SPACE_AVAILABLE').Arg(c.GetSpaceAvailable));
+  FTxtUsed.SetText(Translate('STR_SPACE_USED').Arg(c.GetSpaceUsed));
+  FTxtCrew.SetText(Translate('STR_SOLDIERS_UC') + '>' + Unicode.TOK_COLOR_FLIP + IntToStr(c.GetNumSoldiers));
+
+  FLstEquipment.SetArrowColumn(203, ARROW_HORIZONTAL);
+  FLstEquipment.SetColumns([156, 83, 41]);
+  FLstEquipment.SetSelectable(True);
+  FLstEquipment.SetBackground(FWindow);
+  FLstEquipment.SetMargin(8);
+  FLstEquipment.OnLeftArrowPress := LstEquipmentLeftArrowPress;
+  FLstEquipment.OnLeftArrowRelease := LstEquipmentLeftArrowRelease;
+  FLstEquipment.OnLeftArrowClick := LstEquipmentLeftArrowClick;
+  FLstEquipment.OnRightArrowPress := LstEquipmentRightArrowPress;
+  FLstEquipment.OnRightArrowRelease := LstEquipmentRightArrowRelease;
+  FLstEquipment.OnRightArrowClick := LstEquipmentRightArrowClick;
+  FLstEquipment.OnMousePress := LstEquipmentMousePress;
+
+  FItems := TStringList.Create;
+  row := 0;
+  items := FGame.GetMod.GetItemsList;
+  try
+    for s in items do
+    begin
+      rule := FGame.GetMod.GetItem(s);
+      if rule.GetBigSprite > -1 then
+      begin
+        if rule.IsFixed then
+          cQty := c.GetVehicleCount(s)
+        else
+          cQty := c.GetItems.GetItem(s);
+        FTotalItems := FTotalItems + cQty;
+        if (rule.GetBattleType <> BT_NONE) and (rule.GetBattleType <> BT_CORPSE) and
+           FGame.GetSavedGame.IsResearched(rule.GetRequirements) and
+           ((FBase.GetStorageItems.GetItem(s) > 0) or (cQty > 0)) then
+        begin
+          FItems.Add(s);
+          FLstEquipment.AddRow([
+            IfThen(rule.GetBattleType = BT_AMMO, '  ', '') + Translate(s),
+            IfThen(FGame.GetSavedGame.GetMonthsPassed > -1, IntToStr(FBase.GetStorageItems.GetItem(s)), '-'),
+            IntToStr(cQty)]);
+          if cQty = 0 then
+            FLstEquipment.SetRowColor(row, IfThen(rule.GetBattleType = BT_AMMO, FAmmoColor, FLstEquipment.GetColor))
+          else
+            FLstEquipment.SetRowColor(row, FLstEquipment.GetSecondaryColor);
+          Inc(row);
+        end;
+      end;
+    end;
+  finally
+    items.Free;
+  end;
+
+  FTimerLeft := TTimer.Create(250);
+  FTimerLeft.OnTimer := MoveLeft;
+  FTimerRight := TTimer.Create(250);
+  FTimerRight.OnTimer := MoveRight;
+end;
+
+destructor TCraftEquipmentState.Destroy;
+begin
+  FItems.Free;
+  FTimerLeft.Free;
+  FTimerRight.Free;
+  inherited;
+end;
+
+procedure TCraftEquipmentState.Init;
+begin
+  inherited;
+  FGame.GetSavedGame.SetBattleGame(nil);
+  FBase.GetCrafts[FCraft].SetInBattlescape(False);
+end;
+
+procedure TCraftEquipmentState.Think;
+begin
+  inherited;
+  FTimerLeft.Think(Self, 0);
+  FTimerRight.Think(Self, 0);
+end;
+
+procedure TCraftEquipmentState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TCraftEquipmentState.LstEquipmentLeftArrowPress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstEquipment.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (not FTimerLeft.IsRunning) then
+    FTimerLeft.Start;
+end;
+
+procedure TCraftEquipmentState.LstEquipmentLeftArrowRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FTimerLeft.Stop;
+end;
+
+procedure TCraftEquipmentState.LstEquipmentLeftArrowClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    MoveLeftByValue(MaxInt)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    MoveLeftByValue(1);
+    FTimerRight.SetInterval(250);
+    FTimerLeft.SetInterval(250);
+  end;
+end;
+
+procedure TCraftEquipmentState.LstEquipmentRightArrowPress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstEquipment.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (not FTimerRight.IsRunning) then
+    FTimerRight.Start;
+end;
+
+procedure TCraftEquipmentState.LstEquipmentRightArrowRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FTimerRight.Stop;
+end;
+
+procedure TCraftEquipmentState.LstEquipmentRightArrowClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    MoveRightByValue(MaxInt)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    MoveRightByValue(1);
+    FTimerRight.SetInterval(250);
+    FTimerLeft.SetInterval(250);
+  end;
+end;
+
+procedure TCraftEquipmentState.LstEquipmentMousePress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstEquipment.GetSelectedRow;
+  if Action.GetDetails.button.button = SDL_BUTTON_WHEELUP then
+  begin
+    FTimerRight.Stop;
+    FTimerLeft.Stop;
+    if (Action.GetAbsoluteXMouse >= FLstEquipment.GetArrowsLeftEdge) and
+       (Action.GetAbsoluteXMouse <= FLstEquipment.GetArrowsRightEdge) then
+      MoveRightByValue(Options.ChangeValueByMouseWheel);
+  end
+  else if Action.GetDetails.button.button = SDL_BUTTON_WHEELDOWN then
+  begin
+    FTimerRight.Stop;
+    FTimerLeft.Stop;
+    if (Action.GetAbsoluteXMouse >= FLstEquipment.GetArrowsLeftEdge) and
+       (Action.GetAbsoluteXMouse <= FLstEquipment.GetArrowsRightEdge) then
+      MoveLeftByValue(Options.ChangeValueByMouseWheel);
+  end;
+end;
+
+procedure TCraftEquipmentState.UpdateQuantity;
+var
+  c: TCraft;
+  rule: TRuleItem;
+  cQty: Integer;
+begin
+  c := FBase.GetCrafts[FCraft];
+  rule := FGame.GetMod.GetItem(FItems[FSel], True);
+  if rule.IsFixed then
+    cQty := c.GetVehicleCount(FItems[FSel])
+  else
+    cQty := c.GetItems.GetItem(FItems[FSel]);
+  FLstEquipment.SetCellText(FSel, 1, IfThen(FGame.GetSavedGame.GetMonthsPassed > -1, IntToStr(FBase.GetStorageItems.GetItem(FItems[FSel])), '-'));
+  FLstEquipment.SetCellText(FSel, 2, IntToStr(cQty));
+  if cQty = 0 then
+    FLstEquipment.SetRowColor(FSel, IfThen(rule.GetBattleType = BT_AMMO, FAmmoColor, FLstEquipment.GetColor))
+  else
+    FLstEquipment.SetRowColor(FSel, FLstEquipment.GetSecondaryColor);
+  FTxtAvailable.SetText(Translate('STR_SPACE_AVAILABLE').Arg(c.GetSpaceAvailable));
+  FTxtUsed.SetText(Translate('STR_SPACE_USED').Arg(c.GetSpaceUsed));
+end;
+
+procedure TCraftEquipmentState.MoveLeft;
+begin
+  FTimerLeft.SetInterval(50);
+  FTimerRight.SetInterval(50);
+  MoveLeftByValue(1);
+end;
+
+procedure TCraftEquipmentState.MoveLeftByValue(Change: Integer);
+var
+  c: TCraft;
+  rule: TRuleItem;
+  cQty, ammoPerVehicle: Integer;
+  ammo: TRuleItem;
+  i: Integer;
+begin
+  c := FBase.GetCrafts[FCraft];
+  rule := FGame.GetMod.GetItem(FItems[FSel], True);
+  if rule.IsFixed then
+    cQty := c.GetVehicleCount(FItems[FSel])
+  else
+    cQty := c.GetItems.GetItem(FItems[FSel]);
+  if (Change <= 0) or (cQty <= 0) then Exit;
+  Change := Min(cQty, Change);
+
+  if rule.IsFixed then
+  begin
+    if not rule.GetCompatibleAmmo.IsEmpty then
+    begin
+      ammo := FGame.GetMod.GetItem(rule.GetCompatibleAmmo[0], True);
+      if (ammo.GetClipSize > 0) and (rule.GetClipSize > 0) then
+        ammoPerVehicle := rule.GetClipSize div ammo.GetClipSize
+      else
+        ammoPerVehicle := ammo.GetClipSize;
+      if FGame.GetSavedGame.GetMonthsPassed <> -1 then
+      begin
+        FBase.GetStorageItems.AddItem(FItems[FSel], Change);
+        FBase.GetStorageItems.AddItem(ammo.GetType, ammoPerVehicle * Change);
+      end;
+      // remove vehicles from craft
+      for i := c.GetVehicles.Count - 1 downto 0 do
+        if (c.GetVehicles[i].GetRules = rule) and (Change > 0) then
+        begin
+          c.GetVehicles[i].Free;
+          c.GetVehicles.Delete(i);
+          Dec(Change);
+        end;
+    end
+    else
+    begin
+      if FGame.GetSavedGame.GetMonthsPassed <> -1 then
+        FBase.GetStorageItems.AddItem(FItems[FSel], Change);
+      for i := c.GetVehicles.Count - 1 downto 0 do
+        if (c.GetVehicles[i].GetRules = rule) and (Change > 0) then
+        begin
+          c.GetVehicles[i].Free;
+          c.GetVehicles.Delete(i);
+          Dec(Change);
+        end;
+    end;
+  end
+  else
+  begin
+    c.GetItems.RemoveItem(FItems[FSel], Change);
+    FTotalItems := FTotalItems - Change;
+    if FGame.GetSavedGame.GetMonthsPassed > -1 then
+      FBase.GetStorageItems.AddItem(FItems[FSel], Change);
+  end;
+  UpdateQuantity;
+end;
+
+procedure TCraftEquipmentState.MoveRight;
+begin
+  FTimerLeft.SetInterval(50);
+  FTimerRight.SetInterval(50);
+  MoveRightByValue(1);
+end;
+
+procedure TCraftEquipmentState.MoveRightByValue(Change: Integer);
+var
+  c: TCraft;
+  rule: TRuleItem;
+  bqty, room, canBeAdded, ammoPerVehicle, clipSize: Integer;
+  ammo: TRuleItem;
+  i: Integer;
+begin
+  c := FBase.GetCrafts[FCraft];
+  rule := FGame.GetMod.GetItem(FItems[FSel], True);
+  bqty := FBase.GetStorageItems.GetItem(FItems[FSel]);
+  if FGame.GetSavedGame.GetMonthsPassed = -1 then
+  begin
+    if Change = MaxInt then Change := 10;
+    bqty := Change;
+  end;
+  if (Change <= 0) or (bqty <= 0) then Exit;
+  Change := Min(bqty, Change);
+
+  if rule.IsFixed then
+  begin
+    // vehicle logic
+    room := Min(c.GetRules.GetVehicles - c.GetNumVehicles, c.GetSpaceAvailable div 4);
+    if room > 0 then
+    begin
+      Change := Min(room, Change);
+      if not rule.GetCompatibleAmmo.IsEmpty then
+      begin
+        ammo := FGame.GetMod.GetItem(rule.GetCompatibleAmmo[0], True);
+        if (ammo.GetClipSize > 0) and (rule.GetClipSize > 0) then
+        begin
+          clipSize := rule.GetClipSize;
+          ammoPerVehicle := clipSize div ammo.GetClipSize;
+        end
+        else
+        begin
+          clipSize := ammo.GetClipSize;
+          ammoPerVehicle := clipSize;
+        end;
+        if FGame.GetSavedGame.GetMonthsPassed = -1 then
+          canBeAdded := Change
+        else
+          canBeAdded := Min(Change, FBase.GetStorageItems.GetItem(ammo.GetType) div ammoPerVehicle);
+        if canBeAdded > 0 then
+        begin
+          for i := 1 to canBeAdded do
+          begin
+            if FGame.GetSavedGame.GetMonthsPassed <> -1 then
+            begin
+              FBase.GetStorageItems.RemoveItem(ammo.GetType, ammoPerVehicle);
+              FBase.GetStorageItems.RemoveItem(FItems[FSel]);
+            end;
+            c.GetVehicles.Add(TVehicle.Create(rule, clipSize, 4));
+          end;
+        end
+        else
+        begin
+          FTimerRight.Stop;
+          FGame.PushState(TErrorMessageState.Create(Self,
+            Translate('STR_NOT_ENOUGH_AMMO_TO_ARM_HWP').Arg(ammoPerVehicle).Arg(Translate(ammo.GetType)),
+            FPalette, FGame.GetMod.GetInterface('craftEquipment').GetElement('errorMessage').Color,
+            'BACK04.SCR', FGame.GetMod.GetInterface('craftEquipment').GetElement('errorPalette').Color));
+        end;
+      end
+      else
+      begin
+        for i := 1 to Change do
+        begin
+          c.GetVehicles.Add(TVehicle.Create(rule, rule.GetClipSize, 4));
+          if FGame.GetSavedGame.GetMonthsPassed <> -1 then
+            FBase.GetStorageItems.RemoveItem(FItems[FSel]);
+        end;
+      end;
+    end;
+  end
+  else
+  begin
+    if (c.GetRules.GetMaxItems > 0) and (FTotalItems + Change > c.GetRules.GetMaxItems) then
+    begin
+      FTimerRight.Stop;
+      FGame.PushState(TErrorMessageState.Create(Self,
+        Translate('STR_NO_MORE_EQUIPMENT_ALLOWED', c.GetRules.GetMaxItems),
+        FPalette, FGame.GetMod.GetInterface('craftEquipment').GetElement('errorMessage').Color,
+        'BACK04.SCR', FGame.GetMod.GetInterface('craftEquipment').GetElement('errorPalette').Color));
+      Change := c.GetRules.GetMaxItems - FTotalItems;
+    end;
+    c.GetItems.AddItem(FItems[FSel], Change);
+    FTotalItems := FTotalItems + Change;
+    if FGame.GetSavedGame.GetMonthsPassed > -1 then
+      FBase.GetStorageItems.RemoveItem(FItems[FSel], Change);
+  end;
+  UpdateQuantity;
+end;
+
+procedure TCraftEquipmentState.BtnClearClick(Sender: TObject; Action: TAction);
+begin
+  for FSel := 0 to FItems.Count - 1 do
+    MoveLeftByValue(MaxInt);
+end;
+
+procedure TCraftEquipmentState.BtnInventoryClick(Sender: TObject; Action: TAction);
+var
+  craft: TCraft;
+  bgen: TBattlescapeGenerator;
+begin
+  craft := FBase.GetCrafts[FCraft];
+  if craft.GetNumSoldiers > 0 then
+  begin
+    FGame.GetSavedGame.SetBattleGame(TSavedBattleGame.Create);
+    bgen := TBattlescapeGenerator.Create(FGame);
+    try
+      bgen.RunInventory(craft);
+    finally
+      bgen.Free;
+    end;
+    FGame.GetScreen.Clear;
+    FGame.PushState(TInventoryState.Create(Self, False, 0));
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:CraftArmorState.pas;encoding=utf8;eol=lf⟧
+unit CraftArmorState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Base, Savegame.Soldier, Savegame.Craft,
+  Mod.Armor, SoldierArmorState, Savegame.SavedGame,
+  Savegame.ItemContainer, Mod.RuleInterface, Mod.RuleSoldier;
+
+type
+  TCraftArmorState = class(TState)
+  private
+    FBase: TBase;
+    FCraft: Integer;
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtName, FTxtCraft, FTxtArmor: TText;
+    FLstSoldiers: TTextList;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Craft: Integer);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure LstSoldiersClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TCraftArmorState.Create(AOwner: TComponent; Base: TBase; Craft: Integer);
+var
+  c: TCraft;
+  Soldier: TSoldier;
+  row: Integer;
+  color: Byte;
+  otherColor: Byte;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FCraft := Craft;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(288, 16, 16, 176);
+  FTxtTitle := TText.Create(300, 17, 16, 7);
+  FTxtName := TText.Create(114, 9, 16, 32);
+  FTxtCraft := TText.Create(76, 9, 130, 32);
+  FTxtArmor := TText.Create(100, 9, 199, 32);
+  FLstSoldiers := TTextList.Create(292, 128, 8, 40);
+
+  SetInterface('craftArmor');
+  Add(FWindow, 'window', 'craftArmor');
+  Add(FBtnOk, 'button', 'craftArmor');
+  Add(FTxtTitle, 'text', 'craftArmor');
+  Add(FTxtName, 'text', 'craftArmor');
+  Add(FTxtCraft, 'text', 'craftArmor');
+  Add(FTxtArmor, 'text', 'craftArmor');
+  Add(FLstSoldiers, 'list', 'craftArmor');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK14.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FTxtTitle.SetBig;
+  FTxtTitle.SetText(Translate('STR_SELECT_ARMOR'));
+  FTxtName.SetText(Translate('STR_NAME_UC'));
+  FTxtCraft.SetText(Translate('STR_CRAFT'));
+  FTxtArmor.SetText(Translate('STR_ARMOR'));
+
+  FLstSoldiers.SetColumns([114, 69, 101]);
+  FLstSoldiers.SetSelectable(True);
+  FLstSoldiers.SetBackground(FWindow);
+  FLstSoldiers.SetMargin(8);
+  FLstSoldiers.SetScrolling(True, 0);
+  FLstSoldiers.OnMousePress := LstSoldiersClick;
+
+  c := FBase.GetCrafts[Craft];
+  otherColor := FGame.GetMod.GetInterface('craftArmor').GetElement('otherCraft').Color;
+  row := 0;
+  for Soldier in FBase.GetSoldiers do
+  begin
+    FLstSoldiers.AddRow([
+      Soldier.GetName(True),
+      Soldier.GetCraftString(FGame.GetLanguage),
+      Translate(Soldier.GetArmor.GetType)
+    ]);
+    if Soldier.GetCraft = c then
+      color := FLstSoldiers.GetSecondaryColor
+    else if Soldier.GetCraft <> nil then
+      color := otherColor
+    else
+      color := FLstSoldiers.GetColor;
+    FLstSoldiers.SetRowColor(row, color);
+    Inc(row);
+  end;
+end;
+
+destructor TCraftArmorState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TCraftArmorState.Init;
+var
+  row: Integer;
+begin
+  inherited;
+  row := 0;
+  for Soldier in FBase.GetSoldiers do
+  begin
+    FLstSoldiers.SetCellText(row, 2, Translate(Soldier.GetArmor.GetType));
+    Inc(row);
+  end;
+end;
+
+procedure TCraftArmorState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TCraftArmorState.LstSoldiersClick(Sender: TObject; Action: TAction);
+var
+  s: TSoldier;
+  a: TArmor;
+  save: TSavedGame;
+begin
+  s := FBase.GetSoldiers[FLstSoldiers.GetSelectedRow];
+  if (s.GetCraft <> nil) and (s.GetCraft.GetStatus = 'STR_OUT') then Exit;
+
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FGame.PushState(TSoldierArmorState.Create(Self, FBase, FLstSoldiers.GetSelectedRow))
+  else if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+  begin
+    save := FGame.GetSavedGame;
+    a := FGame.GetMod.GetArmor(save.GetLastSelectedArmor);
+    if (a <> nil) and ((a.GetUnits.IsEmpty) or (a.GetUnits.IndexOf(s.GetRules.GetType) <> -1)) then
+    begin
+      if save.GetMonthsPassed <> -1 then
+      begin
+        if FBase.GetStorageItems.GetItem(a.GetStoreItem) > 0 then
+        begin
+          if s.GetArmor.GetStoreItem <> Armor.NONE then
+            FBase.GetStorageItems.AddItem(s.GetArmor.GetStoreItem);
+          if a.GetStoreItem <> Armor.NONE then
+            FBase.GetStorageItems.RemoveItem(a.GetStoreItem);
+          s.SetArmor(a);
+          FLstSoldiers.SetCellText(FLstSoldiers.GetSelectedRow, 2, Translate(a.GetType));
+        end;
+      end
+      else
+      begin
+        s.SetArmor(a);
+        FLstSoldiers.SetCellText(FLstSoldiers.GetSelectedRow, 2, Translate(a.GetType));
+      end;
+    end;
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:CraftsState.pas;encoding=utf8;eol=lf⟧
+unit CraftsState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Craft, Mod.RuleCraft, Savegame.Base,
+  Menu.ErrorMessageState, CraftInfoState, SellState,
+  Savegame.SavedGame, Mod.RuleInterface;
+
+type
+  TCraftsState = class(TState)
+  private
+    FBase: TBase;
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtBase, FTxtName, FTxtStatus, FTxtWeapon, FTxtCrew, FTxtHwp: TText;
+    FLstCrafts: TTextList;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure LstCraftsClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TCraftsState.Create(AOwner: TComponent; Base: TBase);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(288, 16, 16, 176);
+  FTxtTitle := TText.Create(298, 17, 16, 8);
+  FTxtBase := TText.Create(298, 17, 16, 24);
+  FTxtName := TText.Create(94, 9, 16, 40);
+  FTxtStatus := TText.Create(50, 9, 110, 40);
+  FTxtWeapon := TText.Create(50, 17, 160, 40);
+  FTxtCrew := TText.Create(58, 9, 210, 40);
+  FTxtHwp := TText.Create(46, 9, 268, 40);
+  FLstCrafts := TTextList.Create(288, 118, 8, 58);
+
+  SetInterface('craftSelect');
+  Add(FWindow, 'window', 'craftSelect');
+  Add(FBtnOk, 'button', 'craftSelect');
+  Add(FTxtTitle, 'text', 'craftSelect');
+  Add(FTxtBase, 'text', 'craftSelect');
+  Add(FTxtName, 'text', 'craftSelect');
+  Add(FTxtStatus, 'text', 'craftSelect');
+  Add(FTxtWeapon, 'text', 'craftSelect');
+  Add(FTxtCrew, 'text', 'craftSelect');
+  Add(FTxtHwp, 'text', 'craftSelect');
+  Add(FLstCrafts, 'list', 'craftSelect');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK14.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FTxtTitle.SetBig;
+  FTxtTitle.SetText(Translate('STR_INTERCEPTION_CRAFT'));
+  FTxtBase.SetBig;
+  FTxtBase.SetText(Translate('STR_BASE_').Arg(FBase.GetName));
+  FTxtName.SetText(Translate('STR_NAME_UC'));
+  FTxtStatus.SetText(Translate('STR_STATUS'));
+  FTxtWeapon.SetText(Translate('STR_WEAPON_SYSTEMS'));
+  FTxtWeapon.SetWordWrap(True);
+  FTxtCrew.SetText(Translate('STR_CREW'));
+  FTxtHwp.SetText(Translate('STR_HWPS'));
+  FLstCrafts.SetColumns([94, 68, 44, 46, 28]);
+  FLstCrafts.SetSelectable(True);
+  FLstCrafts.SetBackground(FWindow);
+  FLstCrafts.SetMargin(8);
+  FLstCrafts.OnMouseClick := LstCraftsClick;
+end;
+
+destructor TCraftsState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TCraftsState.Init;
+var
+  craft: TCraft;
+begin
+  inherited;
+  FLstCrafts.ClearList;
+  for craft in FBase.GetCrafts do
+    FLstCrafts.AddRow([
+      craft.GetName(FGame.GetLanguage),
+      Translate(craft.GetStatus),
+      IntToStr(craft.GetNumWeapons) + '/' + IntToStr(craft.GetRules.GetWeapons),
+      IntToStr(craft.GetNumSoldiers),
+      IntToStr(craft.GetNumVehicles)
+    ]);
+end;
+
+procedure TCraftsState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+  if (FGame.GetSavedGame.GetMonthsPassed > -1) and Options.StorageLimitsEnforced and FBase.StoresOverfull then
+  begin
+    FGame.PushState(TSellState.Create(Self, FBase));
+    FGame.PushState(TErrorMessageState.Create(Self,
+      Translate('STR_STORAGE_EXCEEDED').Arg(FBase.GetName),
+      FPalette,
+      FGame.GetMod.GetInterface('craftSelect').GetElement('errorMessage').Color,
+      'BACK01.SCR',
+      FGame.GetMod.GetInterface('craftSelect').GetElement('errorPalette').Color));
+  end;
+end;
+
+procedure TCraftsState.LstCraftsClick(Sender: TObject; Action: TAction);
+begin
+  if FBase.GetCrafts[FLstCrafts.GetSelectedRow].GetStatus <> 'STR_OUT' then
+    FGame.PushState(TCraftInfoState.Create(Self, FBase, FLstCrafts.GetSelectedRow));
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

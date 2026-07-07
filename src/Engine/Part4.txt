@@ -1,0 +1,1980 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦INDEX⟧
+{
+  "project": "OpenXcom Delphi Port – Bundle 4",
+  "description": "UI components: Window, Text, TextButton, TextEdit, TextList, ComboBox, BattlescapeButton, FpsCounter, Cursor, Mod, SavedGame, RuleInterface, ExtraStrings"
+}
+⟦/INDEX⟧
+⟦FILE:UWindow.pas;encoding=utf8;sha256=⟧
+unit UWindow;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, USurface, UPalette, UFont, ULanguage, UInteractiveSurface;
+
+type
+  TWindow = class(TInteractiveSurface)
+  private
+    FBackground: TSurface;
+    FColor: Byte;
+    FSecondaryColor: Byte;
+    FBorderColor: Byte;
+    FHighContrast: Boolean;
+    FTFTDMode: Boolean;
+    FInternalBorder: Boolean;
+    FShaded: Boolean;
+    FTitle: string;
+    FTitleFont: TFont;
+    FTitleY: Integer;
+    procedure DrawBackground;
+    procedure DrawBorder;
+    procedure DrawTitle;
+  public
+    constructor Create(Width, Height, X, Y: Integer);
+    destructor Destroy; override;
+    procedure SetBackground(BG: TSurface);
+    procedure SetColor(Color: Byte); override;
+    procedure SetSecondaryColor(Color: Byte); override;
+    procedure SetBorderColor(Color: Byte); override;
+    procedure SetHighContrast(Contrast: Boolean); override;
+    procedure SetTFTDMode(Mode: Boolean); override;
+    procedure SetInternalBorder(Enable: Boolean);
+    procedure SetShaded(Enable: Boolean);
+    procedure SetTitle(const Title: string);
+    procedure SetTitleFont(Font: TFont);
+    procedure SetTitleY(Y: Integer);
+    procedure Draw; override;
+    procedure Think; override;
+    procedure Blit(Dest: TSurface); override;
+    procedure Invalidate(Valid: Boolean = True);
+  end;
+
+implementation
+
+uses
+  ULogger, UOptions, UCrossPlatform;
+
+constructor TWindow.Create(Width, Height, X, Y: Integer);
+begin
+  inherited Create(Width, Height, X, Y);
+  FBackground := nil;
+  FColor := 0;
+  FSecondaryColor := 0;
+  FBorderColor := 0;
+  FHighContrast := False;
+  FTFTDMode := False;
+  FInternalBorder := True;
+  FShaded := False;
+  FTitle := '';
+  FTitleFont := nil;
+  FTitleY := 0;
+end;
+
+destructor TWindow.Destroy;
+begin
+  // FBackground is owned externally
+  inherited;
+end;
+
+procedure TWindow.SetBackground(BG: TSurface);
+begin
+  FBackground := BG;
+  FRedraw := True;
+end;
+
+procedure TWindow.SetColor(Color: Byte);
+begin
+  FColor := Color;
+  FRedraw := True;
+end;
+
+procedure TWindow.SetSecondaryColor(Color: Byte);
+begin
+  FSecondaryColor := Color;
+  FRedraw := True;
+end;
+
+procedure TWindow.SetBorderColor(Color: Byte);
+begin
+  FBorderColor := Color;
+  FRedraw := True;
+end;
+
+procedure TWindow.SetHighContrast(Contrast: Boolean);
+begin
+  FHighContrast := Contrast;
+  FRedraw := True;
+end;
+
+procedure TWindow.SetTFTDMode(Mode: Boolean);
+begin
+  FTFTDMode := Mode;
+  FRedraw := True;
+end;
+
+procedure TWindow.SetInternalBorder(Enable: Boolean);
+begin
+  FInternalBorder := Enable;
+  FRedraw := True;
+end;
+
+procedure TWindow.SetShaded(Enable: Boolean);
+begin
+  FShaded := Enable;
+  FRedraw := True;
+end;
+
+procedure TWindow.SetTitle(const Title: string);
+begin
+  FTitle := Title;
+  FRedraw := True;
+end;
+
+procedure TWindow.SetTitleFont(Font: TFont);
+begin
+  FTitleFont := Font;
+  FRedraw := True;
+end;
+
+procedure TWindow.SetTitleY(Y: Integer);
+begin
+  FTitleY := Y;
+  FRedraw := True;
+end;
+
+procedure TWindow.DrawBackground;
+begin
+  if FBackground <> nil then
+  begin
+    // Blit background (tiled or stretched)
+    if (FBackground.GetWidth = GetWidth) and (FBackground.GetHeight = GetHeight) then
+      SDL_BlitSurface(FBackground.GetSurface, nil, FSurface, nil)
+    else
+    begin
+      // Tile or stretch (simplified: fill with background color)
+      Clear(FColor);
+    end;
+  end
+  else
+    Clear(FColor);
+end;
+
+procedure TWindow.DrawBorder;
+var
+  R: TSDL_Rect;
+  BorderColor: Byte;
+begin
+  if not FInternalBorder then Exit;
+  BorderColor := FBorderColor;
+  if BorderColor = 0 then BorderColor := FColor;
+  // Draw 1-pixel border
+  R.x := 0; R.y := 0; R.w := GetWidth; R.h := 1;
+  DrawRect(R, BorderColor);
+  R.y := GetHeight - 1;
+  DrawRect(R, BorderColor);
+  R.x := 0; R.y := 1; R.w := 1; R.h := GetHeight - 2;
+  DrawRect(R, BorderColor);
+  R.x := GetWidth - 1;
+  DrawRect(R, BorderColor);
+  // Draw inner shadow if shaded
+  if FShaded then
+  begin
+    // Simple shadow effect (stub)
+  end;
+end;
+
+procedure TWindow.DrawTitle;
+var
+  Surf: TSurface;
+  Rect: TSDL_Rect;
+  X, Y: Integer;
+begin
+  if FTitle = '' then Exit;
+  if FTitleFont = nil then Exit;
+  // Calculate title position
+  Y := FTitleY;
+  if Y = 0 then Y := 2;
+  // Draw title using font (stub)
+  // In real implementation, loop over characters and blit
+end;
+
+procedure TWindow.Draw;
+begin
+  FRedraw := False;
+  DrawBackground;
+  DrawBorder;
+  DrawTitle;
+  // Draw any child elements? No, they are separate surfaces.
+end;
+
+procedure TWindow.Think;
+begin
+  // Nothing
+end;
+
+procedure TWindow.Blit(Dest: TSurface);
+begin
+  if FRedraw then Draw;
+  inherited;
+end;
+
+procedure TWindow.Invalidate(Valid: Boolean);
+begin
+  FRedraw := Valid;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UText.pas;encoding=utf8;sha256=⟧
+unit UText;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, USurface, UFont, ULanguage, ULocalizedText, UInteractiveSurface;
+
+type
+  TText = class(TInteractiveSurface)
+  private
+    FText: UString;
+    FFont: TFont;
+    FLang: TLanguage;
+    FColor: Byte;
+    FSecondaryColor: Byte;
+    FHighContrast: Boolean;
+    FWordWrap: Boolean;
+    FAlign: Integer; // 0=left, 1=center, 2=right
+    FVerticalAlign: Integer; // 0=top, 1=center, 2=bottom
+    FInvert: Boolean;
+    FContrast: Boolean;
+    FTextDirection: Integer; // 0=LTR, 1=RTL
+    procedure DrawText;
+  public
+    constructor Create(Width, Height, X, Y: Integer);
+    destructor Destroy; override;
+    procedure InitText(BigFont, SmallFont: TFont; Lang: TLanguage); override;
+    procedure SetText(const Text: UString);
+    procedure SetText(const Text: string);
+    procedure SetColor(Color: Byte); override;
+    procedure SetSecondaryColor(Color: Byte); override;
+    procedure SetHighContrast(Contrast: Boolean); override;
+    procedure SetWordWrap(Enable: Boolean);
+    procedure SetAlign(Align: Integer);
+    procedure SetVerticalAlign(Align: Integer);
+    procedure SetInvert(Enable: Boolean);
+    procedure SetContrast(Enable: Boolean);
+    procedure SetTextDirection(Direction: Integer);
+    procedure Draw; override;
+    procedure Think; override;
+  end;
+
+implementation
+
+uses
+  UUnicode, UOptions;
+
+constructor TText.Create(Width, Height, X, Y: Integer);
+begin
+  inherited Create(Width, Height, X, Y);
+  FFont := nil;
+  FLang := nil;
+  FColor := 0;
+  FSecondaryColor := 0;
+  FHighContrast := False;
+  FWordWrap := False;
+  FAlign := 0;
+  FVerticalAlign := 0;
+  FInvert := False;
+  FContrast := False;
+  FTextDirection := 0;
+end;
+
+destructor TText.Destroy;
+begin
+  inherited;
+end;
+
+procedure TText.InitText(BigFont, SmallFont: TFont; Lang: TLanguage);
+begin
+  FFont := BigFont; // simplified; actual logic chooses font based on tokens
+  FLang := Lang;
+end;
+
+procedure TText.SetText(const Text: UString);
+begin
+  FText := Text;
+  FRedraw := True;
+end;
+
+procedure TText.SetText(const Text: string);
+begin
+  SetText(Unicode.ConvUtf8ToUtf32(Text));
+end;
+
+procedure TText.SetColor(Color: Byte);
+begin
+  FColor := Color;
+  FRedraw := True;
+end;
+
+procedure TText.SetSecondaryColor(Color: Byte);
+begin
+  FSecondaryColor := Color;
+  FRedraw := True;
+end;
+
+procedure TText.SetHighContrast(Contrast: Boolean);
+begin
+  FHighContrast := Contrast;
+  FRedraw := True;
+end;
+
+procedure TText.SetWordWrap(Enable: Boolean);
+begin
+  FWordWrap := Enable;
+  FRedraw := True;
+end;
+
+procedure TText.SetAlign(Align: Integer);
+begin
+  FAlign := Align;
+  FRedraw := True;
+end;
+
+procedure TText.SetVerticalAlign(Align: Integer);
+begin
+  FVerticalAlign := Align;
+  FRedraw := True;
+end;
+
+procedure TText.SetInvert(Enable: Boolean);
+begin
+  FInvert := Enable;
+  FRedraw := True;
+end;
+
+procedure TText.SetContrast(Enable: Boolean);
+begin
+  FContrast := Enable;
+  FRedraw := True;
+end;
+
+procedure TText.SetTextDirection(Direction: Integer);
+begin
+  FTextDirection := Direction;
+  FRedraw := True;
+end;
+
+procedure TText.DrawText;
+var
+  Lines: TArray<UString>;
+  Line, Word: UString;
+  I, X, Y, LineHeight, TotalHeight, SpaceWidth: Integer;
+  C: UCode;
+  Surf: TSurface;
+  Rect: TSDL_Rect;
+  Color: Byte;
+  CharSurf: TSurface;
+  CharRect: TSDL_Rect;
+begin
+  if FFont = nil then Exit;
+  if FText = '' then Exit;
+  // Simple word wrap (stub)
+  // For brevity, we'll just render one line.
+  Line := FText;
+  X := 0; Y := 0;
+  LineHeight := FFont.GetHeight + FFont.GetSpacing;
+  SpaceWidth := FFont.GetCharSize(' ').w;
+  // Loop over characters
+  for I := 1 to Length(Line) do
+  begin
+    C := Line[I];
+    if C = Unicode.TOK_COLOR_FLIP then
+    begin
+      // Flip color (simplified)
+      if Color = FColor then Color := FSecondaryColor else Color := FColor;
+      Continue;
+    end;
+    if C = Unicode.TOK_NL_SMALL then
+    begin
+      // Switch to small font? (stub)
+      Continue;
+    end;
+    if C = #10 then // newline
+    begin
+      X := 0;
+      Y := Y + LineHeight;
+      Continue;
+    end;
+    // Draw character
+    CharSurf := FFont.GetChar(C);
+    CharRect := CharSurf.GetCrop^;
+    Rect.x := FX + X; Rect.y := FY + Y; Rect.w := CharRect.w; Rect.h := CharRect.h;
+    // Blit directly? We'll do it here.
+    if not FInvert then
+      SDL_BlitSurface(CharSurf.GetSurface, @CharRect, FSurface, @Rect)
+    else
+    begin
+      // Inverted blit (stub)
+    end;
+    X := X + FFont.GetCharSize(C).w;
+  end;
+end;
+
+procedure TText.Draw;
+begin
+  FRedraw := False;
+  Clear(0); // transparent background
+  DrawText;
+end;
+
+procedure TText.Think;
+begin
+  // Nothing
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UTextButton.pas;encoding=utf8;sha256=⟧
+unit UTextButton;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, UText, UInteractiveSurface;
+
+type
+  TTextButton = class(TText)
+  private
+    FWidth, FHeight: Integer;
+    FColor, FColor2: Byte;
+    FPressed: Boolean;
+    FToggled: Boolean;
+    FGroup: Integer;
+    FButton: Byte;
+    procedure DrawButton;
+  public
+    constructor Create(Width, Height, X, Y: Integer);
+    procedure SetColor(Color: Byte); override;
+    procedure SetSecondaryColor(Color: Byte); override;
+    procedure SetPressed(Pressed: Boolean);
+    procedure SetToggled(Toggled: Boolean);
+    procedure SetGroup(Group: Integer);
+    procedure SetButton(Button: Byte);
+    procedure MousePress(Action: TAction; State: TState); override;
+    procedure MouseRelease(Action: TAction; State: TState); override;
+    procedure MouseClick(Action: TAction; State: TState); override;
+    procedure Draw; override;
+  end;
+
+implementation
+
+constructor TTextButton.Create(Width, Height, X, Y: Integer);
+begin
+  inherited Create(Width, Height, X, Y);
+  FPressed := False;
+  FToggled := False;
+  FGroup := 0;
+  FButton := SDL_BUTTON_LEFT;
+  FColor := 0;
+  FColor2 := 0;
+end;
+
+procedure TTextButton.SetColor(Color: Byte);
+begin
+  inherited SetColor(Color);
+  FColor := Color;
+end;
+
+procedure TTextButton.SetSecondaryColor(Color: Byte);
+begin
+  inherited SetSecondaryColor(Color);
+  FColor2 := Color;
+end;
+
+procedure TTextButton.SetPressed(Pressed: Boolean);
+begin
+  FPressed := Pressed;
+  FRedraw := True;
+end;
+
+procedure TTextButton.SetToggled(Toggled: Boolean);
+begin
+  FToggled := Toggled;
+  FRedraw := True;
+end;
+
+procedure TTextButton.SetGroup(Group: Integer);
+begin
+  FGroup := Group;
+end;
+
+procedure TTextButton.SetButton(Button: Byte);
+begin
+  FButton := Button;
+end;
+
+procedure TTextButton.MousePress(Action: TAction; State: TState);
+begin
+  inherited;
+  if (Action.GetDetails.button.button = FButton) then
+    SetPressed(True);
+end;
+
+procedure TTextButton.MouseRelease(Action: TAction; State: TState);
+begin
+  inherited;
+  if (Action.GetDetails.button.button = FButton) then
+    SetPressed(False);
+end;
+
+procedure TTextButton.MouseClick(Action: TAction; State: TState);
+begin
+  inherited;
+  if (Action.GetDetails.button.button = FButton) then
+  begin
+    FToggled := not FToggled;
+    FRedraw := True;
+  end;
+end;
+
+procedure TTextButton.DrawButton;
+begin
+  // Draw background based on state
+  if FPressed or FToggled then
+    Clear(FColor2)
+  else
+    Clear(FColor);
+  // Draw border (simplified)
+  DrawRect(0, 0, GetWidth, 1, 15);
+  DrawRect(0, GetHeight-1, GetWidth, 1, 15);
+  DrawRect(0, 1, 1, GetHeight-2, 15);
+  DrawRect(GetWidth-1, 1, 1, GetHeight-2, 15);
+end;
+
+procedure TTextButton.Draw;
+begin
+  FRedraw := False;
+  DrawButton;
+  // Draw text on top
+  DrawText;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UTextEdit.pas;encoding=utf8;sha256=⟧
+unit UTextEdit;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, UText, UInteractiveSurface, UAction, UState;
+
+type
+  TTextEdit = class(TText)
+  private
+    FText: string;
+    FCursorPos: Integer;
+    FMaxLength: Integer;
+    FPasswordMode: Boolean;
+    FEditable: Boolean;
+    FBlinkTimer: Integer;
+    FCursorVisible: Boolean;
+    procedure DrawCursor;
+    procedure InsertChar(Ch: Char);
+    procedure DeleteChar;
+    procedure MoveCursor(Direction: Integer);
+  public
+    constructor Create(Width, Height, X, Y: Integer);
+    procedure SetText(const Text: string);
+    function GetText: string;
+    procedure SetMaxLength(Length: Integer);
+    procedure SetPasswordMode(Enable: Boolean);
+    procedure SetEditable(Enable: Boolean);
+    procedure KeyboardPress(Action: TAction; State: TState); override;
+    procedure Think; override;
+    procedure Draw; override;
+    procedure SetFocus(Focus: Boolean); override;
+  end;
+
+implementation
+
+constructor TTextEdit.Create(Width, Height, X, Y: Integer);
+begin
+  inherited Create(Width, Height, X, Y);
+  FText := '';
+  FCursorPos := 0;
+  FMaxLength := 0;
+  FPasswordMode := False;
+  FEditable := True;
+  FBlinkTimer := 0;
+  FCursorVisible := True;
+  SetFocus(False);
+end;
+
+procedure TTextEdit.SetText(const Text: string);
+begin
+  FText := Text;
+  if FCursorPos > Length(FText) then FCursorPos := Length(FText);
+  FRedraw := True;
+end;
+
+function TTextEdit.GetText: string;
+begin
+  Result := FText;
+end;
+
+procedure TTextEdit.SetMaxLength(Length: Integer);
+begin
+  FMaxLength := Length;
+end;
+
+procedure TTextEdit.SetPasswordMode(Enable: Boolean);
+begin
+  FPasswordMode := Enable;
+  FRedraw := True;
+end;
+
+procedure TTextEdit.SetEditable(Enable: Boolean);
+begin
+  FEditable := Enable;
+end;
+
+procedure TTextEdit.InsertChar(Ch: Char);
+begin
+  if not FEditable then Exit;
+  if (FMaxLength > 0) and (Length(FText) >= FMaxLength) then Exit;
+  Insert(Ch, FText, FCursorPos+1);
+  Inc(FCursorPos);
+  FRedraw := True;
+end;
+
+procedure TTextEdit.DeleteChar;
+begin
+  if not FEditable then Exit;
+  if (FCursorPos > 0) and (Length(FText) > 0) then
+  begin
+    Delete(FText, FCursorPos, 1);
+    Dec(FCursorPos);
+    FRedraw := True;
+  end;
+end;
+
+procedure TTextEdit.MoveCursor(Direction: Integer);
+begin
+  FCursorPos := FCursorPos + Direction;
+  if FCursorPos < 0 then FCursorPos := 0;
+  if FCursorPos > Length(FText) then FCursorPos := Length(FText);
+  FRedraw := True;
+end;
+
+procedure TTextEdit.KeyboardPress(Action: TAction; State: TState);
+var
+  Sym: Integer;
+  Mods: Word;
+  Ch: Char;
+begin
+  inherited;
+  if not FEditable or not FIsFocused then Exit;
+  Sym := Action.GetDetails.key.keysym.sym;
+  Mods := Action.GetDetails.key.keysym.mod;
+  // Check for control keys
+  if (Mods and KMOD_CTRL) <> 0 then
+  begin
+    case Sym of
+      SDLK_v: // paste (stub)
+        ;
+      SDLK_c: // copy (stub)
+        ;
+      SDLK_x: // cut (stub)
+        ;
+    end;
+    Exit;
+  end;
+  // Handle special keys
+  case Sym of
+    SDLK_BACKSPACE: DeleteChar;
+    SDLK_DELETE: if FCursorPos < Length(FText) then begin Delete(FText, FCursorPos+1, 1); FRedraw := True; end;
+    SDLK_LEFT: MoveCursor(-1);
+    SDLK_RIGHT: MoveCursor(1);
+    SDLK_HOME: begin FCursorPos := 0; FRedraw := True; end;
+    SDLK_END: begin FCursorPos := Length(FText); FRedraw := True; end;
+    SDLK_RETURN: // maybe commit? (stub)
+      ;
+    else
+      // Check for printable characters
+      if Action.GetDetails.key.keysym.unicode <> 0 then
+      begin
+        Ch := Char(Action.GetDetails.key.keysym.unicode);
+        if (Ch >= ' ') and (Ch <= '~') then
+          InsertChar(Ch);
+      end;
+  end;
+end;
+
+procedure TTextEdit.Think;
+begin
+  inherited;
+  if FIsFocused and FEditable then
+  begin
+    Inc(FBlinkTimer);
+    if FBlinkTimer >= 30 then
+    begin
+      FBlinkTimer := 0;
+      FCursorVisible := not FCursorVisible;
+      FRedraw := True;
+    end;
+  end
+  else
+    FCursorVisible := False;
+end;
+
+procedure TTextEdit.DrawCursor;
+var
+  X, Y: Integer;
+begin
+  if not FCursorVisible then Exit;
+  // Calculate cursor position (simplified)
+  X := 2 + FCursorPos * FFont.GetCharSize('W').w;
+  Y := 2;
+  DrawRect(X, Y, 1, FFont.GetHeight, 15);
+end;
+
+procedure TTextEdit.Draw;
+begin
+  FRedraw := False;
+  Clear(0);
+  // Draw text (with password masking if needed)
+  var DisplayText := FText;
+  if FPasswordMode then
+    DisplayText := StringOfChar('*', Length(FText));
+  // Use inherited to draw
+  inherited SetText(DisplayText);
+  inherited Draw;
+  // Draw cursor
+  DrawCursor;
+end;
+
+procedure TTextEdit.SetFocus(Focus: Boolean);
+begin
+  inherited SetFocus(Focus);
+  if Focus then
+  begin
+    FBlinkTimer := 0;
+    FCursorVisible := True;
+  end
+  else
+    FCursorVisible := False;
+  FRedraw := True;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UTextList.pas;encoding=utf8;sha256=⟧
+unit UTextList;
+
+interface
+
+uses
+  SysUtils, Classes, Generics.Collections, SDL, USurface, UText, UInteractiveSurface, UAction, UState;
+
+type
+  TTextList = class(TInteractiveSurface)
+  private
+    FItems: TArray<string>;
+    FSelected: Integer;
+    FTopIndex: Integer;
+    FColor: Byte;
+    FSecondaryColor: Byte;
+    FBorderColor: Byte;
+    FFont: TFont;
+    FLang: TLanguage;
+    FItemHeight: Integer;
+    FShowArrows: Boolean;
+    FHighlight: Boolean;
+    FMultiselect: Boolean;
+    FSelectedItems: TList<Integer>;
+    procedure DrawItem(Index: Integer; X, Y, Width, Height: Integer; Selected: Boolean);
+    procedure DrawArrows;
+  public
+    constructor Create(Width, Height, X, Y: Integer);
+    destructor Destroy; override;
+    procedure InitText(BigFont, SmallFont: TFont; Lang: TLanguage); override;
+    procedure SetItems(const Items: TArray<string>);
+    procedure SetSelected(Index: Integer);
+    function GetSelected: Integer;
+    procedure SetTopIndex(Index: Integer);
+    function GetTopIndex: Integer;
+    procedure SetColor(Color: Byte); override;
+    procedure SetSecondaryColor(Color: Byte); override;
+    procedure SetBorderColor(Color: Byte);
+    procedure SetItemHeight(Height: Integer);
+    procedure SetShowArrows(Enable: Boolean);
+    procedure SetHighlight(Enable: Boolean);
+    procedure SetMultiselect(Enable: Boolean);
+    procedure AddItem(const Item: string);
+    procedure Clear;
+    function GetItem(Index: Integer): string;
+    function GetItemCount: Integer;
+    function GetSelectedItems: TList<Integer>;
+    procedure MouseClick(Action: TAction; State: TState); override;
+    procedure KeyboardPress(Action: TAction; State: TState); override;
+    procedure Draw; override;
+    procedure Think; override;
+  end;
+
+implementation
+
+constructor TTextList.Create(Width, Height, X, Y: Integer);
+begin
+  inherited Create(Width, Height, X, Y);
+  FItems := nil;
+  FSelected := -1;
+  FTopIndex := 0;
+  FColor := 0;
+  FSecondaryColor := 0;
+  FBorderColor := 0;
+  FFont := nil;
+  FLang := nil;
+  FItemHeight := 16;
+  FShowArrows := True;
+  FHighlight := True;
+  FMultiselect := False;
+  FSelectedItems := TList<Integer>.Create;
+end;
+
+destructor TTextList.Destroy;
+begin
+  FSelectedItems.Free;
+  inherited;
+end;
+
+procedure TTextList.InitText(BigFont, SmallFont: TFont; Lang: TLanguage);
+begin
+  FFont := BigFont;
+  FLang := Lang;
+end;
+
+procedure TTextList.SetItems(const Items: TArray<string>);
+begin
+  FItems := Items;
+  FSelected := -1;
+  FTopIndex := 0;
+  FSelectedItems.Clear;
+  FRedraw := True;
+end;
+
+procedure TTextList.SetSelected(Index: Integer);
+begin
+  if FMultiselect then
+  begin
+    if FSelectedItems.Contains(Index) then
+      FSelectedItems.Remove(Index)
+    else
+      FSelectedItems.Add(Index);
+  end
+  else
+    FSelected := Index;
+  FRedraw := True;
+end;
+
+function TTextList.GetSelected: Integer;
+begin
+  Result := FSelected;
+end;
+
+procedure TTextList.SetTopIndex(Index: Integer);
+begin
+  FTopIndex := Index;
+  FRedraw := True;
+end;
+
+function TTextList.GetTopIndex: Integer;
+begin
+  Result := FTopIndex;
+end;
+
+procedure TTextList.SetColor(Color: Byte);
+begin
+  FColor := Color;
+  FRedraw := True;
+end;
+
+procedure TTextList.SetSecondaryColor(Color: Byte);
+begin
+  FSecondaryColor := Color;
+  FRedraw := True;
+end;
+
+procedure TTextList.SetBorderColor(Color: Byte);
+begin
+  FBorderColor := Color;
+  FRedraw := True;
+end;
+
+procedure TTextList.SetItemHeight(Height: Integer);
+begin
+  FItemHeight := Height;
+  FRedraw := True;
+end;
+
+procedure TTextList.SetShowArrows(Enable: Boolean);
+begin
+  FShowArrows := Enable;
+  FRedraw := True;
+end;
+
+procedure TTextList.SetHighlight(Enable: Boolean);
+begin
+  FHighlight := Enable;
+  FRedraw := True;
+end;
+
+procedure TTextList.SetMultiselect(Enable: Boolean);
+begin
+  FMultiselect := Enable;
+  if not Enable then FSelectedItems.Clear;
+  FRedraw := True;
+end;
+
+procedure TTextList.AddItem(const Item: string);
+begin
+  SetLength(FItems, Length(FItems)+1);
+  FItems[High(FItems)] := Item;
+  FRedraw := True;
+end;
+
+procedure TTextList.Clear;
+begin
+  SetLength(FItems, 0);
+  FSelected := -1;
+  FSelectedItems.Clear;
+  FRedraw := True;
+end;
+
+function TTextList.GetItem(Index: Integer): string;
+begin
+  if (Index >= 0) and (Index < Length(FItems)) then
+    Result := FItems[Index]
+  else
+    Result := '';
+end;
+
+function TTextList.GetItemCount: Integer;
+begin
+  Result := Length(FItems);
+end;
+
+function TTextList.GetSelectedItems: TList<Integer>;
+begin
+  Result := FSelectedItems;
+end;
+
+procedure TTextList.DrawItem(Index, X, Y, Width, Height: Integer; Selected: Boolean);
+var
+  Color: Byte;
+  Text: string;
+begin
+  if Selected then
+    Color := FSecondaryColor
+  else
+    Color := FColor;
+  // Draw background
+  if Selected then
+    DrawRect(X, Y, Width, Height, FSecondaryColor)
+  else
+    DrawRect(X, Y, Width, Height, 0);
+  // Draw text
+  if (Index >= 0) and (Index < Length(FItems)) then
+  begin
+    Text := FItems[Index];
+    // Use font to render text (simplified)
+    // Actually we'd use a Text surface, but for brevity we draw directly.
+    // In real code, use a temporary text surface.
+  end;
+end;
+
+procedure TTextList.DrawArrows;
+begin
+  // Draw up/down arrows if needed
+  if FShowArrows and (Length(FItems) > 0) then
+  begin
+    // Draw up arrow if topIndex > 0
+    if FTopIndex > 0 then
+      DrawRect(GetWidth-8, 2, 8, 8, FBorderColor); // stub
+    // Draw down arrow if topIndex + visible < count
+    var VisibleCount := GetHeight div FItemHeight;
+    if FTopIndex + VisibleCount < Length(FItems) then
+      DrawRect(GetWidth-8, GetHeight-10, 8, 8, FBorderColor); // stub
+  end;
+end;
+
+procedure TTextList.Draw;
+var
+  I, Y, VisibleCount: Integer;
+  Selected: Boolean;
+begin
+  FRedraw := False;
+  Clear(0);
+  VisibleCount := GetHeight div FItemHeight;
+  Y := 0;
+  for I := FTopIndex to FTopIndex + VisibleCount - 1 do
+  begin
+    if I >= Length(FItems) then Break;
+    Selected := (FSelected = I) or (FMultiselect and FSelectedItems.Contains(I));
+    DrawItem(I, 0, Y, GetWidth, FItemHeight, Selected);
+    Y := Y + FItemHeight;
+  end;
+  DrawArrows;
+end;
+
+procedure TTextList.Think;
+begin
+  // Nothing
+end;
+
+procedure TTextList.MouseClick(Action: TAction; State: TState);
+var
+  X, Y: Integer;
+  Index: Integer;
+begin
+  inherited;
+  if Action.GetDetails.button.button <> SDL_BUTTON_LEFT then Exit;
+  X := Round(Action.GetRelativeXMouse);
+  Y := Round(Action.GetRelativeYMouse);
+  if Y < 0 then Exit;
+  Index := FTopIndex + Y div FItemHeight;
+  if (Index >= 0) and (Index < Length(FItems)) then
+  begin
+    SetSelected(Index);
+    // If click on arrow area, scroll
+  end;
+end;
+
+procedure TTextList.KeyboardPress(Action: TAction; State: TState);
+var
+  Sym: Integer;
+begin
+  inherited;
+  Sym := Action.GetDetails.key.keysym.sym;
+  case Sym of
+    SDLK_UP: if FSelected > 0 then SetSelected(FSelected-1);
+    SDLK_DOWN: if FSelected < Length(FItems)-1 then SetSelected(FSelected+1);
+    SDLK_PAGEUP: SetSelected(Max(0, FSelected - 10));
+    SDLK_PAGEDOWN: SetSelected(Min(Length(FItems)-1, FSelected + 10));
+    SDLK_HOME: SetSelected(0);
+    SDLK_END: SetSelected(Length(FItems)-1);
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UComboBox.pas;encoding=utf8;sha256=⟧
+unit UComboBox;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, USurface, UText, UInteractiveSurface, UAction, UState, UTextList;
+
+type
+  TComboBox = class(TInteractiveSurface)
+  private
+    FItems: TArray<string>;
+    FSelected: Integer;
+    FColor: Byte;
+    FSecondaryColor: Byte;
+    FBorderColor: Byte;
+    FFont: TFont;
+    FLang: TLanguage;
+    FExpanded: Boolean;
+    FList: TTextList;
+    FArrowColor: Byte;
+    procedure DrawArrow;
+    procedure ToggleList;
+  public
+    constructor Create(Width, Height, X, Y: Integer);
+    destructor Destroy; override;
+    procedure InitText(BigFont, SmallFont: TFont; Lang: TLanguage); override;
+    procedure SetItems(const Items: TArray<string>);
+    procedure SetSelected(Index: Integer);
+    function GetSelected: Integer;
+    procedure SetColor(Color: Byte); override;
+    procedure SetSecondaryColor(Color: Byte); override;
+    procedure SetBorderColor(Color: Byte);
+    procedure SetArrowColor(Color: Byte);
+    procedure MouseClick(Action: TAction; State: TState); override;
+    procedure KeyboardPress(Action: TAction; State: TState); override;
+    procedure Draw; override;
+    procedure Think; override;
+    procedure SetFocus(Focus: Boolean); override;
+  end;
+
+implementation
+
+constructor TComboBox.Create(Width, Height, X, Y: Integer);
+begin
+  inherited Create(Width, Height, X, Y);
+  FItems := nil;
+  FSelected := -1;
+  FColor := 0;
+  FSecondaryColor := 0;
+  FBorderColor := 0;
+  FArrowColor := 0;
+  FFont := nil;
+  FLang := nil;
+  FExpanded := False;
+  FList := nil;
+end;
+
+destructor TComboBox.Destroy;
+begin
+  FList.Free;
+  inherited;
+end;
+
+procedure TComboBox.InitText(BigFont, SmallFont: TFont; Lang: TLanguage);
+begin
+  FFont := BigFont;
+  FLang := Lang;
+end;
+
+procedure TComboBox.SetItems(const Items: TArray<string>);
+begin
+  FItems := Items;
+  FSelected := -1;
+  FRedraw := True;
+end;
+
+procedure TComboBox.SetSelected(Index: Integer);
+begin
+  FSelected := Index;
+  FRedraw := True;
+end;
+
+function TComboBox.GetSelected: Integer;
+begin
+  Result := FSelected;
+end;
+
+procedure TComboBox.SetColor(Color: Byte);
+begin
+  FColor := Color;
+  FRedraw := True;
+end;
+
+procedure TComboBox.SetSecondaryColor(Color: Byte);
+begin
+  FSecondaryColor := Color;
+  FRedraw := True;
+end;
+
+procedure TComboBox.SetBorderColor(Color: Byte);
+begin
+  FBorderColor := Color;
+  FRedraw := True;
+end;
+
+procedure TComboBox.SetArrowColor(Color: Byte);
+begin
+  FArrowColor := Color;
+  FRedraw := True;
+end;
+
+procedure TComboBox.DrawArrow;
+begin
+  if FArrowColor = 0 then FArrowColor := FSecondaryColor;
+  // Draw down arrow
+  var CX := GetWidth - 12;
+  var CY := (GetHeight - 8) div 2;
+  DrawLine(CX, CY, CX+4, CY+4, FArrowColor);
+  DrawLine(CX+4, CY+4, CX+8, CY, FArrowColor);
+end;
+
+procedure TComboBox.ToggleList;
+begin
+  if FExpanded then
+  begin
+    FExpanded := False;
+    if FList <> nil then
+    begin
+      FList.SetVisible(False);
+      FList.SetHidden(True);
+    end;
+  end
+  else
+  begin
+    FExpanded := True;
+    if FList = nil then
+    begin
+      FList := TTextList.Create(GetWidth, 100, FX, FY + GetHeight);
+      FList.InitText(FFont, FFont, FLang);
+      FList.SetItems(FItems);
+      FList.SetColor(FColor);
+      FList.SetSecondaryColor(FSecondaryColor);
+      FList.SetBorderColor(FBorderColor);
+      FList.SetVisible(True);
+      FList.SetHidden(False);
+      // Add to state? This would need to be managed externally.
+      // In practice, we'd need to add to the parent state.
+    end
+    else
+    begin
+      FList.SetVisible(True);
+      FList.SetHidden(False);
+    end;
+  end;
+end;
+
+procedure TComboBox.MouseClick(Action: TAction; State: TState);
+begin
+  inherited;
+  ToggleList;
+end;
+
+procedure TComboBox.KeyboardPress(Action: TAction; State: TState);
+var
+  Sym: Integer;
+begin
+  inherited;
+  Sym := Action.GetDetails.key.keysym.sym;
+  case Sym of
+    SDLK_UP: if FSelected > 0 then SetSelected(FSelected-1);
+    SDLK_DOWN: if FSelected < Length(FItems)-1 then SetSelected(FSelected+1);
+    SDLK_RETURN, SDLK_SPACE: ToggleList;
+    SDLK_ESCAPE: if FExpanded then ToggleList;
+  end;
+end;
+
+procedure TComboBox.Draw;
+begin
+  FRedraw := False;
+  Clear(0);
+  // Draw background
+  DrawRect(0, 0, GetWidth, GetHeight, FColor);
+  // Draw border
+  DrawRect(0, 0, GetWidth, 1, FBorderColor);
+  DrawRect(0, GetHeight-1, GetWidth, 1, FBorderColor);
+  DrawRect(0, 1, 1, GetHeight-2, FBorderColor);
+  DrawRect(GetWidth-1, 1, 1, GetHeight-2, FBorderColor);
+  // Draw selected text
+  if (FSelected >= 0) and (FSelected < Length(FItems)) then
+  begin
+    // Use a Text surface to draw (simplified)
+  end;
+  DrawArrow;
+end;
+
+procedure TComboBox.Think;
+begin
+  if FExpanded and (FList <> nil) then
+    FList.Think;
+end;
+
+procedure TComboBox.SetFocus(Focus: Boolean);
+begin
+  inherited;
+  if not Focus and FExpanded then
+    ToggleList;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UBattlescapeButton.pas;encoding=utf8;sha256=⟧
+unit UBattlescapeButton;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, USurface, UInteractiveSurface, USurfaceSet;
+
+type
+  TBattlescapeButton = class(TInteractiveSurface)
+  private
+    FColor: Byte;
+    FSecondaryColor: Byte;
+    FBorderColor: Byte;
+    FSurfaceSet: TSurfaceSet;
+    FFrame: Integer;
+    FGroup: Integer;
+    FPressed: Boolean;
+    FToggled: Boolean;
+    FDisabled: Boolean;
+    function GetFrameSurface: TSurface;
+    procedure DrawButton;
+  public
+    constructor Create(Width, Height, X, Y: Integer);
+    destructor Destroy; override;
+    procedure Copy(Parent: TSurface); // stub
+    procedure InitSurfaces; // stub
+    procedure SetColor(Color: Byte); override;
+    procedure SetSecondaryColor(Color: Byte); override;
+    procedure SetBorderColor(Color: Byte); override;
+    procedure SetSurfaceSet(SurfaceSet: TSurfaceSet);
+    procedure SetFrame(Frame: Integer);
+    procedure SetGroup(Group: Integer);
+    procedure SetPressed(Pressed: Boolean);
+    procedure SetToggled(Toggled: Boolean);
+    procedure SetDisabled(Disabled: Boolean);
+    procedure MousePress(Action: TAction; State: TState); override;
+    procedure MouseRelease(Action: TAction; State: TState); override;
+    procedure MouseClick(Action: TAction; State: TState); override;
+    procedure Draw; override;
+  end;
+
+implementation
+
+constructor TBattlescapeButton.Create(Width, Height, X, Y: Integer);
+begin
+  inherited Create(Width, Height, X, Y);
+  FColor := 0;
+  FSecondaryColor := 0;
+  FBorderColor := 0;
+  FSurfaceSet := nil;
+  FFrame := 0;
+  FGroup := 0;
+  FPressed := False;
+  FToggled := False;
+  FDisabled := False;
+end;
+
+destructor TBattlescapeButton.Destroy;
+begin
+  // FSurfaceSet is owned externally
+  inherited;
+end;
+
+procedure TBattlescapeButton.Copy(Parent: TSurface);
+begin
+  // stub
+end;
+
+procedure TBattlescapeButton.InitSurfaces;
+begin
+  // stub
+end;
+
+procedure TBattlescapeButton.SetColor(Color: Byte);
+begin
+  FColor := Color;
+  FRedraw := True;
+end;
+
+procedure TBattlescapeButton.SetSecondaryColor(Color: Byte);
+begin
+  FSecondaryColor := Color;
+  FRedraw := True;
+end;
+
+procedure TBattlescapeButton.SetBorderColor(Color: Byte);
+begin
+  FBorderColor := Color;
+  FRedraw := True;
+end;
+
+procedure TBattlescapeButton.SetSurfaceSet(SurfaceSet: TSurfaceSet);
+begin
+  FSurfaceSet := SurfaceSet;
+  FRedraw := True;
+end;
+
+procedure TBattlescapeButton.SetFrame(Frame: Integer);
+begin
+  FFrame := Frame;
+  FRedraw := True;
+end;
+
+procedure TBattlescapeButton.SetGroup(Group: Integer);
+begin
+  FGroup := Group;
+end;
+
+procedure TBattlescapeButton.SetPressed(Pressed: Boolean);
+begin
+  FPressed := Pressed;
+  FRedraw := True;
+end;
+
+procedure TBattlescapeButton.SetToggled(Toggled: Boolean);
+begin
+  FToggled := Toggled;
+  FRedraw := True;
+end;
+
+procedure TBattlescapeButton.SetDisabled(Disabled: Boolean);
+begin
+  FDisabled := Disabled;
+  FRedraw := True;
+end;
+
+function TBattlescapeButton.GetFrameSurface: TSurface;
+begin
+  if (FSurfaceSet <> nil) then
+    Result := FSurfaceSet.GetFrame(FFrame)
+  else
+    Result := nil;
+end;
+
+procedure TBattlescapeButton.DrawButton;
+var
+  Surf: TSurface;
+begin
+  Clear(0);
+  // Draw based on state
+  if FDisabled then
+  begin
+    // Draw disabled (grayed out)
+  end
+  else if FPressed or FToggled then
+  begin
+    // Draw pressed state (color shift)
+  end;
+  // Blit the frame surface
+  Surf := GetFrameSurface;
+  if Surf <> nil then
+    SDL_BlitSurface(Surf.GetSurface, nil, FSurface, nil);
+end;
+
+procedure TBattlescapeButton.Draw;
+begin
+  FRedraw := False;
+  DrawButton;
+end;
+
+procedure TBattlescapeButton.MousePress(Action: TAction; State: TState);
+begin
+  inherited;
+  if not FDisabled then
+    SetPressed(True);
+end;
+
+procedure TBattlescapeButton.MouseRelease(Action: TAction; State: TState);
+begin
+  inherited;
+  SetPressed(False);
+end;
+
+procedure TBattlescapeButton.MouseClick(Action: TAction; State: TState);
+begin
+  inherited;
+  if not FDisabled then
+  begin
+    FToggled := not FToggled;
+    FRedraw := True;
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UFpsCounter.pas;encoding=utf8;sha256=⟧
+unit UFpsCounter;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, USurface, UInteractiveSurface, UAction, UState;
+
+type
+  TFpsCounter = class(TInteractiveSurface)
+  private
+    FColor: Byte;
+    FFrameCount: Integer;
+    FLastUpdate: Cardinal;
+    FCurrentFPS: Integer;
+    FVisible: Boolean;
+  public
+    constructor Create(X, Y: Integer; Width: Integer = 40; Height: Integer = 12);
+    procedure Think; override;
+    procedure Draw; override;
+    procedure AddFrame;
+    procedure SetColor(Color: Byte); override;
+    procedure SetVisible(Visible: Boolean); override;
+  end;
+
+implementation
+
+constructor TFpsCounter.Create(X, Y: Integer; Width: Integer = 40; Height: Integer = 12);
+begin
+  inherited Create(Width, Height, X, Y);
+  FColor := 0;
+  FFrameCount := 0;
+  FLastUpdate := SDL_GetTicks;
+  FCurrentFPS := 0;
+  FVisible := True;
+end;
+
+procedure TFpsCounter.Think;
+var
+  Now: Cardinal;
+begin
+  inherited;
+  if not FVisible then Exit;
+  Now := SDL_GetTicks;
+  if Now - FLastUpdate >= 1000 then
+  begin
+    FCurrentFPS := FFrameCount;
+    FFrameCount := 0;
+    FLastUpdate := Now;
+    FRedraw := True;
+  end;
+end;
+
+procedure TFpsCounter.Draw;
+var
+  Text: string;
+begin
+  FRedraw := False;
+  Clear(0);
+  Text := IntToStr(FCurrentFPS) + ' FPS';
+  // Draw text (simplified)
+end;
+
+procedure TFpsCounter.AddFrame;
+begin
+  if FVisible then Inc(FFrameCount);
+end;
+
+procedure TFpsCounter.SetColor(Color: Byte);
+begin
+  FColor := Color;
+  FRedraw := True;
+end;
+
+procedure TFpsCounter.SetVisible(Visible: Boolean);
+begin
+  FVisible := Visible;
+  if not Visible then
+    FRedraw := True;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UCursor.pas;encoding=utf8;sha256=⟧
+unit UCursor;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, USurface, UInteractiveSurface, UAction;
+
+type
+  TCursor = class(TInteractiveSurface)
+  private
+    FColor: Byte;
+    FVisible: Boolean;
+    FShape: Integer; // 0=normal, 1=hand, etc.
+    procedure DrawCursor;
+  public
+    constructor Create(Width, Height: Integer);
+    procedure SetColor(Color: Byte); override;
+    procedure SetVisible(Visible: Boolean);
+    procedure SetShape(Shape: Integer);
+    procedure Handle(Action: TAction); override;
+    procedure Draw; override;
+  end;
+
+implementation
+
+constructor TCursor.Create(Width, Height: Integer);
+begin
+  inherited Create(Width, Height, 0, 0);
+  FColor := 0;
+  FVisible := True;
+  FShape := 0;
+end;
+
+procedure TCursor.SetColor(Color: Byte);
+begin
+  FColor := Color;
+  FRedraw := True;
+end;
+
+procedure TCursor.SetVisible(Visible: Boolean);
+begin
+  FVisible := Visible;
+  if not Visible then
+    FHidden := True
+  else
+    FHidden := False;
+  FRedraw := True;
+end;
+
+procedure TCursor.SetShape(Shape: Integer);
+begin
+  FShape := Shape;
+  FRedraw := True;
+end;
+
+procedure TCursor.DrawCursor;
+begin
+  Clear(0);
+  // Draw a simple arrow or cross based on shape (stub)
+  if FShape = 0 then
+  begin
+    // Draw arrow
+  end
+  else
+  begin
+    // Draw hand or other
+  end;
+end;
+
+procedure TCursor.Handle(Action: TAction);
+begin
+  if not FVisible then Exit;
+  // Update position
+  if Action.IsMouseAction then
+  begin
+    SetX(Round(Action.GetAbsoluteXMouse));
+    SetY(Round(Action.GetAbsoluteYMouse));
+    FRedraw := True;
+  end;
+end;
+
+procedure TCursor.Draw;
+begin
+  FRedraw := False;
+  DrawCursor;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UExtraStrings.pas;encoding=utf8;sha256=⟧
+unit UExtraStrings;
+
+interface
+
+uses
+  SysUtils, Classes, Generics.Collections;
+
+type
+  TExtraStrings = class
+  private
+    FStrings: TDictionary<string, string>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Add(const ID, Text: string);
+    function GetStrings: TDictionary<string, string>;
+  end;
+
+implementation
+
+constructor TExtraStrings.Create;
+begin
+  FStrings := TDictionary<string, string>.Create;
+end;
+
+destructor TExtraStrings.Destroy;
+begin
+  FStrings.Free;
+  inherited;
+end;
+
+procedure TExtraStrings.Add(const ID, Text: string);
+begin
+  FStrings.Add(ID, Text);
+end;
+
+function TExtraStrings.GetStrings: TDictionary<string, string>;
+begin
+  Result := FStrings;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:URuleInterface.pas;encoding=utf8;sha256=⟧
+unit URuleInterface;
+
+interface
+
+uses
+  SysUtils, Classes, Generics.Collections;
+
+type
+  TElement = record
+    x, y, w, h: Integer;
+    color, color2, border: Integer;
+    TFTDMode: Boolean;
+  end;
+
+  TRuleInterface = class
+  private
+    FParent: string;
+    FPalette: string;
+    FMusic: string;
+    FElements: TDictionary<string, TElement>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure SetParent(const Parent: string);
+    procedure SetPalette(const Palette: string);
+    procedure SetMusic(const Music: string);
+    procedure AddElement(const ID: string; const Element: TElement);
+    function GetParent: string;
+    function GetPalette: string;
+    function GetMusic: string;
+    function GetElement(const ID: string): TElement;
+    function HasElement(const ID: string): Boolean;
+  end;
+
+implementation
+
+constructor TRuleInterface.Create;
+begin
+  FElements := TDictionary<string, TElement>.Create;
+end;
+
+destructor TRuleInterface.Destroy;
+begin
+  FElements.Free;
+  inherited;
+end;
+
+procedure TRuleInterface.SetParent(const Parent: string);
+begin
+  FParent := Parent;
+end;
+
+procedure TRuleInterface.SetPalette(const Palette: string);
+begin
+  FPalette := Palette;
+end;
+
+procedure TRuleInterface.SetMusic(const Music: string);
+begin
+  FMusic := Music;
+end;
+
+procedure TRuleInterface.AddElement(const ID: string; const Element: TElement);
+begin
+  FElements.Add(ID, Element);
+end;
+
+function TRuleInterface.GetParent: string;
+begin
+  Result := FParent;
+end;
+
+function TRuleInterface.GetPalette: string;
+begin
+  Result := FPalette;
+end;
+
+function TRuleInterface.GetMusic: string;
+begin
+  Result := FMusic;
+end;
+
+function TRuleInterface.GetElement(const ID: string): TElement;
+begin
+  Result := FElements[ID];
+end;
+
+function TRuleInterface.HasElement(const ID: string): Boolean;
+begin
+  Result := FElements.ContainsKey(ID);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UMod.pas;encoding=utf8;sha256=⟧
+unit UMod;
+
+interface
+
+uses
+  SysUtils, Classes, Generics.Collections, SDL, UPalette, USurfaceSet, USoundSet,
+  UMusic, UFont, URuleInterface, UExtraStrings;
+
+type
+  TMod = class
+  private
+    FPalettes: TDictionary<string, TPalette>;
+    FSurfaceSets: TDictionary<string, TSurfaceSet>;
+    FSoundSets: TDictionary<string, TSoundSet>;
+    FMusic: TDictionary<string, TMusic>;
+    FFonts: TDictionary<string, TFont>;
+    FInterfaces: TDictionary<string, TRuleInterface>;
+    FExtraStrings: TDictionary<string, TExtraStrings>;
+    FPalette: PSDL_Color;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure LoadAll(const Rulesets: array of string); // simplified
+    function GetPalette(const ID: string): TPalette;
+    function GetSurface(const ID: string): TSurfaceSet;
+    function GetSoundSet(const ID: string): TSoundSet;
+    function GetMusic(const ID: string): TMusic;
+    function GetFont(const ID: string): TFont;
+    function GetInterface(const ID: string): TRuleInterface;
+    function GetExtraStrings(const ID: string): TExtraStrings;
+    procedure SetPalette(Colors: PSDL_Color);
+    procedure PlayMusic(const ID: string);
+  end;
+
+implementation
+
+constructor TMod.Create;
+begin
+  FPalettes := TDictionary<string, TPalette>.Create;
+  FSurfaceSets := TDictionary<string, TSurfaceSet>.Create;
+  FSoundSets := TDictionary<string, TSoundSet>.Create;
+  FMusic := TDictionary<string, TMusic>.Create;
+  FFonts := TDictionary<string, TFont>.Create;
+  FInterfaces := TDictionary<string, TRuleInterface>.Create;
+  FExtraStrings := TDictionary<string, TExtraStrings>.Create;
+  FPalette := nil;
+end;
+
+destructor TMod.Destroy;
+begin
+  for var P in FPalettes.Values do P.Free;
+  for var S in FSurfaceSets.Values do S.Free;
+  for var S in FSoundSets.Values do S.Free;
+  for var M in FMusic.Values do M.Free;
+  for var F in FFonts.Values do F.Free;
+  for var I in FInterfaces.Values do I.Free;
+  for var E in FExtraStrings.Values do E.Free;
+  FPalettes.Free;
+  FSurfaceSets.Free;
+  FSoundSets.Free;
+  FMusic.Free;
+  FFonts.Free;
+  FInterfaces.Free;
+  FExtraStrings.Free;
+  inherited;
+end;
+
+procedure TMod.LoadAll(const Rulesets: array of string);
+begin
+  // Stub: parse each ruleset and load resources
+end;
+
+function TMod.GetPalette(const ID: string): TPalette;
+begin
+  Result := FPalettes[ID];
+end;
+
+function TMod.GetSurface(const ID: string): TSurfaceSet;
+begin
+  Result := FSurfaceSets[ID];
+end;
+
+function TMod.GetSoundSet(const ID: string): TSoundSet;
+begin
+  Result := FSoundSets[ID];
+end;
+
+function TMod.GetMusic(const ID: string): TMusic;
+begin
+  Result := FMusic[ID];
+end;
+
+function TMod.GetFont(const ID: string): TFont;
+begin
+  Result := FFonts[ID];
+end;
+
+function TMod.GetInterface(const ID: string): TRuleInterface;
+begin
+  Result := FInterfaces[ID];
+end;
+
+function TMod.GetExtraStrings(const ID: string): TExtraStrings;
+begin
+  Result := FExtraStrings[ID];
+end;
+
+procedure TMod.SetPalette(Colors: PSDL_Color);
+begin
+  FPalette := Colors;
+  // Propagate to all surface sets and fonts
+  for var SS in FSurfaceSets.Values do
+    SS.SetPalette(Colors, 0, 256);
+  for var Font in FFonts.Values do
+    Font.SetPalette(Colors, 0, 256);
+end;
+
+procedure TMod.PlayMusic(const ID: string);
+begin
+  if FMusic.ContainsKey(ID) then
+    FMusic[ID].Play(-1);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:USavedGame.pas;encoding=utf8;sha256=⟧
+unit USavedGame;
+
+interface
+
+uses
+  SysUtils, Classes, Generics.Collections;
+
+type
+  TSavedGame = class
+  private
+    FName: string;
+    FIronman: Boolean;
+    FMods: TArray<string>;
+    // Other fields (stub)
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Save(const Filename: string);
+    procedure Load(const Filename: string);
+    function IsIronman: Boolean;
+    function GetName: string;
+    procedure SetName(const Name: string);
+    procedure SetIronman(Enabled: Boolean);
+  end;
+
+implementation
+
+constructor TSavedGame.Create;
+begin
+  FName := '';
+  FIronman := False;
+  FMods := nil;
+end;
+
+destructor TSavedGame.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSavedGame.Save(const Filename: string);
+begin
+  // Stub: write YAML
+end;
+
+procedure TSavedGame.Load(const Filename: string);
+begin
+  // Stub: read YAML
+end;
+
+function TSavedGame.IsIronman: Boolean;
+begin
+  Result := FIronman;
+end;
+
+function TSavedGame.GetName: string;
+begin
+  Result := FName;
+end;
+
+procedure TSavedGame.SetName(const Name: string);
+begin
+  FName := Name;
+end;
+
+procedure TSavedGame.SetIronman(Enabled: Boolean);
+begin
+  FIronman := Enabled;
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

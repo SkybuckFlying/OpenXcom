@@ -1,0 +1,1652 @@
+unit AIModule;
+
+interface
+
+uses
+  System.SysUtils, System.Generics.Collections, System.Math,
+  BattlescapeGame, Position, BattleUnit, SavedBattleGame, Node, BattleAction,
+  UnitFaction, YAML, RNG, Logger, Game, Armor, ModUnit, RuleItem, Options,
+  TileEngine, Pathfinding, Savegame, BattleItem, RuleInventory, fmath,
+  ModMod, ModArmor;
+
+type
+  TAIMode = (AI_PATROL, AI_AMBUSH, AI_COMBAT, AI_ESCAPE);
+
+  TAIModule = class
+  private
+    FSave: TSavedBattleGame;
+    FUnit: TBattleUnit;
+    FAggroTarget: TBattleUnit;
+    FKnownEnemies: Integer;
+    FVisibleEnemies: Integer;
+    FSpottingEnemies: Integer;
+    FEscapeTUs: Integer;
+    FAmbushTUs: Integer;
+    FEscapeAction: TBattleAction;
+    FAmbushAction: TBattleAction;
+    FAttackAction: TBattleAction;
+    FPatrolAction: TBattleAction;
+    FPsiAction: TBattleAction;
+    FRifle: Boolean;
+    FMelee: Boolean;
+    FBlaster: Boolean;
+    FTraceAI: Boolean;
+    FDidPsi: Boolean;
+    FAIMode: Integer;
+    FIntelligence: Integer;
+    FClosestDist: Integer;
+    FFromNode: TNode;
+    FToNode: TNode;
+    FReachable: TList<Integer>;
+    FReachableWithAttack: TList<Integer>;
+    FWasHitBy: TList<Integer>;
+    FReserve: TBattleActionType;
+    FTargetFaction: TUnitFaction;
+    procedure FreePatrolTarget;
+    function SelectClosestKnownEnemy: Boolean;
+    function SelectRandomTarget: Boolean;
+    function SelectPointNearTarget(Target: TBattleUnit; MaxTUs: Integer): Boolean;
+    function GetNodeOfBestEfficacy(var Action: TBattleAction): Boolean;
+  public
+    constructor Create(ASave: TSavedBattleGame; AUnit: TBattleUnit; ANode: TNode);
+    destructor Destroy; override;
+    procedure Reset;
+    procedure Load(const ANode: TYamlNode);
+    function Save: TYamlNode;
+    procedure Think(var Action: TBattleAction);
+    procedure SetWasHitBy(Attacker: TBattleUnit);
+    function GetWasHitBy(AttackerID: Integer): Boolean;
+    procedure SetupPatrol;
+    procedure SetupAmbush;
+    procedure SetupAttack;
+    procedure SetupEscape;
+    function CountKnownTargets: Integer;
+    function GetSpottingUnits(const Pos: TPosition): Integer;
+    function SelectNearestTarget: Integer;
+    procedure EvaluateAIMode;
+    function FindFirePoint: Boolean;
+    function ExplosiveEfficacy(TargetPos: TPosition; AttackingUnit: TBattleUnit;
+                               Radius, Diff: Integer; Grenade: Boolean = False): Boolean;
+    procedure MeleeAction;
+    procedure WayPointAction;
+    procedure ProjectileAction;
+    procedure SelectFireMethod;
+    procedure GrenadeAction;
+    function PsiAction: Boolean;
+    procedure MeleeAttack;
+    function ValidTarget(AUnit: TBattleUnit; AssessDanger, IncludeCivs: Boolean): Boolean;
+    function GetReserveMode: TBattleActionType;
+    procedure SelectMeleeOrRanged;
+    function GetTarget: TBattleUnit;
+  end;
+
+implementation
+
+{ TAIModule }
+
+constructor TAIModule.Create(ASave: TSavedBattleGame; AUnit: TBattleUnit; ANode: TNode);
+begin
+  inherited Create;
+  FSave := ASave;
+  FUnit := AUnit;
+  FAggroTarget := nil;
+  FKnownEnemies := 0;
+  FVisibleEnemies := 0;
+  FSpottingEnemies := 0;
+  FEscapeTUs := 0;
+  FAmbushTUs := 0;
+  FRifle := False;
+  FMelee := False;
+  FBlaster := False;
+  FDidPsi := False;
+  FAIMode := Integer(AI_PATROL);
+  FClosestDist := 100;
+  FFromNode := ANode;
+  FToNode := nil;
+  FTraceAI := Options.TraceAI;
+  FIntelligence := FUnit.GetIntelligence;
+  FReachable := TList<Integer>.Create;
+  FReachableWithAttack := TList<Integer>.Create;
+  FWasHitBy := TList<Integer>.Create;
+  FReserve := BA_NONE;
+  FTargetFaction := FACTION_PLAYER;
+  if FUnit.GetOriginalFaction = FACTION_NEUTRAL then
+    FTargetFaction := FACTION_HOSTILE;
+  FEscapeAction := TBattleAction.Create;
+  FAmbushAction := TBattleAction.Create;
+  FAttackAction := TBattleAction.Create;
+  FPatrolAction := TBattleAction.Create;
+  FPsiAction := TBattleAction.Create;
+end;
+
+destructor TAIModule.Destroy;
+begin
+  FEscapeAction.Free;
+  FAmbushAction.Free;
+  FAttackAction.Free;
+  FPatrolAction.Free;
+  FPsiAction.Free;
+  FReachable.Free;
+  FReachableWithAttack.Free;
+  FWasHitBy.Free;
+  inherited;
+end;
+
+procedure TAIModule.Reset;
+begin
+  FEscapeTUs := 0;
+  FAmbushTUs := 0;
+end;
+
+procedure TAIModule.Load(const ANode: TYamlNode);
+var
+  FromNodeID, ToNodeID: Integer;
+  WasHitVec: TYamlNode;
+  I: Integer;
+begin
+  FromNodeID := ANode['fromNode'].AsInteger(-1);
+  ToNodeID := ANode['toNode'].AsInteger(-1);
+  FAIMode := ANode['AIMode'].AsInteger(Integer(AI_PATROL));
+  FWasHitBy.Clear;
+  WasHitVec := ANode['wasHitBy'];
+  for I := 0 to WasHitVec.Size - 1 do
+    FWasHitBy.Add(WasHitVec[I].AsInteger);
+  if (FromNodeID >= 0) and (FromNodeID < FSave.GetNodes.Count) then
+    FFromNode := FSave.GetNodes[FromNodeID];
+  if (ToNodeID >= 0) and (ToNodeID < FSave.GetNodes.Count) then
+    FToNode := FSave.GetNodes[ToNodeID];
+end;
+
+function TAIModule.Save: TYamlNode;
+var
+  WasHitVec: TYamlNode;
+  I: Integer;
+begin
+  Result := TYamlNode.Create;
+  Result['fromNode'] := IfThen(FFromNode <> nil, FFromNode.GetID, -1);
+  Result['toNode'] := IfThen(FToNode <> nil, FToNode.GetID, -1);
+  Result['AIMode'] := FAIMode;
+  WasHitVec := Result['wasHitBy'];
+  for I := 0 to FWasHitBy.Count - 1 do
+    WasHitVec.Add(FWasHitBy[I]);
+end;
+
+procedure TAIModule.Think(var Action: TBattleAction);
+var
+  Rule: TRuleItem;
+  EffectiveReserve: TBattleActionType;
+  Evaluate: Boolean;
+begin
+  Action.aType := BA_RETHINK;
+  Action.Actor := FUnit;
+  Action.Weapon := FUnit.GetMainHandWeapon(False);
+  FAttackAction.Diff := FSave.GetBattleState.GetGame.GetSavedGame.GetDifficultyCoefficient;
+  FAttackAction.Actor := FUnit;
+  FAttackAction.Weapon := Action.Weapon;
+  FAttackAction.Number := Action.Number;
+  FEscapeAction.Number := Action.Number;
+  FKnownEnemies := CountKnownTargets;
+  FVisibleEnemies := SelectNearestTarget;
+  FSpottingEnemies := GetSpottingUnits(FUnit.GetPosition);
+  FMelee := (FUnit.GetMeleeWeapon <> nil);
+  FRifle := False;
+  FBlaster := False;
+  FReachable := FSave.GetPathfinding.FindReachable(FUnit, FUnit.GetTimeUnits);
+  FWasHitBy.Clear;
+
+  if (FUnit.GetCharging <> nil) and (FUnit.GetCharging.IsOut) then
+    FUnit.SetCharging(nil);
+
+  if FTraceAI then
+  begin
+    Log(LOG_INFO, Format('Unit has %d/%d known enemies visible, %d spotting him.',
+      [FVisibleEnemies, FKnownEnemies, FSpottingEnemies]));
+    // log mode
+  end;
+
+  if Action.Weapon <> nil then
+  begin
+    Rule := Action.Weapon.GetRules;
+    if FSave.IsItemUsable(Action.Weapon) then
+    begin
+      if Rule.GetBattleType = BT_FIREARM then
+      begin
+        if (Rule.GetWaypoints <> 0) or
+           ((Action.Weapon.GetAmmoItem <> nil) and (Action.Weapon.GetAmmoItem.GetRules.GetWaypoints <> 0)) then
+        begin
+          FBlaster := True;
+          FReachableWithAttack := FSave.GetPathfinding.FindReachable(FUnit,
+            FUnit.GetTimeUnits - FUnit.GetActionTUs(BA_AIMEDSHOT, Action.Weapon));
+        end
+        else
+        begin
+          FRifle := True;
+          FReachableWithAttack := FSave.GetPathfinding.FindReachable(FUnit,
+            FUnit.GetTimeUnits - FUnit.GetActionTUs(BA_SNAPSHOT, Action.Weapon));
+        end;
+      end
+      else if Rule.GetBattleType = BT_MELEE then
+      begin
+        FMelee := True;
+        FReachableWithAttack := FSave.GetPathfinding.FindReachable(FUnit,
+          FUnit.GetTimeUnits - FUnit.GetActionTUs(BA_HIT, Action.Weapon));
+      end;
+    end
+    else
+      Action.Weapon := nil;
+  end;
+
+  if (FSpottingEnemies > 0) and (FEscapeTUs = 0) then
+    SetupEscape;
+
+  if (FKnownEnemies > 0) and (not FMelee) and (FAmbushTUs = 0) then
+    SetupAmbush;
+
+  SetupAttack;
+  SetupPatrol;
+
+  if (FPsiAction.aType <> BA_NONE) and (not FDidPsi) then
+  begin
+    FDidPsi := True;
+    Action.aType := FPsiAction.aType;
+    Action.Target := FPsiAction.Target;
+    Action.Number := Action.Number - 1;
+    Action.Weapon := FPsiAction.Weapon;
+    Exit;
+  end
+  else
+    FDidPsi := False;
+
+  Evaluate := False;
+  case TAIMode(FAIMode) of
+    AI_PATROL: Evaluate := (FSpottingEnemies > 0) or (FVisibleEnemies > 0) or (FKnownEnemies > 0) or RNG.Percent(10);
+    AI_AMBUSH: Evaluate := (not FRifle) or (FAmbushTUs = 0) or (FVisibleEnemies > 0);
+    AI_COMBAT: Evaluate := (FAttackAction.aType = BA_RETHINK);
+    AI_ESCAPE: Evaluate := (FSpottingEnemies = 0) or (FKnownEnemies = 0);
+  end;
+
+  if (FSpottingEnemies > 2) or
+     (FUnit.GetHealth < (2 * FUnit.GetBaseStats.Health) div 3) or
+     ((FAggroTarget <> nil) and (FAggroTarget.GetTurnsSinceSpotted > FIntelligence)) then
+    Evaluate := True;
+
+  if FSave.IsCheating and (FAIMode <> Integer(AI_COMBAT)) then
+    Evaluate := True;
+
+  if Evaluate then
+  begin
+    EvaluateAIMode;
+    if FTraceAI then
+      Log(LOG_INFO, 'Re-Evaluated, now using ' + GetModeString + ' behaviour');
+  end;
+
+  FReserve := BA_NONE;
+  case TAIMode(FAIMode) of
+    AI_ESCAPE:
+      begin
+        FUnit.SetCharging(nil);
+        Action.aType := FEscapeAction.aType;
+        Action.Target := FEscapeAction.Target;
+        Action.FinalAction := True;
+        Action.Desperate := True;
+        FUnit.SetHiding(True);
+      end;
+    AI_PATROL:
+      begin
+        FUnit.SetCharging(nil);
+        if (Action.Weapon <> nil) and (Action.Weapon.GetRules.GetBattleType = BT_FIREARM) then
+        begin
+          case FUnit.GetAggression of
+            0: FReserve := BA_AIMEDSHOT;
+            1: FReserve := BA_AUTOSHOT;
+            2: FReserve := BA_SNAPSHOT;
+          end;
+        end;
+        Action.aType := FPatrolAction.aType;
+        Action.Target := FPatrolAction.Target;
+      end;
+    AI_COMBAT:
+      begin
+        Action.aType := FAttackAction.aType;
+        Action.Target := FAttackAction.Target;
+        Action.Weapon := FAttackAction.Weapon;
+        if (Action.Weapon <> nil) and (Action.aType = BA_THROW) and
+           (Action.Weapon.GetRules.GetBattleType = BT_GRENADE) then
+          FUnit.SpendTimeUnits(4 + FUnit.GetActionTUs(BA_PRIME, Action.Weapon));
+        Action.FinalFacing := FAttackAction.FinalFacing;
+        Action.TU := FUnit.GetActionTUs(FAttackAction.aType, FAttackAction.Weapon);
+        if (Action.aType = BA_WALK) and FRifle and
+           (FUnit.GetTimeUnits > FUnit.GetActionTUs(BA_SNAPSHOT, Action.Weapon)) then
+          Action.Number := Action.Number - 1
+        else if Action.aType = BA_LAUNCH then
+          Action.Waypoints := FAttackAction.Waypoints;
+      end;
+    AI_AMBUSH:
+      begin
+        FUnit.SetCharging(nil);
+        Action.aType := FAmbushAction.aType;
+        Action.Target := FAmbushAction.Target;
+        Action.FinalFacing := FAmbushAction.FinalFacing;
+        Action.FinalAction := True;
+      end;
+  end;
+
+  if Action.aType = BA_WALK then
+  begin
+    if Action.Target <> FUnit.GetPosition then
+    begin
+      FEscapeTUs := 0;
+      FAmbushTUs := 0;
+    end
+    else
+      Action.aType := BA_NONE;
+  end;
+end;
+
+procedure TAIModule.SetWasHitBy(Attacker: TBattleUnit);
+begin
+  if (Attacker.GetFaction <> FUnit.GetFaction) and (not GetWasHitBy(Attacker.GetID)) then
+    FWasHitBy.Add(Attacker.GetID);
+end;
+
+function TAIModule.GetWasHitBy(AttackerID: Integer): Boolean;
+begin
+  Result := FWasHitBy.Contains(AttackerID);
+end;
+
+procedure TAIModule.SetupPatrol;
+var
+  Node: TNode;
+  TriesLeft: Integer;
+  Closest: Integer;
+  Scout, I, J, D: Integer;
+  X, Y: Integer;
+  Tile: TTile;
+  MD: TMapData;
+begin
+  FPatrolAction.TU := 0;
+  if (FToNode <> nil) and (FUnit.GetPosition = FToNode.GetPosition) then
+  begin
+    if FTraceAI then
+      Log(LOG_INFO, 'Patrol destination reached!');
+    FFromNode := FToNode;
+    FreePatrolTarget;
+    FToNode := nil;
+    // peek through window
+    D := FSave.GetTileEngine.FaceWindow(FUnit.GetPosition);
+    if (D <> -1) and (D <> FUnit.GetDirection) then
+    begin
+      FUnit.LookAt(D);
+      while FUnit.GetStatus = STATUS_TURNING do
+        FUnit.Turn;
+    end;
+  end;
+
+  if FFromNode = nil then
+  begin
+    Closest := 1000000;
+    for Node in FSave.GetNodes do
+    begin
+      if Node.IsDummy then Continue;
+      D := FSave.GetTileEngine.DistanceSq(FUnit.GetPosition, Node.GetPosition);
+      if (FUnit.GetPosition.Z = Node.GetPosition.Z) and
+         (D < Closest) and
+         (not (Node.GetType and Node.TYPE_SMALL) or (FUnit.GetArmor.GetSize = 1)) then
+      begin
+        FFromNode := Node;
+        Closest := D;
+      end;
+    end;
+  end;
+
+  TriesLeft := 5;
+  while (FToNode = nil) and (TriesLeft > 0) do
+  begin
+    Dec(TriesLeft);
+    Scout := True;
+    if FSave.GetMissionType <> 'STR_BASE_DEFENSE' then
+    begin
+      if FSave.IsCheating or (FFromNode = nil) or (FFromNode.GetRank = 0) or
+         ((FSave.GetTile(FUnit.GetPosition) <> nil) and FSave.GetTile(FUnit.GetPosition).GetFire) then
+        Scout := True
+      else
+        Scout := False;
+    end
+    else if (FUnit.GetArmor.GetSize = 1) and
+            (FAttackAction.Weapon <> nil) and
+            (FAttackAction.Weapon.GetRules.GetAccuracySnap <> 0) and
+            (not FAttackAction.Weapon.GetRules.GetArcingShot) and
+            (FAttackAction.Weapon.GetAmmoItem <> nil) and
+            (not FAttackAction.Weapon.GetAmmoItem.GetRules.GetArcingShot) and
+            (FAttackAction.Weapon.GetAmmoItem.GetRules.GetDamageType <> DT_HE) and
+            (FAttackAction.Weapon.GetAmmoItem.GetRules.GetDamageType <> DT_STUN) then
+    begin
+      if (FFromNode <> nil) and FFromNode.IsTarget and
+         (FSave.GetModuleMap[FFromNode.GetPosition.X div 10][FFromNode.GetPosition.Y div 10].Second > 0) then
+      begin
+        X := (FUnit.GetPosition.X div 10) * 10;
+        Y := (FUnit.GetPosition.Y div 10) * 10;
+        for I := X to X + 8 do
+          for J := Y to Y + 8 do
+          begin
+            Tile := FSave.GetTile(Position(I, J, 1));
+            if Tile <> nil then
+            begin
+              MD := Tile.GetMapData(O_OBJECT);
+              if (MD <> nil) and MD.IsBaseModule then
+              begin
+                FPatrolAction.Actor := FUnit;
+                FPatrolAction.Target := Position(I, J, 1);
+                FPatrolAction.Weapon := FAttackAction.Weapon;
+                FPatrolAction.aType := BA_SNAPSHOT;
+                FPatrolAction.TU := FPatrolAction.Actor.GetActionTUs(FPatrolAction.aType, FPatrolAction.Weapon);
+                Exit;
+              end;
+            end;
+          end;
+      end
+      else
+      begin
+        Closest := 1000000;
+        for Node in FSave.GetNodes do
+        begin
+          if Node.IsDummy then Continue;
+          if (FSave.GetTile(Node.GetPosition).GetUnit <> nil) and
+             (FSave.GetTile(Node.GetPosition).GetUnit.GetFaction = FUnit.GetFaction) then Continue;
+          if Node.IsTarget and (not Node.IsAllocated) and
+             (FSave.GetModuleMap[Node.GetPosition.X div 10][Node.GetPosition.Y div 10].Second > 0) then
+          begin
+            D := FSave.GetTileEngine.DistanceSq(FUnit.GetPosition, Node.GetPosition);
+            if (FToNode = nil) or ((D < Closest) and (Node <> FFromNode)) then
+            begin
+              FToNode := Node;
+              Closest := D;
+            end;
+          end;
+        end;
+      end;
+    end;
+
+    if FToNode = nil then
+    begin
+      FToNode := FSave.GetPatrolNode(Scout, FUnit, FFromNode);
+      if FToNode = nil then
+        FToNode := FSave.GetPatrolNode(not Scout, FUnit, FFromNode);
+    end;
+
+    if FToNode <> nil then
+    begin
+      FSave.GetPathfinding.Calculate(FUnit, FToNode.GetPosition);
+      if FSave.GetPathfinding.GetStartDirection = -1 then
+        FToNode := nil;
+      FSave.GetPathfinding.AbortPath;
+    end;
+  end;
+
+  if FToNode <> nil then
+  begin
+    FToNode.AllocateNode;
+    FPatrolAction.Actor := FUnit;
+    FPatrolAction.aType := BA_WALK;
+    FPatrolAction.Target := FToNode.GetPosition;
+  end
+  else
+    FPatrolAction.aType := BA_RETHINK;
+end;
+
+procedure TAIModule.SetupAmbush;
+var
+  BestScore, Score, AmbushTUs, I, J: Integer;
+  Path: TList<Integer>;
+  Node: TNode;
+  Pos, Origin, CurrentPos, NextPos: TPosition;
+  Tile: TTile;
+  TargetPos: TPosition;
+begin
+  FAmbushAction.aType := BA_RETHINK;
+  BestScore := 0;
+  FAmbushTUs := 0;
+  Path := nil;
+
+  if SelectClosestKnownEnemy then
+  begin
+    Origin := FSave.GetTileEngine.GetSightOriginVoxel(FAggroTarget);
+    for Node in FSave.GetNodes do
+    begin
+      if Node.IsDummy then Continue;
+      Pos := Node.GetPosition;
+      Tile := FSave.GetTile(Pos);
+      if (Tile = nil) or (FSave.GetTileEngine.Distance(Pos, FUnit.GetPosition) > 10) or
+         (Pos.Z <> FUnit.GetPosition.Z) or Tile.GetDangerous or
+         (not FReachableWithAttack.Contains(FSave.GetTileIndex(Pos))) then
+        Continue;
+      if FTraceAI then
+      begin
+        Tile.SetPreview(10);
+        Tile.SetMarkerColor(13);
+      end;
+      if not FSave.GetTileEngine.CanTargetUnit(@Origin, Tile, TargetPos, FAggroTarget, False, FUnit) and
+         (GetSpottingUnits(Pos) = 0) then
+      begin
+        FSave.GetPathfinding.Calculate(FUnit, Pos);
+        AmbushTUs := FSave.GetPathfinding.GetTotalTUCost;
+        if FSave.GetPathfinding.GetStartDirection <> -1 then
+        begin
+          Score := 100 - AmbushTUs;
+          FSave.GetPathfinding.Calculate(FAggroTarget, Pos);
+          if FSave.GetPathfinding.GetStartDirection <> -1 then
+          begin
+            if FSave.GetTileEngine.FaceWindow(Pos) <> -1 then
+              Score := Score + 25;
+            if Score > BestScore then
+            begin
+              Path := FSave.GetPathfinding.CopyPath;
+              BestScore := Score;
+              FAmbushTUs := IfThen(Pos = FUnit.GetPosition, 1, AmbushTUs);
+              FAmbushAction.Target := Pos;
+              if BestScore > 80 then Break;
+            end;
+          end;
+        end;
+      end;
+    end;
+
+    if BestScore > 0 then
+    begin
+      FAmbushAction.aType := BA_WALK;
+      Origin := (FAmbushAction.Target * Position(16,16,24)) +
+                Position(8,8, FUnit.GetHeight + FUnit.GetFloatHeight -
+                         FSave.GetTile(FAmbushAction.Target).GetTerrainLevel - 4);
+      CurrentPos := FAggroTarget.GetPosition;
+      FSave.GetPathfinding.SetUnit(FAggroTarget);
+      J := Path.Count;
+      while J > 0 do
+      begin
+        FSave.GetPathfinding.GetTUCost(CurrentPos, Path.Last, NextPos, FAggroTarget, 0, False);
+        Path.Delete(Path.Count - 1);
+        CurrentPos := NextPos;
+        Tile := FSave.GetTile(CurrentPos);
+        if FSave.GetTileEngine.CanTargetUnit(@Origin, Tile, TargetPos, FUnit, False, FAggroTarget) then
+        begin
+          FAmbushAction.FinalFacing := FSave.GetTileEngine.GetDirectionTo(FAmbushAction.Target, CurrentPos);
+          Break;
+        end;
+        Dec(J);
+      end;
+      if FTraceAI then
+        Log(LOG_INFO, 'Ambush estimation will move to ' + FAmbushAction.Target.ToString);
+      Path.Free;
+      Exit;
+    end;
+  end;
+  if FTraceAI then
+    Log(LOG_INFO, 'Ambush estimation failed');
+end;
+
+procedure TAIModule.SetupAttack;
+begin
+  FAttackAction.aType := BA_RETHINK;
+  FPsiAction.aType := BA_NONE;
+
+  if FKnownEnemies > 0 then
+  begin
+    if PsiAction then
+      Exit;
+    if FBlaster then
+      WayPointAction;
+  end;
+
+  if SelectNearestTarget > 0 then
+  begin
+    if FMelee and FRifle then
+      SelectMeleeOrRanged;
+    if FUnit.GetGrenadeFromBelt <> nil then
+      GrenadeAction;
+    if FMelee then
+      MeleeAction;
+    if FRifle then
+      ProjectileAction;
+  end;
+
+  if FAttackAction.aType <> BA_RETHINK then
+  begin
+    if FTraceAI then
+      Log(LOG_INFO, 'Attack estimation desires to ' +
+          IfThen(FAttackAction.aType <> BA_WALK, 'shoot at', 'move to') +
+          ' ' + FAttackAction.Target.ToString);
+    Exit;
+  end
+  else if (FSpottingEnemies > 0) or (FUnit.GetAggression < RNG.Generate(0,3)) then
+  begin
+    if FindFirePoint then
+    begin
+      if FTraceAI then
+        Log(LOG_INFO, 'Attack estimation desires to move to ' + FAttackAction.Target.ToString);
+      Exit;
+    end;
+  end;
+  if FTraceAI then
+    Log(LOG_INFO, 'Attack estimation failed');
+end;
+
+procedure TAIModule.SetupEscape;
+var
+  UnitsSpottingMe, Tries, Dist, BestTileScore, Score, Spotters, I, J: Integer;
+  CoverFound: Boolean;
+  BestTile, RandomPos: TPosition;
+  Tile: TTile;
+  RandomTileSearch: TList<TPosition>;
+begin
+  UnitsSpottingMe := GetSpottingUnits(FUnit.GetPosition);
+  Tries := -1;
+  CoverFound := False;
+  SelectNearestTarget;
+  FEscapeTUs := 0;
+  Dist := IfThen(FAggroTarget <> nil, FSave.GetTileEngine.Distance(FUnit.GetPosition, FAggroTarget.GetPosition), 0);
+  BestTileScore := -100000;
+  Score := -100000;
+  BestTile := Position(0,0,0);
+
+  RandomTileSearch := FSave.GetTileSearch;
+  RNG.Shuffle(RandomTileSearch);
+
+  while (Tries < 150) and (not CoverFound) do
+  begin
+    FEscapeAction.Target := FUnit.GetPosition;
+    if FSave.GetTile(FEscapeAction.Target) = nil then
+      FEscapeAction.Target := FUnit.GetPosition;
+
+    Score := 0;
+    if Tries = -1 then
+    begin
+      if FSave.GetTile(FUnit.LastCover) <> nil then
+        FEscapeAction.Target := FUnit.LastCover;
+    end
+    else if Tries < 121 then
+    begin
+      FEscapeAction.Target := FEscapeAction.Target + RandomTileSearch[Tries];
+      Score := 100;
+      if FEscapeAction.Target = FUnit.GetPosition then
+      begin
+        if UnitsSpottingMe > 0 then
+          FEscapeAction.Target := FEscapeAction.Target + Position(RNG.Generate(-20,20), RNG.Generate(-20,20), 0)
+        else
+          Score := Score + 15;
+      end;
+    end
+    else
+    begin
+      if Tries = 121 then
+        if FTraceAI then Log(LOG_INFO, 'best score after systematic search was: ' + IntToStr(BestTileScore));
+      Score := 110;
+      FEscapeAction.Target := FUnit.GetPosition + Position(RNG.Generate(-10,10), RNG.Generate(-10,10), RNG.Generate(-1,1));
+      if FEscapeAction.Target.Z < 0 then FEscapeAction.Target.Z := 0
+      else if FEscapeAction.Target.Z >= FSave.GetMapSizeZ then FEscapeAction.Target.Z := FUnit.GetPosition.Z;
+    end;
+
+    Inc(Tries);
+    Tile := FSave.GetTile(FEscapeAction.Target);
+    if Tile = nil then
+      Score := -100001
+    else
+    begin
+      if not FReachable.Contains(FSave.GetTileIndex(FEscapeAction.Target)) then Continue;
+      Spotters := GetSpottingUnits(FEscapeAction.Target);
+      if FSpottingEnemies > 0 then
+        Score := Score - (1 + Spotters - FSpottingEnemies) * 10
+      else
+        Score := Score + (FSpottingEnemies - Spotters) * 10;
+      if Tile.GetFire then Score := Score - 40;
+      if Tile.GetDangerous then Score := Score - 100;
+      if FTraceAI then
+      begin
+        Tile.SetMarkerColor(IfThen(Score < 0, 3, IfThen(Score < 50, 8, IfThen(Score < 100, 9, 5))));
+        Tile.SetPreview(10);
+        Tile.SetTUMarker(Score);
+      end;
+    end;
+
+    if (Tile <> nil) and (Score > BestTileScore) then
+    begin
+      FSave.GetPathfinding.Calculate(FUnit, FEscapeAction.Target);
+      if (FEscapeAction.Target = FUnit.GetPosition) or (FSave.GetPathfinding.GetStartDirection <> -1) then
+      begin
+        BestTileScore := Score;
+        BestTile := FEscapeAction.Target;
+        FEscapeTUs := IfThen(FEscapeAction.Target = FUnit.GetPosition, 1, FSave.GetPathfinding.GetTotalTUCost);
+        if FTraceAI then
+        begin
+          Tile.SetMarkerColor(IfThen(Score < 0, 7, IfThen(Score < 50, 10, IfThen(Score < 100, 4, 5))));
+          Tile.SetPreview(10);
+          Tile.SetTUMarker(Score);
+        end;
+        if BestTileScore > 100 then CoverFound := True;
+      end;
+      FSave.GetPathfinding.AbortPath;
+    end;
+  end;
+
+  FEscapeAction.Target := BestTile;
+  if FTraceAI then
+    FSave.GetTile(FEscapeAction.Target).SetMarkerColor(13);
+
+  if BestTileScore <= -100000 then
+  begin
+    if FTraceAI then Log(LOG_INFO, 'Escape estimation failed.');
+    FEscapeAction.aType := BA_RETHINK;
+  end
+  else
+  begin
+    if FTraceAI then
+      Log(LOG_INFO, 'Escape estimation completed after ' + IntToStr(Tries) + ' tries, ' +
+          IntToStr(FSave.GetTileEngine.Distance(FUnit.GetPosition, BestTile)) + ' squares away.');
+    FEscapeAction.aType := BA_WALK;
+  end;
+end;
+
+function TAIModule.CountKnownTargets: Integer;
+var
+  Unit: TBattleUnit;
+begin
+  Result := 0;
+  if FUnit.GetFaction = FACTION_HOSTILE then
+    for Unit in FSave.GetUnits do
+      if ValidTarget(Unit, True, True) then
+        Inc(Result);
+end;
+
+function TAIModule.GetSpottingUnits(const Pos: TPosition): Integer;
+var
+  Unit: TBattleUnit;
+  Checking: Boolean;
+  Dist: Integer;
+  OriginVoxel, TargetVoxel: TPosition;
+begin
+  Result := 0;
+  Checking := Pos <> FUnit.GetPosition;
+  for Unit in FSave.GetUnits do
+  begin
+    if ValidTarget(Unit, False, False) then
+    begin
+      Dist := FSave.GetTileEngine.Distance(Pos, Unit.GetPosition);
+      if Dist > 20 then Continue;
+      OriginVoxel := FSave.GetTileEngine.GetSightOriginVoxel(Unit);
+      OriginVoxel.Z := OriginVoxel.Z - 2;
+      if Checking then
+      begin
+        if FSave.GetTileEngine.CanTargetUnit(@OriginVoxel, FSave.GetTile(Pos), TargetVoxel, Unit, False, FUnit) then
+          Inc(Result);
+      end
+      else
+      begin
+        if FSave.GetTileEngine.CanTargetUnit(@OriginVoxel, FSave.GetTile(Pos), TargetVoxel, Unit, False) then
+          Inc(Result);
+      end;
+    end;
+  end;
+end;
+
+function TAIModule.SelectNearestTarget: Integer;
+var
+  Unit: TBattleUnit;
+  Dist: Integer;
+  ValidShot: Boolean;
+  TargetPos: TPosition;
+  Action: TBattleAction;
+  Origin: TPosition;
+  Dir: Integer;
+begin
+  Result := 0;
+  FClosestDist := 100;
+  FAggroTarget := nil;
+  for Unit in FSave.GetUnits do
+  begin
+    if ValidTarget(Unit, True, FUnit.GetFaction = FACTION_HOSTILE) and
+       FSave.GetTileEngine.Visible(FUnit, Unit.GetTile) then
+    begin
+      Inc(Result);
+      Dist := FSave.GetTileEngine.Distance(FUnit.GetPosition, Unit.GetPosition);
+      if Dist < FClosestDist then
+      begin
+        ValidShot := False;
+        if FRifle or not FMelee then
+        begin
+          Action.Actor := FUnit;
+          Action.Weapon := FAttackAction.Weapon;
+          Action.Target := Unit.GetPosition;
+          Origin := FSave.GetTileEngine.GetOriginVoxel(Action, 0);
+          ValidShot := FSave.GetTileEngine.CanTargetUnit(@Origin, Unit.GetTile, TargetPos, FUnit, False);
+        end
+        else
+        begin
+          if SelectPointNearTarget(Unit, FUnit.GetTimeUnits) then
+          begin
+            Dir := FSave.GetTileEngine.GetDirectionTo(FAttackAction.Target, Unit.GetPosition);
+            ValidShot := FSave.GetTileEngine.ValidMeleeRange(FAttackAction.Target, Dir, FUnit, Unit, 0);
+          end;
+        end;
+        if ValidShot then
+        begin
+          FClosestDist := Dist;
+          FAggroTarget := Unit;
+        end;
+      end;
+    end;
+  end;
+  if FAggroTarget <> nil then
+    Result := Result; // keep count
+end;
+
+function TAIModule.SelectClosestKnownEnemy: Boolean;
+var
+  Unit: TBattleUnit;
+  Dist, MinDist: Integer;
+begin
+  Result := False;
+  FAggroTarget := nil;
+  MinDist := 255;
+  for Unit in FSave.GetUnits do
+  begin
+    if ValidTarget(Unit, True, False) then
+    begin
+      Dist := FSave.GetTileEngine.Distance(Unit.GetPosition, FUnit.GetPosition);
+      if Dist < MinDist then
+      begin
+        MinDist := Dist;
+        FAggroTarget := Unit;
+      end;
+    end;
+  end;
+  Result := FAggroTarget <> nil;
+end;
+
+function TAIModule.SelectRandomTarget: Boolean;
+var
+  Unit: TBattleUnit;
+  Farthest, Dist: Integer;
+begin
+  Result := False;
+  Farthest := -100;
+  FAggroTarget := nil;
+  for Unit in FSave.GetUnits do
+  begin
+    if ValidTarget(Unit, True, FUnit.GetFaction = FACTION_HOSTILE) then
+    begin
+      Dist := RNG.Generate(0,20) - FSave.GetTileEngine.Distance(FUnit.GetPosition, Unit.GetPosition);
+      if Dist > Farthest then
+      begin
+        Farthest := Dist;
+        FAggroTarget := Unit;
+      end;
+    end;
+  end;
+  Result := FAggroTarget <> nil;
+end;
+
+function TAIModule.SelectPointNearTarget(Target: TBattleUnit; MaxTUs: Integer): Boolean;
+var
+  Size, TargetSize, X, Y, Z, Dir: Integer;
+  CheckPath: TPosition;
+  Valid, FitHere: Boolean;
+  Distance: Integer;
+begin
+  Result := False;
+  Size := FUnit.GetArmor.GetSize;
+  TargetSize := Target.GetArmor.GetSize;
+  Distance := 1000;
+  for Z := -1 to 1 do
+    for X := -Size to TargetSize do
+      for Y := -Size to TargetSize do
+        if (X <> 0) or (Y <> 0) then
+        begin
+          CheckPath := Target.GetPosition + Position(X, Y, Z);
+          if (FSave.GetTile(CheckPath) = nil) or
+             (not FReachable.Contains(FSave.GetTileIndex(CheckPath))) then Continue;
+          Dir := FSave.GetTileEngine.GetDirectionTo(CheckPath, Target.GetPosition);
+          Valid := FSave.GetTileEngine.ValidMeleeRange(CheckPath, Dir, FUnit, Target, 0);
+          FitHere := FSave.SetUnitPosition(FUnit, CheckPath, True);
+          if Valid and FitHere and (not FSave.GetTile(CheckPath).GetDangerous) then
+          begin
+            FSave.GetPathfinding.Calculate(FUnit, CheckPath, 0, MaxTUs);
+            if (FSave.GetPathfinding.GetStartDirection <> -1) and
+               (FSave.GetPathfinding.GetPath.Count < Distance) then
+            begin
+              FAttackAction.Target := CheckPath;
+              Result := True;
+              Distance := FSave.GetPathfinding.GetPath.Count;
+            end;
+            FSave.GetPathfinding.AbortPath;
+          end;
+        end;
+end;
+
+procedure TAIModule.EvaluateAIMode;
+var
+  EscapeOdds, AmbushOdds, CombatOdds, PatrolOdds: Integer;
+  Decision: Integer;
+begin
+  if (FUnit.GetCharging <> nil) and (FAttackAction.aType <> BA_RETHINK) then
+  begin
+    FAIMode := Integer(AI_COMBAT);
+    Exit;
+  end;
+
+  EscapeOdds := 15;
+  if FMelee then EscapeOdds := 12;
+  if (FUnit.GetFaction = FACTION_HOSTILE) and
+     ((FUnit.GetTimeUnits > FUnit.GetBaseStats.TU div 2) or (FUnit.GetCharging <> nil)) then
+    EscapeOdds := 5;
+
+  AmbushOdds := 12;
+  CombatOdds := 20;
+  PatrolOdds := IfThen(FVisibleEnemies > 0, 15, 30);
+
+  if FSpottingEnemies > 0 then
+  begin
+    PatrolOdds := 0;
+    if FEscapeTUs = 0 then SetupEscape;
+  end;
+
+  if (not FRifle) or (FAmbushTUs = 0) then
+  begin
+    AmbushOdds := 0;
+    if FMelee then CombatOdds := Round(CombatOdds * 1.3);
+  end;
+
+  if FKnownEnemies > 0 then
+  begin
+    if FKnownEnemies = 1 then CombatOdds := Round(CombatOdds * 1.2);
+    if FEscapeTUs = 0 then
+    begin
+      if SelectClosestKnownEnemy then SetupEscape
+      else EscapeOdds := 0;
+    end;
+  end
+  else if FUnit.GetFaction = FACTION_HOSTILE then
+  begin
+    CombatOdds := 0;
+    EscapeOdds := 0;
+  end;
+
+  case TAIMode(FAIMode) of
+    AI_PATROL: PatrolOdds := Round(PatrolOdds * 1.1);
+    AI_AMBUSH: AmbushOdds := Round(AmbushOdds * 1.1);
+    AI_COMBAT: CombatOdds := Round(CombatOdds * 1.1);
+    AI_ESCAPE: EscapeOdds := Round(EscapeOdds * 1.1);
+  end;
+
+  if FUnit.GetHealth < FUnit.GetBaseStats.Health div 3 then
+  begin
+    EscapeOdds := Round(EscapeOdds * 1.7);
+    CombatOdds := Round(CombatOdds * 0.6);
+    AmbushOdds := Round(AmbushOdds * 0.75);
+  end
+  else if FUnit.GetHealth < (2 * FUnit.GetBaseStats.Health) div 3 then
+  begin
+    EscapeOdds := Round(EscapeOdds * 1.4);
+    CombatOdds := Round(CombatOdds * 0.8);
+    AmbushOdds := Round(AmbushOdds * 0.8);
+  end
+  else if FUnit.GetHealth < FUnit.GetBaseStats.Health then
+    EscapeOdds := Round(EscapeOdds * 1.1);
+
+  case FUnit.GetAggression of
+    0: begin EscapeOdds := Round(EscapeOdds * 1.4); CombatOdds := Round(CombatOdds * 0.7); end;
+    1: AmbushOdds := Round(AmbushOdds * 1.1);
+    2: begin CombatOdds := Round(CombatOdds * 1.4); EscapeOdds := Round(EscapeOdds * 0.7); end;
+    else
+      CombatOdds := Round(CombatOdds * Clamp(1.2 + FUnit.GetAggression / 10.0, 0.1, 2.0));
+      EscapeOdds := Round(EscapeOdds * Clamp(0.9 - FUnit.GetAggression / 10.0, 0.1, 2.0));
+  end;
+
+  if FAIMode = Integer(AI_COMBAT) then
+    AmbushOdds := Round(AmbushOdds * 1.5);
+
+  if FSpottingEnemies > 0 then
+  begin
+    EscapeOdds := (10 * EscapeOdds * (FSpottingEnemies + 10)) div 100;
+    CombatOdds := (5 * CombatOdds * (FSpottingEnemies + 20)) div 100;
+  end
+  else
+    EscapeOdds := EscapeOdds div 2;
+
+  if FVisibleEnemies > 0 then
+  begin
+    CombatOdds := (10 * CombatOdds * (FVisibleEnemies + 10)) div 100;
+    if FClosestDist < 5 then AmbushOdds := 0;
+  end;
+
+  if FAmbushTUs > 0 then AmbushOdds := Round(AmbushOdds * 1.7)
+  else AmbushOdds := 0;
+
+  if FSave.GetMissionType = 'STR_BASE_DEFENSE' then
+  begin
+    EscapeOdds := Round(EscapeOdds * 0.75);
+    AmbushOdds := Round(AmbushOdds * 0.6);
+  end;
+
+  if (not FMelee) and (not FRifle) and (not FBlaster) and
+     (FUnit.GetGrenadeFromBelt = nil) and (FUnit.GetBaseStats.PsiSkill = 0) then
+  begin
+    CombatOdds := 0;
+    AmbushOdds := 0;
+  end;
+
+  Decision := RNG.Generate(1, Max(1, PatrolOdds + AmbushOdds + EscapeOdds + CombatOdds));
+
+  if Decision > EscapeOdds then
+  begin
+    if Decision > EscapeOdds + AmbushOdds then
+    begin
+      if Decision > EscapeOdds + AmbushOdds + CombatOdds then
+        FAIMode := Integer(AI_PATROL)
+      else
+        FAIMode := Integer(AI_COMBAT);
+    end
+    else
+      FAIMode := Integer(AI_AMBUSH);
+  end
+  else
+    FAIMode := Integer(AI_ESCAPE);
+
+  if (FUnit.GetFaction = FACTION_HOSTILE) and (FSave.IsCheating or (FUnit.GetCharging <> nil)) then
+    FAIMode := Integer(AI_COMBAT);
+
+  // Enforce validity
+  if FAIMode = Integer(AI_COMBAT) then
+  begin
+    if (FSave.GetTile(FAttackAction.Target) <> nil) and
+       (FSave.GetTile(FAttackAction.Target).GetUnit <> nil) then
+    begin
+      if FAttackAction.aType <> BA_RETHINK then Exit;
+      if FindFirePoint then Exit;
+    end
+    else if SelectRandomTarget and FindFirePoint then Exit;
+    FAIMode := Integer(AI_PATROL);
+  end;
+
+  if FAIMode = Integer(AI_PATROL) then
+  begin
+    if FToNode <> nil then Exit;
+    if FPatrolAction.aType = BA_SNAPSHOT then Exit;
+    FAIMode := Integer(AI_AMBUSH);
+  end;
+
+  if FAIMode = Integer(AI_AMBUSH) then
+  begin
+    if FAmbushTUs <> 0 then Exit;
+    FAIMode := Integer(AI_ESCAPE);
+  end;
+end;
+
+function TAIModule.FindFirePoint: Boolean;
+var
+  RandomTileSearch: TList<TPosition>;
+  Pos, Origin, TargetPos: TPosition;
+  Tile: TTile;
+  Score, BestScore: Integer;
+begin
+  Result := False;
+  if not SelectClosestKnownEnemy then Exit;
+  RandomTileSearch := FSave.GetTileSearch;
+  RNG.Shuffle(RandomTileSearch);
+  BestScore := 0;
+  FAttackAction.aType := BA_RETHINK;
+  for Pos in RandomTileSearch do
+  begin
+    Pos := FUnit.GetPosition + Pos;
+    Tile := FSave.GetTile(Pos);
+    if (Tile = nil) or (not FReachableWithAttack.Contains(FSave.GetTileIndex(Pos))) then Continue;
+    Score := 0;
+    Origin := (Pos * Position(16,16,24)) +
+              Position(8,8, FUnit.GetHeight + FUnit.GetFloatHeight - Tile.GetTerrainLevel - 4);
+    if FSave.GetTileEngine.CanTargetUnit(@Origin, FAggroTarget.GetTile, TargetPos, FUnit, False) then
+    begin
+      FSave.GetPathfinding.Calculate(FUnit, Pos);
+      if FSave.GetPathfinding.GetStartDirection <> -1 then
+      begin
+        Score := 100 - GetSpottingUnits(Pos) * 10;
+        Score := Score + (FUnit.GetTimeUnits - FSave.GetPathfinding.GetTotalTUCost);
+        if not FAggroTarget.CheckViewSector(Pos) then Score := Score + 10;
+        if Score > BestScore then
+        begin
+          BestScore := Score;
+          FAttackAction.Target := Pos;
+          FAttackAction.FinalFacing := FSave.GetTileEngine.GetDirectionTo(Pos, FAggroTarget.GetPosition);
+          if Score > 125 then Break;
+        end;
+      end;
+    end;
+  end;
+
+  if BestScore > 70 then
+  begin
+    FAttackAction.aType := BA_WALK;
+    if FTraceAI then
+      Log(LOG_INFO, 'Firepoint found at ' + FAttackAction.Target.ToString + ', score: ' + IntToStr(BestScore));
+    Result := True;
+  end
+  else
+    if FTraceAI then
+      Log(LOG_INFO, 'Firepoint failed, best estimation: ' + FAttackAction.Target.ToString + ', score: ' + IntToStr(BestScore));
+end;
+
+function TAIModule.ExplosiveEfficacy(TargetPos: TPosition; AttackingUnit: TBattleUnit;
+  Radius, Diff: Integer; Grenade: Boolean): Boolean;
+var
+  ModPtr: TMod;
+  TargetTile: TTile;
+  Distance, InjuryLevel, Desperation, EnemiesAffected, Efficacy: Integer;
+  Unit: TBattleUnit;
+  OriginVoxel, TargetVoxel: TPosition;
+  Traj: TList<TPosition>;
+  CollidesWith: Integer;
+begin
+  Result := False;
+  ModPtr := FSave.GetBattleState.GetGame.GetMod;
+  if (not Grenade and (FSave.GetTurn < ModPtr.GetTurnAIUseBlaster)) or
+     (Grenade and (FSave.GetTurn < ModPtr.GetTurnAIUseGrenade)) then
+    Exit;
+
+  TargetTile := FSave.GetTile(TargetPos);
+  if Grenade and (TargetPos.Z > 0) and
+     TargetTile.HasNoFloor(FSave.GetTile(TargetPos - Position(0,0,1))) then
+    Exit;
+
+  if Diff = -1 then
+    Diff := FSave.GetBattleState.GetGame.GetSavedGame.GetDifficultyCoefficient;
+
+  Distance := FSave.GetTileEngine.Distance(AttackingUnit.GetPosition, TargetPos);
+  InjuryLevel := AttackingUnit.GetBaseStats.Health - AttackingUnit.GetHealth;
+  Desperation := (100 - AttackingUnit.GetMorale) div 10;
+  EnemiesAffected := 0;
+  if InjuryLevel > (AttackingUnit.GetBaseStats.Health div 3) * 2 then
+    Desperation := Desperation + 3;
+
+  Efficacy := Desperation;
+
+  if Abs(AttackingUnit.GetPosition.Z - TargetPos.Z) <= Options.BattleExplosionHeight and
+     (Distance <= Radius) then
+    Efficacy := Efficacy - 4;
+
+  Efficacy := Efficacy + Diff div 2;
+
+  // count enemies
+  for Unit in FSave.GetUnits do
+  begin
+    if Unit.IsOut then Continue;
+    if (Abs(Unit.GetPosition.Z - TargetPos.Z) <= Options.BattleExplosionHeight) and
+       (FSave.GetTileEngine.Distance(Unit.GetPosition, TargetPos) <= Radius) then
+    begin
+      if Unit.GetTile.GetDangerous then Continue;
+      if (Unit.GetFaction = FTargetFaction) and (Unit.GetTurnsSinceSpotted > FIntelligence) then Continue;
+
+      OriginVoxel := Position((TargetPos.X * 16) + 8, (TargetPos.Y * 16) + 8, (TargetPos.Z * 24) + 12);
+      TargetVoxel := Position((Unit.GetPosition.X * 16) + 8, (Unit.GetPosition.Y * 16) + 8, (Unit.GetPosition.Z * 24) + 12);
+      Traj := TList<TPosition>.Create;
+      CollidesWith := FSave.GetTileEngine.CalculateLine(OriginVoxel, TargetVoxel, False, Traj, AttackingUnit, True, False, Unit);
+      Traj.Free;
+      if (CollidesWith = V_UNIT) and (Traj.Count > 0) and
+         (Traj[0] div Position(16,16,24) = Unit.GetPosition) then
+      begin
+        if Unit.GetFaction = FTargetFaction then
+        begin
+          Inc(EnemiesAffected);
+          Inc(Efficacy);
+        end
+        else if (Unit.GetFaction = AttackingUnit.GetFaction) or
+                ((AttackingUnit.GetFaction = FACTION_NEUTRAL) and (Unit.GetFaction = FACTION_PLAYER)) then
+          Efficacy := Efficacy - 2;
+      end;
+    end;
+  end;
+
+  if Grenade and (Desperation < 6) and (EnemiesAffected < 2) then
+    Exit;
+
+  Result := (Efficacy > 0) or (EnemiesAffected >= 10);
+end;
+
+function TAIModule.GetNodeOfBestEfficacy(var Action: TBattleAction): Boolean;
+var
+  ModPtr: TMod;
+  BestScore, NodePoints, Dist: Integer;
+  Node: TNode;
+  OriginVoxel, TargetVoxel: TPosition;
+  Unit: TBattleUnit;
+begin
+  Result := False;
+  ModPtr := FSave.GetBattleState.GetGame.GetMod;
+  if FSave.GetTurn < ModPtr.GetTurnAIUseGrenade then Exit;
+
+  BestScore := 2;
+  OriginVoxel := FSave.GetTileEngine.GetSightOriginVoxel(FUnit);
+  for Node in FSave.GetNodes do
+  begin
+    if Node.IsDummy then Continue;
+    Dist := FSave.GetTileEngine.Distance(Node.GetPosition, FUnit.GetPosition);
+    if (Dist <= 20) and (Dist > Action.Weapon.GetRules.GetExplosionRadius) and
+       FSave.GetTileEngine.CanTargetTile(@OriginVoxel, FSave.GetTile(Node.GetPosition), O_FLOOR, TargetVoxel, FUnit, False) then
+    begin
+      NodePoints := 0;
+      for Unit in FSave.GetUnits do
+      begin
+        if Unit.IsOut then Continue;
+        Dist := FSave.GetTileEngine.Distance(Node.GetPosition, Unit.GetPosition);
+        if Dist < Action.Weapon.GetRules.GetExplosionRadius then
+        begin
+          OriginVoxel := FSave.GetTileEngine.GetSightOriginVoxel(Unit);
+          if FSave.GetTileEngine.CanTargetTile(@OriginVoxel, FSave.GetTile(Node.GetPosition), O_FLOOR, TargetVoxel, Unit, False) then
+          begin
+            if ((FUnit.GetFaction = FACTION_HOSTILE) and (Unit.GetFaction <> FACTION_HOSTILE)) or
+               ((FUnit.GetFaction = FACTION_NEUTRAL) and (Unit.GetFaction = FACTION_HOSTILE)) then
+            begin
+              if Unit.GetTurnsSinceSpotted <= FIntelligence then
+                Inc(NodePoints);
+            end
+            else
+              NodePoints := NodePoints - 2;
+          end;
+        end;
+      end;
+      if NodePoints > BestScore then
+      begin
+        BestScore := NodePoints;
+        Action.Target := Node.GetPosition;
+      end;
+    end;
+  end;
+  Result := BestScore > 2;
+end;
+
+procedure TAIModule.MeleeAction;
+var
+  AttackCost, ChargeReserve, Distance, NewDistance: Integer;
+  Unit: TBattleUnit;
+begin
+  AttackCost := FUnit.GetActionTUs(BA_HIT, FUnit.GetMeleeWeapon);
+  if FUnit.GetTimeUnits < AttackCost then Exit;
+
+  if (FAggroTarget <> nil) and (not FAggroTarget.IsOut) then
+  begin
+    if FSave.GetTileEngine.ValidMeleeRange(FUnit, FAggroTarget,
+       FSave.GetTileEngine.GetDirectionTo(FUnit.GetPosition, FAggroTarget.GetPosition)) then
+    begin
+      MeleeAttack;
+      Exit;
+    end;
+  end;
+
+  ChargeReserve := FUnit.GetTimeUnits - AttackCost;
+  Distance := (ChargeReserve div 4) + 1;
+  FAggroTarget := nil;
+  for Unit in FSave.GetUnits do
+  begin
+    NewDistance := FSave.GetTileEngine.Distance(FUnit.GetPosition, Unit.GetPosition);
+    if (NewDistance > 20) or (not ValidTarget(Unit, True, FUnit.GetFaction = FACTION_HOSTILE)) then Continue;
+    if (NewDistance < Distance) or (NewDistance = 1) then
+    begin
+      if (NewDistance = 1) or SelectPointNearTarget(Unit, ChargeReserve) then
+      begin
+        FAggroTarget := Unit;
+        FAttackAction.aType := BA_WALK;
+        FUnit.SetCharging(FAggroTarget);
+        Distance := NewDistance;
+      end;
+    end;
+  end;
+
+  if FAggroTarget <> nil then
+  begin
+    if FSave.GetTileEngine.ValidMeleeRange(FUnit, FAggroTarget,
+       FSave.GetTileEngine.GetDirectionTo(FUnit.GetPosition, FAggroTarget.GetPosition)) then
+      MeleeAttack;
+  end;
+  if FTraceAI and (FAggroTarget <> nil) then
+    Log(LOG_INFO, 'CHARGE!');
+end;
+
+procedure TAIModule.WayPointAction;
+var
+  AttackCost: Integer;
+  Unit: TBattleUnit;
+  PathDirection, CollidesWith, MaxWaypoints, I: Integer;
+  LastWayPoint, LastPosition, CurrentPosition, DirectionVector, VoxelPosA, VoxelPosB: TPosition;
+begin
+  AttackCost := FUnit.GetActionTUs(BA_LAUNCH, FAttackAction.Weapon);
+  if FUnit.GetTimeUnits < AttackCost then Exit;
+
+  FAggroTarget := nil;
+  for Unit in FSave.GetUnits do
+  begin
+    if not ValidTarget(Unit, True, FUnit.GetFaction = FACTION_HOSTILE) then Continue;
+    FSave.GetPathfinding.Calculate(FUnit, Unit.GetPosition, Unit, -1);
+    if (FSave.GetPathfinding.GetStartDirection <> -1) and
+       ExplosiveEfficacy(Unit.GetPosition, FUnit,
+         (FAttackAction.Weapon.GetAmmoItem.GetRules.GetPower div 20) + 1, FAttackAction.Diff) then
+    begin
+      FAggroTarget := Unit;
+      Break;
+    end;
+    FSave.GetPathfinding.AbortPath;
+  end;
+
+  if FAggroTarget = nil then Exit;
+
+  FAttackAction.aType := BA_LAUNCH;
+  FAttackAction.TU := FUnit.GetActionTUs(BA_LAUNCH, FAttackAction.Weapon);
+  if FAttackAction.TU > FUnit.GetTimeUnits then
+  begin
+    FAttackAction.aType := BA_RETHINK;
+    Exit;
+  end;
+
+  FAttackAction.Waypoints.Clear;
+  MaxWaypoints := FAttackAction.Weapon.GetRules.GetWaypoints;
+  if MaxWaypoints = 0 then
+    MaxWaypoints := FAttackAction.Weapon.GetAmmoItem.GetRules.GetWaypoints;
+  if MaxWaypoints = -1 then
+    MaxWaypoints := 6 + (FAttackAction.Diff * 2);
+
+  LastWayPoint := FUnit.GetPosition;
+  LastPosition := FUnit.GetPosition;
+  CurrentPosition := FUnit.GetPosition;
+
+  FSave.GetPathfinding.Calculate(FUnit, FAggroTarget.GetPosition, FAggroTarget, -1);
+  PathDirection := FSave.GetPathfinding.DequeuePath;
+  while (PathDirection <> -1) and (FAttackAction.Waypoints.Count < MaxWaypoints) do
+  begin
+    LastPosition := CurrentPosition;
+    FSave.GetPathfinding.DirectionToVector(PathDirection, DirectionVector);
+    CurrentPosition := CurrentPosition + DirectionVector;
+    VoxelPosA := Position((CurrentPosition.X * 16) + 8, (CurrentPosition.Y * 16) + 8, (CurrentPosition.Z * 24) + 16);
+    VoxelPosB := Position((LastWayPoint.X * 16) + 8, (LastWayPoint.Y * 16) + 8, (LastWayPoint.Z * 24) + 16);
+    CollidesWith := FSave.GetTileEngine.CalculateLine(VoxelPosA, VoxelPosB, False, nil, FUnit, True);
+    if (CollidesWith > V_EMPTY) and (CollidesWith < V_UNIT) then
+    begin
+      FAttackAction.Waypoints.Add(LastPosition);
+      LastWayPoint := LastPosition;
+    end
+    else if CollidesWith = V_UNIT then
+    begin
+      if FSave.GetTile(CurrentPosition).GetUnit = FAggroTarget then
+      begin
+        FAttackAction.Waypoints.Add(CurrentPosition);
+        LastWayPoint := CurrentPosition;
+      end;
+    end;
+    PathDirection := FSave.GetPathfinding.DequeuePath;
+  end;
+
+  if FAttackAction.Waypoints.Count > 0 then
+    FAttackAction.Target := FAttackAction.Waypoints[0]
+  else
+    FAttackAction.aType := BA_RETHINK;
+end;
+
+procedure TAIModule.ProjectileAction;
+begin
+  FAttackAction.Target := FAggroTarget.GetPosition;
+  if (FAttackAction.Weapon.GetAmmoItem = nil) or
+     (FAttackAction.Weapon.GetAmmoItem.GetRules.GetExplosionRadius = 0) or
+     ExplosiveEfficacy(FAggroTarget.GetPosition, FUnit,
+       FAttackAction.Weapon.GetAmmoItem.GetRules.GetExplosionRadius, FAttackAction.Diff) then
+    SelectFireMethod;
+end;
+
+procedure TAIModule.SelectFireMethod;
+var
+  Distance, TUAuto, TUSnap, TUAimed, CurrentTU: Integer;
+begin
+  Distance := FSave.GetTileEngine.Distance(FUnit.GetPosition, FAttackAction.Target);
+  FAttackAction.aType := BA_RETHINK;
+  TUAuto := FAttackAction.Weapon.GetRules.GetTUAuto;
+  TUSnap := FAttackAction.Weapon.GetRules.GetTUSnap;
+  TUAimed := FAttackAction.Weapon.GetRules.GetTUAimed;
+  CurrentTU := FUnit.GetTimeUnits;
+
+  if Distance < 4 then
+  begin
+    if (TUAuto > 0) and (CurrentTU >= FUnit.GetActionTUs(BA_AUTOSHOT, FAttackAction.Weapon)) then
+    begin
+      FAttackAction.aType := BA_AUTOSHOT;
+      Exit;
+    end;
+    if (TUSnap = 0) or (CurrentTU < FUnit.GetActionTUs(BA_SNAPSHOT, FAttackAction.Weapon)) then
+    begin
+      if (TUAimed > 0) and (CurrentTU >= FUnit.GetActionTUs(BA_AIMEDSHOT, FAttackAction.Weapon)) then
+        FAttackAction.aType := BA_AIMEDSHOT;
+      Exit;
+    end;
+    FAttackAction.aType := BA_SNAPSHOT;
+    Exit;
+  end;
+
+  if Distance > 12 then
+  begin
+    if (TUAimed > 0) and (CurrentTU >= FUnit.GetActionTUs(BA_AIMEDSHOT, FAttackAction.Weapon)) then
+    begin
+      FAttackAction.aType := BA_AIMEDSHOT;
+      Exit;
+    end;
+    if (Distance < 20) and (TUSnap > 0) and (CurrentTU >= FUnit.GetActionTUs(BA_SNAPSHOT, FAttackAction.Weapon)) then
+    begin
+      FAttackAction.aType := BA_SNAPSHOT;
+      Exit;
+    end;
+  end;
+
+  if (TUSnap > 0) and (CurrentTU >= FUnit.GetActionTUs(BA_SNAPSHOT, FAttackAction.Weapon)) then
+    FAttackAction.aType := BA_SNAPSHOT
+  else if (TUAimed > 0) and (CurrentTU >= FUnit.GetActionTUs(BA_AIMEDSHOT, FAttackAction.Weapon)) then
+    FAttackAction.aType := BA_AIMEDSHOT
+  else if (TUAuto > 0) and (CurrentTU >= FUnit.GetActionTUs(BA_AUTOSHOT, FAttackAction.Weapon)) then
+    FAttackAction.aType := BA_AUTOSHOT;
+end;
+
+procedure TAIModule.GrenadeAction;
+var
+  Grenade: TBattleItem;
+  TU, TUPick, TUPrime, TUThrow: Integer;
+  Action: TBattleAction;
+  OriginVoxel, TargetVoxel: TPosition;
+begin
+  Grenade := FUnit.GetGrenadeFromBelt;
+  if Grenade = nil then Exit;
+  TUPick := 4;
+  TUPrime := FUnit.GetActionTUs(BA_PRIME, Grenade);
+  TUThrow := FUnit.GetActionTUs(BA_THROW, Grenade);
+  TU := TUPick + TUPrime + TUThrow;
+  if TU > FUnit.GetTimeUnits then Exit;
+
+  Action.Weapon := Grenade;
+  Action.aType := BA_THROW;
+  Action.Actor := FUnit;
+  if ExplosiveEfficacy(FAggroTarget.GetPosition, FUnit, Grenade.GetRules.GetExplosionRadius, FAttackAction.Diff, True) then
+    Action.Target := FAggroTarget.GetPosition
+  else if not GetNodeOfBestEfficacy(Action) then
+    Exit;
+
+  OriginVoxel := FSave.GetTileEngine.GetOriginVoxel(Action, 0);
+  TargetVoxel := Action.Target * Position(16,16,24) + Position(8,8, (2 - FSave.GetTile(Action.Target).GetTerrainLevel));
+  if FSave.GetTileEngine.ValidateThrow(Action, OriginVoxel, TargetVoxel) then
+  begin
+    FAttackAction.Weapon := Grenade;
+    FAttackAction.Target := Action.Target;
+    FAttackAction.aType := BA_THROW;
+    FAttackAction.TU := TU;
+    FRifle := False;
+    FMelee := False;
+  end;
+end;
+
+function TAIModule.PsiAction: Boolean;
+var
+  Item: TBattleItem;
+  PsiWeaponRules: TRuleItem;
+  Cost: Integer;
+  LOSRequired: Boolean;
+  PsiAttackStrength, ChanceToAttack, ControlOdds, Morale, Bravery: Integer;
+  Unit: TBattleUnit;
+begin
+  Result := False;
+  Item := FUnit.GetSpecialWeapon(BT_PSIAMP);
+  if Item = nil then Exit;
+
+  PsiWeaponRules := Item.GetRules;
+  Cost := PsiWeaponRules.GetTUUse;
+  if not PsiWeaponRules.GetFlatRate then
+    Cost := Floor(FUnit.GetBaseStats.TU * Cost / 100.0);
+  LOSRequired := PsiWeaponRules.IsLOSRequired;
+
+  if (FUnit.GetOriginalFaction = FUnit.GetFaction) and
+     (FUnit.GetTimeUnits > FEscapeTUs + Cost) and
+     (not FDidPsi) then
+  begin
+    PsiAttackStrength := FUnit.GetBaseStats.PsiSkill * FUnit.GetBaseStats.PsiStrength div 50;
+    ChanceToAttack := 0;
+    for Unit in FSave.GetUnits do
+    begin
+      if (Unit.GetArmor.GetSize = 1) and
+         ValidTarget(Unit, True, False) and
+         (Unit.GetOriginalFaction = FTargetFaction) and
+         ((not LOSRequired) or FUnit.GetVisibleUnits.Contains(Unit)) then
+      begin
+        ControlOdds := PsiAttackStrength;
+        if Unit.GetBaseStats.PsiSkill > 0 then
+          ControlOdds := ControlOdds + Round(Unit.GetBaseStats.PsiSkill * -0.4);
+        ControlOdds := ControlOdds - FSave.GetTileEngine.Distance(Unit.GetPosition, FUnit.GetPosition)
+                       - Unit.GetBaseStats.PsiStrength + RNG.Generate(55, 105);
+        if ControlOdds > ChanceToAttack then
+        begin
+          ChanceToAttack := ControlOdds;
+          FAggroTarget := Unit;
+        end;
+      end;
+    end;
+
+    if (FAggroTarget = nil) or (ChanceToAttack <= 0) then Exit;
+
+    if FVisibleEnemies > 0 then
+    begin
+      if (FAttackAction.Weapon <> nil) and (FAttackAction.Weapon.GetAmmoItem <> nil) and
+         (FAttackAction.Weapon.GetAmmoItem.GetRules.GetPower >= ChanceToAttack) then
+        Exit;
+    end
+    else if RNG.Generate(35,155) >= ChanceToAttack then
+      Exit;
+
+    if FTraceAI then
+      Log(LOG_INFO, 'making a psionic attack this turn');
+
+    if ChanceToAttack >= 30 then
+    begin
+      ControlOdds := 40;
+      Morale := FAggroTarget.GetMorale;
+      Bravery := (110 - FAggroTarget.GetBaseStats.Bravery) div 10;
+      if Bravery > 6 then ControlOdds := ControlOdds - 15;
+      if Bravery < 4 then ControlOdds := ControlOdds + 15;
+      if Morale >= 40 then
+      begin
+        if Morale - 10 * Bravery < 50 then ControlOdds := ControlOdds - 15;
+      end
+      else ControlOdds := ControlOdds + 15;
+      if Morale = 0 then ControlOdds := 100;
+      if RNG.Percent(ControlOdds) then
+      begin
+        FPsiAction.aType := BA_MINDCONTROL;
+        FPsiAction.Target := FAggroTarget.GetPosition;
+        FPsiAction.Weapon := Item;
+        Result := True;
+        Exit;
+      end;
+    end;
+    FPsiAction.aType := BA_PANIC;
+    FPsiAction.Target := FAggroTarget.GetPosition;
+    FPsiAction.Weapon := Item;
+    Result := True;
+  end;
+end;
+
+procedure TAIModule.MeleeAttack;
+begin
+  FUnit.LookAt(FAggroTarget.GetPosition + Position(FUnit.GetArmor.GetSize - 1, FUnit.GetArmor.GetSize - 1, 0), False);
+  while FUnit.GetStatus = STATUS_TURNING do
+    FUnit.Turn;
+  FAttackAction.Target := FAggroTarget.GetPosition;
+  FAttackAction.aType := BA_HIT;
+  FAttackAction.Weapon := FUnit.GetMeleeWeapon;
+end;
+
+function TAIModule.ValidTarget(AUnit: TBattleUnit; AssessDanger, IncludeCivs: Boolean): Boolean;
+begin
+  if AUnit.IsOut or
+     ((FUnit.GetFaction = FACTION_HOSTILE) and (FIntelligence < AUnit.GetTurnsSinceSpotted)) or
+     (AssessDanger and AUnit.GetTile.GetDangerous) or
+     (AUnit.GetFaction = FUnit.GetFaction) then
+    Exit(False);
+  if IncludeCivs then
+    Exit(True);
+  Result := AUnit.GetFaction = FTargetFaction;
+end;
+
+function TAIModule.GetReserveMode: TBattleActionType;
+begin
+  Result := FReserve;
+end;
+
+procedure TAIModule.SelectMeleeOrRanged;
+var
+  RangedWeapon, MeleeWeapon: TRuleItem;
+  MeleeOdds, Dmg: Integer;
+begin
+  RangedWeapon := FAttackAction.Weapon.GetRules;
+  MeleeWeapon := IfThen(FUnit.GetMeleeWeapon <> nil, FUnit.GetMeleeWeapon.GetRules, nil);
+  if MeleeWeapon = nil then
+  begin
+    FMelee := False;
+    Exit;
+  end;
+  if (RangedWeapon = nil) or (FAttackAction.Weapon.GetAmmoItem = nil) then
+  begin
+    FRifle := False;
+    Exit;
+  end;
+
+  MeleeOdds := 10;
+  Dmg := MeleeWeapon.GetPower;
+  if MeleeWeapon.IsStrengthApplied then
+    Dmg := Dmg + FUnit.GetBaseStats.Strength;
+  Dmg := Dmg * FAggroTarget.GetArmor.GetDamageModifier(MeleeWeapon.GetDamageType);
+  if Dmg > 50 then
+    MeleeOdds := MeleeOdds + (Dmg - 50) div 2;
+  if FVisibleEnemies > 1 then
+    MeleeOdds := MeleeOdds - 20 * (FVisibleEnemies - 1);
+
+  if (MeleeOdds > 0) and (FUnit.GetHealth >= (2 * FUnit.GetBaseStats.Health) div 3) then
+  begin
+    if FUnit.GetAggression = 0 then MeleeOdds := MeleeOdds - 20
+    else if FUnit.GetAggression > 1 then MeleeOdds := MeleeOdds + 10 * FUnit.GetAggression;
+    if RNG.Percent(MeleeOdds) then
+    begin
+      FRifle := False;
+      FReachableWithAttack := FSave.GetPathfinding.FindReachable(FUnit,
+        FUnit.GetTimeUnits - FUnit.GetActionTUs(BA_HIT, FUnit.GetMeleeWeapon));
+      Exit;
+    end;
+  end;
+  FMelee := False;
+end;
+
+function TAIModule.GetTarget: TBattleUnit;
+begin
+  Result := FAggroTarget;
+end;
+
+procedure TAIModule.FreePatrolTarget;
+begin
+  if FToNode <> nil then
+    FToNode.FreeNode;
+end;
+
+end.

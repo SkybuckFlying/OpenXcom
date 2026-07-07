@@ -1,0 +1,2376 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦FILE:PurchaseState.pas;encoding=utf8;eol=lf⟧
+unit PurchaseState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections, Math,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Timer, Engine.Options,
+  Engine.Unicode, Interface.TextButton, Interface.Window,
+  Interface.Text, Interface.ComboBox, Interface.TextList,
+  Savegame.SavedGame, Mod.RuleCraft, Mod.RuleItem,
+  Savegame.Base, Savegame.Craft, Savegame.ItemContainer,
+  Menu.ErrorMessageState, Mod.RuleInterface, Mod.RuleSoldier,
+  Mod.RuleCraftWeapon, Mod.Armor, fmath;
+
+type
+  TPurchaseState = class(TState)
+  private
+    FBase: TBase;
+    FBtnOk, FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtFunds, FTxtPurchases, FTxtCost, FTxtQuantity, FTxtSpaceUsed: TText;
+    FCbxCategory: TComboBox;
+    FLstItems: TTextList;
+    FItems: TList<TTransferRow>;
+    FRows: TList<Integer>;
+    FCats: TStringList;
+    FCraftWeapons, FArmors: TSet<string>;
+    FSel: Integer;
+    FTotal: Integer;
+    FPQty: Integer;
+    FCQty: Integer;
+    FIQty: Double;
+    FAmmoColor: Byte;
+    FTimerInc, FTimerDec: TTimer;
+
+    function GetCategory(Index: Integer): string;
+    function GetRow: TTransferRow;
+    procedure UpdateList;
+    procedure UpdateItemStrings;
+    procedure IncreaseByValue(Change: Integer);
+    procedure DecreaseByValue(Change: Integer);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure Think; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowPress(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowRelease(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowClick(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowPress(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowRelease(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowClick(Sender: TObject; Action: TAction);
+    procedure LstItemsMousePress(Sender: TObject; Action: TAction);
+    procedure Increase;
+    procedure Decrease;
+    procedure CbxCategoryChange(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TPurchaseState.Create(AOwner: TComponent; Base: TBase);
+var
+  cw: TStringList;
+  ar: TStringList;
+  soldiers: TStringList;
+  crafts: TStringList;
+  items: TStringList;
+  i: Integer;
+  rule: TRuleItem;
+  row: TTransferRow;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FItems := TList<TTransferRow>.Create;
+  FRows := TList<Integer>.Create;
+  FCats := TStringList.Create;
+  FCraftWeapons := TSet<string>.Create;
+  FArmors := TSet<string>.Create;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(148, 16, 8, 176);
+  FBtnCancel := TTextButton.Create(148, 16, 164, 176);
+  FTxtTitle := TText.Create(310, 17, 5, 8);
+  FTxtFunds := TText.Create(150, 9, 10, 24);
+  FTxtPurchases := TText.Create(150, 9, 160, 24);
+  FTxtSpaceUsed := TText.Create(150, 9, 160, 34);
+  FTxtCost := TText.Create(102, 9, 152, 44);
+  FTxtQuantity := TText.Create(60, 9, 256, 44);
+  FCbxCategory := TComboBox.Create(Self, 120, 16, 10, 36);
+  FLstItems := TTextList.Create(287, 120, 8, 54);
+
+  SetInterface('buyMenu');
+  FAmmoColor := FGame.GetMod.GetInterface('buyMenu').GetElement('ammoColor').Color;
+  Add(FWindow, 'window', 'buyMenu');
+  Add(FBtnOk, 'button', 'buyMenu');
+  Add(FBtnCancel, 'button', 'buyMenu');
+  Add(FTxtTitle, 'text', 'buyMenu');
+  Add(FTxtFunds, 'text', 'buyMenu');
+  Add(FTxtPurchases, 'text', 'buyMenu');
+  Add(FTxtSpaceUsed, 'text', 'buyMenu');
+  Add(FTxtCost, 'text', 'buyMenu');
+  Add(FTxtQuantity, 'text', 'buyMenu');
+  Add(FLstItems, 'list', 'buyMenu');
+  Add(FCbxCategory, 'text', 'buyMenu');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK13.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnCancel.SetText(Translate('STR_CANCEL'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_PURCHASE_HIRE_PERSONNEL'));
+  FTxtFunds.SetText(Translate('STR_CURRENT_FUNDS').Arg(Unicode.FormatFunding(FGame.GetSavedGame.GetFunds)));
+  FTxtPurchases.SetText(Translate('STR_COST_OF_PURCHASES').Arg(Unicode.FormatFunding(FTotal)));
+
+  FTxtSpaceUsed.Visible := Options.StorageLimitsEnforced;
+  FTxtSpaceUsed.SetText(Translate('STR_SPACE_USED').Arg(
+    Format('%d:%d', [Floor(FBase.GetUsedStores), FBase.GetAvailableStores])));
+
+  FTxtCost.SetText(Translate('STR_COST_PER_UNIT_UC'));
+  FTxtQuantity.SetText(Translate('STR_QUANTITY_UC'));
+
+  FLstItems.SetArrowColumn(227, ARROW_VERTICAL);
+  FLstItems.SetColumns([150, 55, 50, 32]);
+  FLstItems.SetSelectable(True);
+  FLstItems.SetBackground(FWindow);
+  FLstItems.SetMargin(2);
+  FLstItems.OnLeftArrowPress := LstItemsLeftArrowPress;
+  FLstItems.OnLeftArrowRelease := LstItemsLeftArrowRelease;
+  FLstItems.OnLeftArrowClick := LstItemsLeftArrowClick;
+  FLstItems.OnRightArrowPress := LstItemsRightArrowPress;
+  FLstItems.OnRightArrowRelease := LstItemsRightArrowRelease;
+  FLstItems.OnRightArrowClick := LstItemsRightArrowClick;
+  FLstItems.OnMousePress := LstItemsMousePress;
+
+  FCats.Add('STR_ALL_ITEMS');
+
+  // Collect craft weapon launcher and clip items
+  cw := FGame.GetMod.GetCraftWeaponsList;
+  for i := 0 to cw.Count - 1 do
+  begin
+    var ruleCW := FGame.GetMod.GetCraftWeapon(cw[i]);
+    FCraftWeapons.Add(ruleCW.GetLauncherItem);
+    FCraftWeapons.Add(ruleCW.GetClipItem);
+  end;
+  ar := FGame.GetMod.GetArmorsList;
+  for i := 0 to ar.Count - 1 do
+    FArmors.Add(FGame.GetMod.GetArmor(ar[i]).GetStoreItem);
+
+  // Soldiers
+  soldiers := FGame.GetMod.GetSoldiersList;
+  for i := 0 to soldiers.Count - 1 do
+  begin
+    var ruleS := FGame.GetMod.GetSoldier(soldiers[i]);
+    if (ruleS.GetBuyCost <> 0) and FGame.GetSavedGame.IsResearched(ruleS.GetRequirements) then
+    begin
+      row.Type := TRANSFER_SOLDIER;
+      row.Rule := ruleS;
+      row.Name := Translate(ruleS.GetType);
+      row.Cost := ruleS.GetBuyCost;
+      row.QtySrc := FBase.GetSoldierCount(ruleS.GetType);
+      row.Amount := 0;
+      FItems.Add(row);
+      var cat := GetCategory(FItems.Count-1);
+      if FCats.IndexOf(cat) = -1 then FCats.Add(cat);
+    end;
+  end;
+  // Scientists
+  row.Type := TRANSFER_SCIENTIST;
+  row.Rule := nil;
+  row.Name := Translate('STR_SCIENTIST');
+  row.Cost := FGame.GetMod.GetScientistCost * 2;
+  row.QtySrc := FBase.GetTotalScientists;
+  row.Amount := 0;
+  FItems.Add(row);
+  var cat2 := GetCategory(FItems.Count-1);
+  if FCats.IndexOf(cat2) = -1 then FCats.Add(cat2);
+
+  // Engineers
+  row.Type := TRANSFER_ENGINEER;
+  row.Rule := nil;
+  row.Name := Translate('STR_ENGINEER');
+  row.Cost := FGame.GetMod.GetEngineerCost * 2;
+  row.QtySrc := FBase.GetTotalEngineers;
+  row.Amount := 0;
+  FItems.Add(row);
+  cat2 := GetCategory(FItems.Count-1);
+  if FCats.IndexOf(cat2) = -1 then FCats.Add(cat2);
+
+  // Crafts
+  crafts := FGame.GetMod.GetCraftsList;
+  for i := 0 to crafts.Count - 1 do
+  begin
+    var ruleC := FGame.GetMod.GetCraft(crafts[i]);
+    if (ruleC.GetBuyCost <> 0) and FGame.GetSavedGame.IsResearched(ruleC.GetRequirements) then
+    begin
+      row.Type := TRANSFER_CRAFT;
+      row.Rule := ruleC;
+      row.Name := Translate(ruleC.GetType);
+      row.Cost := ruleC.GetBuyCost;
+      row.QtySrc := FBase.GetCraftCount(ruleC.GetType);
+      row.Amount := 0;
+      FItems.Add(row);
+      var cat3 := GetCategory(FItems.Count-1);
+      if FCats.IndexOf(cat3) = -1 then FCats.Add(cat3);
+    end;
+  end;
+
+  // Items
+  items := FGame.GetMod.GetItemsList;
+  for i := 0 to items.Count - 1 do
+  begin
+    rule := FGame.GetMod.GetItem(items[i]);
+    if (rule.GetBuyCost <> 0) and FGame.GetSavedGame.IsResearched(rule.GetRequirements) then
+    begin
+      row.Type := TRANSFER_ITEM;
+      row.Rule := rule;
+      row.Name := Translate(rule.GetType);
+      row.Cost := rule.GetBuyCost;
+      row.QtySrc := FBase.GetStorageItems.GetItem(rule.GetType);
+      row.Amount := 0;
+      FItems.Add(row);
+      var cat4 := GetCategory(FItems.Count-1);
+      if FCats.IndexOf(cat4) = -1 then FCats.Add(cat4);
+    end;
+  end;
+
+  FCbxCategory.SetOptions(FCats, True);
+  FCbxCategory.OnChange := CbxCategoryChange;
+
+  UpdateList;
+
+  FTimerInc := TTimer.Create(250);
+  FTimerInc.OnTimer := Increase;
+  FTimerDec := TTimer.Create(250);
+  FTimerDec.OnTimer := Decrease;
+end;
+
+destructor TPurchaseState.Destroy;
+begin
+  FItems.Free;
+  FRows.Free;
+  FCats.Free;
+  FCraftWeapons.Free;
+  FArmors.Free;
+  FTimerInc.Free;
+  FTimerDec.Free;
+  inherited;
+end;
+
+function TPurchaseState.GetCategory(Index: Integer): string;
+var
+  rule: TRuleItem;
+begin
+  case FItems[Index].Type of
+    TRANSFER_SOLDIER, TRANSFER_SCIENTIST, TRANSFER_ENGINEER:
+      Result := 'STR_PERSONNEL';
+    TRANSFER_CRAFT:
+      Result := 'STR_CRAFT_ARMAMENT';
+    TRANSFER_ITEM:
+    begin
+      rule := TRuleItem(FItems[Index].Rule);
+      if (rule.GetBattleType = BT_CORPSE) or rule.IsAlien then
+        Result := 'STR_ALIENS'
+      else if rule.GetBattleType = BT_NONE then
+      begin
+        if FCraftWeapons.Contains(rule.GetType) then
+          Result := 'STR_CRAFT_ARMAMENT'
+        else if FArmors.Contains(rule.GetType) then
+          Result := 'STR_EQUIPMENT'
+        else
+          Result := 'STR_COMPONENTS';
+      end
+      else
+        Result := 'STR_EQUIPMENT';
+    end
+    else
+      Result := 'STR_ALL_ITEMS';
+  end;
+end;
+
+function TPurchaseState.GetRow: TTransferRow;
+begin
+  Result := FItems[FRows[FSel]];
+end;
+
+procedure TPurchaseState.UpdateList;
+var
+  i: Integer;
+  cat, name: string;
+  row: TTransferRow;
+  ammo: Boolean;
+begin
+  FLstItems.ClearList;
+  FRows.Clear;
+  cat := FCats[FCbxCategory.GetSelected];
+  for i := 0 to FItems.Count - 1 do
+  begin
+    if (cat <> 'STR_ALL_ITEMS') and (cat <> GetCategory(i)) then Continue;
+    row := FItems[i];
+    name := row.Name;
+    ammo := False;
+    if row.Type = TRANSFER_ITEM then
+    begin
+      var rule := TRuleItem(row.Rule);
+      ammo := (rule.GetBattleType = BT_AMMO) or ((rule.GetBattleType = BT_NONE) and (rule.GetClipSize > 0));
+      if ammo then name := '  ' + name;
+    end;
+    FLstItems.AddRow([
+      name,
+      Unicode.FormatFunding(row.Cost),
+      IntToStr(row.QtySrc),
+      IntToStr(row.Amount)
+    ]);
+    FRows.Add(i);
+    if row.Amount > 0 then
+      FLstItems.SetRowColor(FRows.Count-1, FLstItems.GetSecondaryColor)
+    else if ammo then
+      FLstItems.SetRowColor(FRows.Count-1, FAmmoColor);
+  end;
+end;
+
+procedure TPurchaseState.UpdateItemStrings;
+var
+  row: TTransferRow;
+begin
+  row := GetRow;
+  FLstItems.SetCellText(FSel, 3, IntToStr(row.Amount));
+  if row.Amount > 0 then
+    FLstItems.SetRowColor(FSel, FLstItems.GetSecondaryColor)
+  else
+  begin
+    FLstItems.SetRowColor(FSel, FLstItems.GetColor);
+    if row.Type = TRANSFER_ITEM then
+    begin
+      var rule := TRuleItem(row.Rule);
+      if (rule.GetBattleType = BT_AMMO) or ((rule.GetBattleType = BT_NONE) and (rule.GetClipSize > 0)) then
+        FLstItems.SetRowColor(FSel, FAmmoColor);
+    end;
+  end;
+  FTxtPurchases.SetText(Translate('STR_COST_OF_PURCHASES').Arg(Unicode.FormatFunding(FTotal)));
+  FTxtSpaceUsed.SetText(Translate('STR_SPACE_USED').Arg(
+    Format('%d(%s):%d', [Floor(FBase.GetUsedStores),
+      IfThen(Abs(FIQty) > 0.05, Format('%s%.1f', [IfThen(FIQty>0,'+',''), FIQty]), ''),
+      FBase.GetAvailableStores])));
+end;
+
+procedure TPurchaseState.IncreaseByValue(Change: Integer);
+var
+  row: TTransferRow;
+  errorMessage: string;
+  maxByMoney, maxByQuarters, maxByHangars: Integer;
+  rule: TRuleItem;
+  freeStores: Double;
+  maxByStores: Integer;
+begin
+  if Change <= 0 then Exit;
+  row := GetRow;
+  if FTotal + row.Cost > FGame.GetSavedGame.GetFunds then
+    errorMessage := Translate('STR_NOT_ENOUGH_MONEY')
+  else
+  begin
+    case row.Type of
+      TRANSFER_SOLDIER, TRANSFER_SCIENTIST, TRANSFER_ENGINEER:
+        if FPQty + 1 > FBase.GetAvailableQuarters - FBase.GetUsedQuarters then
+          errorMessage := Translate('STR_NOT_ENOUGH_LIVING_SPACE');
+      TRANSFER_CRAFT:
+        if FCQty + 1 > FBase.GetAvailableHangars - FBase.GetUsedHangars then
+          errorMessage := Translate('STR_NO_FREE_HANGARS_FOR_PURCHASE');
+      TRANSFER_ITEM:
+      begin
+        rule := TRuleItem(row.Rule);
+        if FBase.StoresOverfull(FIQty + rule.GetSize) then
+          errorMessage := Translate('STR_NOT_ENOUGH_STORE_SPACE');
+      end;
+    end;
+  end;
+
+  if errorMessage = '' then
+  begin
+    maxByMoney := (FGame.GetSavedGame.GetFunds - FTotal) div row.Cost;
+    if maxByMoney >= 0 then Change := Min(maxByMoney, Change);
+    case row.Type of
+      TRANSFER_SOLDIER, TRANSFER_SCIENTIST, TRANSFER_ENGINEER:
+      begin
+        maxByQuarters := FBase.GetAvailableQuarters - FBase.GetUsedQuarters - FPQty;
+        Change := Min(maxByQuarters, Change);
+        FPQty := FPQty + Change;
+      end;
+      TRANSFER_CRAFT:
+      begin
+        maxByHangars := FBase.GetAvailableHangars - FBase.GetUsedHangars - FCQty;
+        Change := Min(maxByHangars, Change);
+        FCQty := FCQty + Change;
+      end;
+      TRANSFER_ITEM:
+      begin
+        rule := TRuleItem(row.Rule);
+        freeStores := FBase.GetAvailableStores - FBase.GetUsedStores - FIQty;
+        if not AreSame(rule.GetSize, 0.0) then
+          maxByStores := Floor((freeStores + 0.05) / rule.GetSize)
+        else
+          maxByStores := MaxInt;
+        Change := Min(maxByStores, Change);
+        FIQty := FIQty + Change * rule.GetSize;
+      end;
+    end;
+    row.Amount := row.Amount + Change;
+    FTotal := FTotal + row.Cost * Change;
+    FItems[FRows[FSel]] := row;
+    UpdateItemStrings;
+  end
+  else
+  begin
+    FTimerInc.Stop;
+    var menuInterface := FGame.GetMod.GetInterface('buyMenu');
+    FGame.PushState(TErrorMessageState.Create(Self, errorMessage, FPalette,
+      menuInterface.GetElement('errorMessage').Color, 'BACK13.SCR',
+      menuInterface.GetElement('errorPalette').Color));
+  end;
+end;
+
+procedure TPurchaseState.DecreaseByValue(Change: Integer);
+var
+  row: TTransferRow;
+  rule: TRuleItem;
+begin
+  if Change <= 0 then Exit;
+  row := GetRow;
+  if row.Amount <= 0 then Exit;
+  Change := Min(row.Amount, Change);
+  case row.Type of
+    TRANSFER_SOLDIER, TRANSFER_SCIENTIST, TRANSFER_ENGINEER:
+      FPQty := FPQty - Change;
+    TRANSFER_CRAFT:
+      FCQty := FCQty - Change;
+    TRANSFER_ITEM:
+    begin
+      rule := TRuleItem(row.Rule);
+      FIQty := FIQty - rule.GetSize * Change;
+    end;
+  end;
+  row.Amount := row.Amount - Change;
+  FTotal := FTotal - row.Cost * Change;
+  FItems[FRows[FSel]] := row;
+  UpdateItemStrings;
+end;
+
+procedure TPurchaseState.Think;
+begin
+  inherited;
+  FTimerInc.Think(Self, 0);
+  FTimerDec.Think(Self, 0);
+end;
+
+procedure TPurchaseState.BtnOkClick(Sender: TObject; Action: TAction);
+var
+  row: TTransferRow;
+  t: TTransfer;
+  i: Integer;
+  ruleSoldier: TRuleSoldier;
+  ruleCraft: TRuleCraft;
+  ruleItem: TRuleItem;
+begin
+  FGame.GetSavedGame.SetFunds(FGame.GetSavedGame.GetFunds - FTotal);
+  for row in FItems do
+  begin
+    if row.Amount <= 0 then Continue;
+    t := nil;
+    case row.Type of
+      TRANSFER_SOLDIER:
+      begin
+        ruleSoldier := TRuleSoldier(row.Rule);
+        for i := 1 to row.Amount do
+        begin
+          var time := ruleSoldier.GetTransferTime;
+          if time = 0 then time := FGame.GetMod.GetPersonnelTime;
+          t := TTransfer.Create(time);
+          t.SetSoldier(FGame.GetMod.GenSoldier(FGame.GetSavedGame, ruleSoldier.GetType));
+          FBase.GetTransfers.Add(t);
+        end;
+      end;
+      TRANSFER_SCIENTIST:
+      begin
+        t := TTransfer.Create(FGame.GetMod.GetPersonnelTime);
+        t.SetScientists(row.Amount);
+        FBase.GetTransfers.Add(t);
+      end;
+      TRANSFER_ENGINEER:
+      begin
+        t := TTransfer.Create(FGame.GetMod.GetPersonnelTime);
+        t.SetEngineers(row.Amount);
+        FBase.GetTransfers.Add(t);
+      end;
+      TRANSFER_CRAFT:
+      begin
+        ruleCraft := TRuleCraft(row.Rule);
+        for i := 1 to row.Amount do
+        begin
+          t := TTransfer.Create(ruleCraft.GetTransferTime);
+          var craft := TCraft.Create(ruleCraft, FBase, FGame.GetSavedGame.GetId(ruleCraft.GetType));
+          craft.SetStatus('STR_REFUELLING');
+          t.SetCraft(craft);
+          FBase.GetTransfers.Add(t);
+        end;
+      end;
+      TRANSFER_ITEM:
+      begin
+        ruleItem := TRuleItem(row.Rule);
+        t := TTransfer.Create(ruleItem.GetTransferTime);
+        t.SetItems(ruleItem.GetType, row.Amount);
+        FBase.GetTransfers.Add(t);
+      end;
+    end;
+  end;
+  FGame.PopState;
+end;
+
+procedure TPurchaseState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TPurchaseState.LstItemsLeftArrowPress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstItems.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (not FTimerInc.IsRunning) then
+    FTimerInc.Start;
+end;
+
+procedure TPurchaseState.LstItemsLeftArrowRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FTimerInc.Stop;
+end;
+
+procedure TPurchaseState.LstItemsLeftArrowClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    IncreaseByValue(MaxInt)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    IncreaseByValue(1);
+    FTimerInc.SetInterval(250);
+    FTimerDec.SetInterval(250);
+  end;
+end;
+
+procedure TPurchaseState.LstItemsRightArrowPress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstItems.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (not FTimerDec.IsRunning) then
+    FTimerDec.Start;
+end;
+
+procedure TPurchaseState.LstItemsRightArrowRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FTimerDec.Stop;
+end;
+
+procedure TPurchaseState.LstItemsRightArrowClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    DecreaseByValue(MaxInt)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    DecreaseByValue(1);
+    FTimerInc.SetInterval(250);
+    FTimerDec.SetInterval(250);
+  end;
+end;
+
+procedure TPurchaseState.LstItemsMousePress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstItems.GetSelectedRow;
+  if Action.GetDetails.button.button = SDL_BUTTON_WHEELUP then
+  begin
+    FTimerInc.Stop;
+    FTimerDec.Stop;
+    if (Action.GetAbsoluteXMouse >= FLstItems.GetArrowsLeftEdge) and
+       (Action.GetAbsoluteXMouse <= FLstItems.GetArrowsRightEdge) then
+      IncreaseByValue(Options.ChangeValueByMouseWheel);
+  end
+  else if Action.GetDetails.button.button = SDL_BUTTON_WHEELDOWN then
+  begin
+    FTimerInc.Stop;
+    FTimerDec.Stop;
+    if (Action.GetAbsoluteXMouse >= FLstItems.GetArrowsLeftEdge) and
+       (Action.GetAbsoluteXMouse <= FLstItems.GetArrowsRightEdge) then
+      DecreaseByValue(Options.ChangeValueByMouseWheel);
+  end;
+end;
+
+procedure TPurchaseState.Increase;
+begin
+  FTimerDec.SetInterval(50);
+  FTimerInc.SetInterval(50);
+  IncreaseByValue(1);
+end;
+
+procedure TPurchaseState.Decrease;
+begin
+  FTimerInc.SetInterval(50);
+  FTimerDec.SetInterval(50);
+  DecreaseByValue(1);
+end;
+
+procedure TPurchaseState.CbxCategoryChange(Sender: TObject; Action: TAction);
+begin
+  UpdateList;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SellState.pas;encoding=utf8;eol=lf⟧
+unit SellState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections, Math,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Timer, Engine.Options,
+  Engine.Unicode, Interface.TextButton, Interface.Window,
+  Interface.Text, Interface.ComboBox, Interface.TextList,
+  Savegame.BaseFacility, Savegame.SavedGame, Savegame.Base,
+  Savegame.Soldier, Savegame.Craft, Savegame.ItemContainer,
+  Mod.RuleItem, Mod.Armor, Mod.RuleCraft, Savegame.CraftWeapon,
+  Mod.RuleCraftWeapon, Mod.RuleInterface, Menu.OptionsBaseState,
+  fmath;
+
+type
+  TSellState = class(TState)
+  private
+    FBase: TBase;
+    FBtnOk, FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtSales, FTxtFunds, FTxtQuantity, FTxtSell, FTxtValue, FTxtSpaceUsed: TText;
+    FCbxCategory: TComboBox;
+    FLstItems: TTextList;
+    FItems: TList<TTransferRow>;
+    FRows: TList<Integer>;
+    FCats: TStringList;
+    FCraftWeapons, FArmors: TSet<string>;
+    FSel: Integer;
+    FTotal: Integer;
+    FSpaceChange: Double;
+    FTimerInc, FTimerDec: TTimer;
+    FAmmoColor: Byte;
+    FOrigin: TOptionsOrigin;
+
+    function GetCategory(Index: Integer): string;
+    function GetRow: TTransferRow;
+    procedure UpdateList;
+    procedure UpdateItemStrings;
+    procedure ChangeByValue(Change: Integer; Dir: Integer);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Origin: TOptionsOrigin = OPT_GEOSCAPE);
+    destructor Destroy; override;
+    procedure Think; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowPress(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowRelease(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowClick(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowPress(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowRelease(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowClick(Sender: TObject; Action: TAction);
+    procedure LstItemsMousePress(Sender: TObject; Action: TAction);
+    procedure Increase;
+    procedure Decrease;
+    procedure CbxCategoryChange(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TSellState.Create(AOwner: TComponent; Base: TBase; Origin: TOptionsOrigin);
+var
+  cw: TStringList;
+  ar: TStringList;
+  items: TStringList;
+  i: Integer;
+  row: TTransferRow;
+  soldier: TSoldier;
+  craft: TCraft;
+  rule: TRuleItem;
+  qty: Integer;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FOrigin := Origin;
+  FItems := TList<TTransferRow>.Create;
+  FRows := TList<Integer>.Create;
+  FCats := TStringList.Create;
+  FCraftWeapons := TSet<string>.Create;
+  FArmors := TSet<string>.Create;
+
+  var overfull := Options.StorageLimitsEnforced and FBase.StoresOverfull;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(IfThen(overfull, 288, 148), 16, IfThen(overfull, 16, 8), 176);
+  FBtnCancel := TTextButton.Create(148, 16, 164, 176);
+  FTxtTitle := TText.Create(310, 17, 5, 8);
+  FTxtSales := TText.Create(150, 9, 10, 24);
+  FTxtFunds := TText.Create(150, 9, 160, 24);
+  FTxtSpaceUsed := TText.Create(150, 9, 160, 34);
+  FTxtQuantity := TText.Create(54, 9, 136, 44);
+  FTxtSell := TText.Create(96, 9, 190, 44);
+  FTxtValue := TText.Create(40, 9, 270, 44);
+  FCbxCategory := TComboBox.Create(Self, 120, 16, 10, 36);
+  FLstItems := TTextList.Create(287, 120, 8, 54);
+
+  SetInterface('sellMenu');
+  FAmmoColor := FGame.GetMod.GetInterface('sellMenu').GetElement('ammoColor').Color;
+  Add(FWindow, 'window', 'sellMenu');
+  Add(FBtnOk, 'button', 'sellMenu');
+  Add(FBtnCancel, 'button', 'sellMenu');
+  Add(FTxtTitle, 'text', 'sellMenu');
+  Add(FTxtSales, 'text', 'sellMenu');
+  Add(FTxtFunds, 'text', 'sellMenu');
+  Add(FTxtSpaceUsed, 'text', 'sellMenu');
+  Add(FTxtQuantity, 'text', 'sellMenu');
+  Add(FTxtSell, 'text', 'sellMenu');
+  Add(FTxtValue, 'text', 'sellMenu');
+  Add(FLstItems, 'list', 'sellMenu');
+  Add(FCbxCategory, 'text', 'sellMenu');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK13.SCR'));
+  FBtnOk.SetText(Translate('STR_SELL_SACK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnCancel.SetText(Translate('STR_CANCEL'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+
+  if overfull then
+  begin
+    FBtnCancel.Visible := False;
+    FBtnOk.Visible := False;
+  end;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_SELL_ITEMS_SACK_PERSONNEL'));
+  FTxtSales.SetText(Translate('STR_VALUE_OF_SALES').Arg(Unicode.FormatFunding(FTotal)));
+  FTxtFunds.SetText(Translate('STR_FUNDS').Arg(Unicode.FormatFunding(FGame.GetSavedGame.GetFunds)));
+
+  FTxtSpaceUsed.Visible := Options.StorageLimitsEnforced;
+  FTxtSpaceUsed.SetText(Translate('STR_SPACE_USED').Arg(
+    Format('%d:%d', [Floor(FBase.GetUsedStores), FBase.GetAvailableStores])));
+
+  FTxtQuantity.SetText(Translate('STR_QUANTITY_UC'));
+  FTxtSell.SetText(Translate('STR_SELL_SACK'));
+  FTxtValue.SetText(Translate('STR_VALUE'));
+
+  FLstItems.SetArrowColumn(182, ARROW_VERTICAL);
+  FLstItems.SetColumns([156, 54, 24, 53]);
+  FLstItems.SetSelectable(True);
+  FLstItems.SetBackground(FWindow);
+  FLstItems.SetMargin(2);
+  FLstItems.OnLeftArrowPress := LstItemsLeftArrowPress;
+  FLstItems.OnLeftArrowRelease := LstItemsLeftArrowRelease;
+  FLstItems.OnLeftArrowClick := LstItemsLeftArrowClick;
+  FLstItems.OnRightArrowPress := LstItemsRightArrowPress;
+  FLstItems.OnRightArrowRelease := LstItemsRightArrowRelease;
+  FLstItems.OnRightArrowClick := LstItemsRightArrowClick;
+  FLstItems.OnMousePress := LstItemsMousePress;
+
+  FCats.Add('STR_ALL_ITEMS');
+
+  // Craft weapons
+  cw := FGame.GetMod.GetCraftWeaponsList;
+  for i := 0 to cw.Count - 1 do
+  begin
+    var ruleCW := FGame.GetMod.GetCraftWeapon(cw[i]);
+    FCraftWeapons.Add(ruleCW.GetLauncherItem);
+    FCraftWeapons.Add(ruleCW.GetClipItem);
+  end;
+  ar := FGame.GetMod.GetArmorsList;
+  for i := 0 to ar.Count - 1 do
+    FArmors.Add(FGame.GetMod.GetArmor(ar[i]).GetStoreItem);
+
+  // Soldiers not on craft
+  for soldier in FBase.GetSoldiers do
+    if soldier.GetCraft = nil then
+    begin
+      row.Type := TRANSFER_SOLDIER;
+      row.Rule := soldier;
+      row.Name := soldier.GetName(True);
+      row.Cost := 0;
+      row.QtySrc := 1;
+      row.Amount := 0;
+      FItems.Add(row);
+      var cat := GetCategory(FItems.Count-1);
+      if FCats.IndexOf(cat) = -1 then FCats.Add(cat);
+    end;
+
+  // Crafts not out
+  for craft in FBase.GetCrafts do
+    if craft.GetStatus <> 'STR_OUT' then
+    begin
+      row.Type := TRANSFER_CRAFT;
+      row.Rule := craft;
+      row.Name := craft.GetName(FGame.GetLanguage);
+      row.Cost := craft.GetRules.GetSellCost;
+      row.QtySrc := 1;
+      row.Amount := 0;
+      FItems.Add(row);
+      var cat2 := GetCategory(FItems.Count-1);
+      if FCats.IndexOf(cat2) = -1 then FCats.Add(cat2);
+    end;
+
+  // Scientists
+  if FBase.GetAvailableScientists > 0 then
+  begin
+    row.Type := TRANSFER_SCIENTIST;
+    row.Rule := nil;
+    row.Name := Translate('STR_SCIENTIST');
+    row.Cost := 0;
+    row.QtySrc := FBase.GetAvailableScientists;
+    row.Amount := 0;
+    FItems.Add(row);
+    var cat3 := GetCategory(FItems.Count-1);
+    if FCats.IndexOf(cat3) = -1 then FCats.Add(cat3);
+  end;
+
+  // Engineers
+  if FBase.GetAvailableEngineers > 0 then
+  begin
+    row.Type := TRANSFER_ENGINEER;
+    row.Rule := nil;
+    row.Name := Translate('STR_ENGINEER');
+    row.Cost := 0;
+    row.QtySrc := FBase.GetAvailableEngineers;
+    row.Amount := 0;
+    FItems.Add(row);
+    var cat4 := GetCategory(FItems.Count-1);
+    if FCats.IndexOf(cat4) = -1 then FCats.Add(cat4);
+  end;
+
+  // Items
+  items := FGame.GetMod.GetItemsList;
+  for i := 0 to items.Count - 1 do
+  begin
+    qty := FBase.GetStorageItems.GetItem(items[i]);
+    if Options.StorageLimitsEnforced and (FOrigin = OPT_BATTLESCAPE) then
+    begin
+      for t in FBase.GetTransfers do
+        if t.GetItems = items[i] then qty := qty + t.GetQuantity;
+      for craft in FBase.GetCrafts do
+        qty := qty + craft.GetItems.GetItem(items[i]);
+    end;
+    rule := FGame.GetMod.GetItem(items[i], True);
+    if (qty > 0) and (Options.CanSellLiveAliens or not rule.IsAlien) then
+    begin
+      row.Type := TRANSFER_ITEM;
+      row.Rule := rule;
+      row.Name := Translate(items[i]);
+      row.Cost := rule.GetSellCost;
+      row.QtySrc := qty;
+      row.Amount := 0;
+      FItems.Add(row);
+      var cat5 := GetCategory(FItems.Count-1);
+      if FCats.IndexOf(cat5) = -1 then FCats.Add(cat5);
+    end;
+  end;
+
+  FCbxCategory.SetOptions(FCats, True);
+  FCbxCategory.OnChange := CbxCategoryChange;
+
+  UpdateList;
+
+  FTimerInc := TTimer.Create(250);
+  FTimerInc.OnTimer := Increase;
+  FTimerDec := TTimer.Create(250);
+  FTimerDec.OnTimer := Decrease;
+end;
+
+destructor TSellState.Destroy;
+begin
+  FItems.Free;
+  FRows.Free;
+  FCats.Free;
+  FCraftWeapons.Free;
+  FArmors.Free;
+  FTimerInc.Free;
+  FTimerDec.Free;
+  inherited;
+end;
+
+function TSellState.GetCategory(Index: Integer): string;
+var
+  rule: TRuleItem;
+begin
+  case FItems[Index].Type of
+    TRANSFER_SOLDIER, TRANSFER_SCIENTIST, TRANSFER_ENGINEER:
+      Result := 'STR_PERSONNEL';
+    TRANSFER_CRAFT:
+      Result := 'STR_CRAFT_ARMAMENT';
+    TRANSFER_ITEM:
+    begin
+      rule := TRuleItem(FItems[Index].Rule);
+      if (rule.GetBattleType = BT_CORPSE) or rule.IsAlien then
+        Result := 'STR_ALIENS'
+      else if rule.GetBattleType = BT_NONE then
+      begin
+        if FCraftWeapons.Contains(rule.GetType) then
+          Result := 'STR_CRAFT_ARMAMENT'
+        else if FArmors.Contains(rule.GetType) then
+          Result := 'STR_EQUIPMENT'
+        else
+          Result := 'STR_COMPONENTS';
+      end
+      else
+        Result := 'STR_EQUIPMENT';
+    end
+    else
+      Result := 'STR_ALL_ITEMS';
+  end;
+end;
+
+function TSellState.GetRow: TTransferRow;
+begin
+  Result := FItems[FRows[FSel]];
+end;
+
+procedure TSellState.UpdateList;
+var
+  i: Integer;
+  cat, name: string;
+  row: TTransferRow;
+  ammo: Boolean;
+begin
+  FLstItems.ClearList;
+  FRows.Clear;
+  cat := FCats[FCbxCategory.GetSelected];
+  for i := 0 to FItems.Count - 1 do
+  begin
+    if (cat <> 'STR_ALL_ITEMS') and (cat <> GetCategory(i)) then Continue;
+    row := FItems[i];
+    name := row.Name;
+    ammo := False;
+    if row.Type = TRANSFER_ITEM then
+    begin
+      var rule := TRuleItem(row.Rule);
+      ammo := (rule.GetBattleType = BT_AMMO) or ((rule.GetBattleType = BT_NONE) and (rule.GetClipSize > 0));
+      if ammo then name := '  ' + name;
+    end;
+    FLstItems.AddRow([
+      name,
+      IntToStr(row.QtySrc - row.Amount),
+      IntToStr(row.Amount),
+      Unicode.FormatFunding(row.Cost)
+    ]);
+    FRows.Add(i);
+    if row.Amount > 0 then
+      FLstItems.SetRowColor(FRows.Count-1, FLstItems.GetSecondaryColor)
+    else if ammo then
+      FLstItems.SetRowColor(FRows.Count-1, FAmmoColor);
+  end;
+end;
+
+procedure TSellState.UpdateItemStrings;
+var
+  row: TTransferRow;
+begin
+  row := GetRow;
+  FLstItems.SetCellText(FSel, 1, IntToStr(row.QtySrc - row.Amount));
+  FLstItems.SetCellText(FSel, 2, IntToStr(row.Amount));
+  FTxtSales.SetText(Translate('STR_VALUE_OF_SALES').Arg(Unicode.FormatFunding(FTotal)));
+
+  if row.Amount > 0 then
+    FLstItems.SetRowColor(FSel, FLstItems.GetSecondaryColor)
+  else
+  begin
+    FLstItems.SetRowColor(FSel, FLstItems.GetColor);
+    if row.Type = TRANSFER_ITEM then
+    begin
+      var rule := TRuleItem(row.Rule);
+      if (rule.GetBattleType = BT_AMMO) or ((rule.GetBattleType = BT_NONE) and (rule.GetClipSize > 0)) then
+        FLstItems.SetRowColor(FSel, FAmmoColor);
+    end;
+  end;
+
+  var usedStr := IntToStr(FBase.GetUsedStores);
+  if Abs(FSpaceChange) > 0.05 then
+    usedStr := usedStr + Format('(%s%.1f)', [IfThen(FSpaceChange>0,'+',''), FSpaceChange]);
+  FTxtSpaceUsed.SetText(Translate('STR_SPACE_USED').Arg(
+    Format('%s:%d', [usedStr, FBase.GetAvailableStores])));
+
+  if Options.StorageLimitsEnforced then
+    FBtnOk.Visible := not FBase.StoresOverfull(FSpaceChange);
+end;
+
+procedure TSellState.ChangeByValue(Change: Integer; Dir: Integer);
+var
+  row: TTransferRow;
+  craft: TCraft;
+  soldier: TSoldier;
+  armor, item, weapon, ammo: TRuleItem;
+  total: Double;
+begin
+  row := GetRow;
+  if Dir > 0 then
+  begin
+    if (Change <= 0) or (row.QtySrc <= row.Amount) then Exit;
+    Change := Min(row.QtySrc - row.Amount, Change);
+  end
+  else
+  begin
+    if (Change <= 0) or (row.Amount <= 0) then Exit;
+    Change := Min(row.Amount, Change);
+  end;
+
+  row.Amount := row.Amount + Dir * Change;
+  FTotal := FTotal + Dir * row.Cost * Change;
+
+  // Adjust storage space
+  case row.Type of
+    TRANSFER_SOLDIER:
+    begin
+      soldier := TSoldier(row.Rule);
+      if soldier.GetArmor.GetStoreItem <> Armor.NONE then
+      begin
+        armor := FGame.GetMod.GetItem(soldier.GetArmor.GetStoreItem, True);
+        FSpaceChange := FSpaceChange + Dir * armor.GetSize;
+      end;
+    end;
+    TRANSFER_CRAFT:
+    begin
+      craft := TCraft(row.Rule);
+      total := 0;
+      for w in craft.GetWeapons do
+        if w <> nil then
+        begin
+          weapon := FGame.GetMod.GetItem(w.GetRules.GetLauncherItem, True);
+          total := total + weapon.GetSize;
+          ammo := FGame.GetMod.GetItem(w.GetRules.GetClipItem);
+          if ammo <> nil then total := total + ammo.GetSize * w.GetClipsLoaded(FGame.GetMod);
+        end;
+      FSpaceChange := FSpaceChange + Dir * total;
+    end;
+    TRANSFER_ITEM:
+    begin
+      item := TRuleItem(row.Rule);
+      FSpaceChange := FSpaceChange - Dir * Change * item.GetSize;
+    end;
+    // SCIENTIST and ENGINEER have no storage
+  end;
+
+  FItems[FRows[FSel]] := row;
+  UpdateItemStrings;
+end;
+
+procedure TSellState.Think;
+begin
+  inherited;
+  FTimerInc.Think(Self, 0);
+  FTimerDec.Think(Self, 0);
+end;
+
+procedure TSellState.BtnOkClick(Sender: TObject; Action: TAction);
+var
+  row: TTransferRow;
+  soldier: TSoldier;
+  craft: TCraft;
+  item: TRuleItem;
+  i, toRemove: Integer;
+begin
+  FGame.GetSavedGame.SetFunds(FGame.GetSavedGame.GetFunds + FTotal);
+  for row in FItems do
+  begin
+    if row.Amount <= 0 then Continue;
+    case row.Type of
+      TRANSFER_SOLDIER:
+      begin
+        soldier := TSoldier(row.Rule);
+        if FBase.GetSoldiers.Remove(soldier) then
+        begin
+          if soldier.GetArmor.GetStoreItem <> Armor.NONE then
+            FBase.GetStorageItems.AddItem(soldier.GetArmor.GetStoreItem);
+          soldier.Free;
+        end;
+      end;
+      TRANSFER_CRAFT:
+      begin
+        craft := TCraft(row.Rule);
+        FBase.RemoveCraft(craft, True);
+        craft.Free;
+      end;
+      TRANSFER_SCIENTIST:
+        FBase.SetScientists(FBase.GetScientists - row.Amount);
+      TRANSFER_ENGINEER:
+        FBase.SetEngineers(FBase.GetEngineers - row.Amount);
+      TRANSFER_ITEM:
+      begin
+        item := TRuleItem(row.Rule);
+        if FBase.GetStorageItems.GetItem(item.GetType) < row.Amount then
+        begin
+          toRemove := row.Amount - FBase.GetStorageItems.GetItem(item.GetType);
+          FBase.GetStorageItems.RemoveItem(item.GetType, MaxInt);
+          for craft in FBase.GetCrafts do
+            if toRemove > 0 then
+            begin
+              var qty := craft.GetItems.GetItem(item.GetType);
+              if qty >= toRemove then
+              begin
+                craft.GetItems.RemoveItem(item.GetType, toRemove);
+                toRemove := 0;
+              end
+              else
+              begin
+                craft.GetItems.RemoveItem(item.GetType, qty);
+                toRemove := toRemove - qty;
+              end;
+            end;
+          // Remove from transfers
+          for i := FBase.GetTransfers.Count - 1 downto 0 do
+            if toRemove > 0 then
+            begin
+              var t := FBase.GetTransfers[i];
+              if t.GetItems = item.GetType then
+              begin
+                if t.GetQuantity <= toRemove then
+                begin
+                  toRemove := toRemove - t.GetQuantity;
+                  t.Free;
+                  FBase.GetTransfers.Delete(i);
+                end
+                else
+                begin
+                  t.SetItems(t.GetItems, t.GetQuantity - toRemove);
+                  toRemove := 0;
+                end;
+              end;
+            end;
+        end
+        else
+          FBase.GetStorageItems.RemoveItem(item.GetType, row.Amount);
+      end;
+    end;
+  end;
+  FGame.PopState;
+end;
+
+procedure TSellState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TSellState.LstItemsLeftArrowPress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstItems.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (not FTimerInc.IsRunning) then
+    FTimerInc.Start;
+end;
+
+procedure TSellState.LstItemsLeftArrowRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FTimerInc.Stop;
+end;
+
+procedure TSellState.LstItemsLeftArrowClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    ChangeByValue(MaxInt, 1)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    ChangeByValue(1, 1);
+    FTimerInc.SetInterval(250);
+    FTimerDec.SetInterval(250);
+  end;
+end;
+
+procedure TSellState.LstItemsRightArrowPress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstItems.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (not FTimerDec.IsRunning) then
+    FTimerDec.Start;
+end;
+
+procedure TSellState.LstItemsRightArrowRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FTimerDec.Stop;
+end;
+
+procedure TSellState.LstItemsRightArrowClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    ChangeByValue(MaxInt, -1)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    ChangeByValue(1, -1);
+    FTimerInc.SetInterval(250);
+    FTimerDec.SetInterval(250);
+  end;
+end;
+
+procedure TSellState.LstItemsMousePress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstItems.GetSelectedRow;
+  if Action.GetDetails.button.button = SDL_BUTTON_WHEELUP then
+  begin
+    FTimerInc.Stop;
+    FTimerDec.Stop;
+    if (Action.GetAbsoluteXMouse >= FLstItems.GetArrowsLeftEdge) and
+       (Action.GetAbsoluteXMouse <= FLstItems.GetArrowsRightEdge) then
+      ChangeByValue(Options.ChangeValueByMouseWheel, 1);
+  end
+  else if Action.GetDetails.button.button = SDL_BUTTON_WHEELDOWN then
+  begin
+    FTimerInc.Stop;
+    FTimerDec.Stop;
+    if (Action.GetAbsoluteXMouse >= FLstItems.GetArrowsLeftEdge) and
+       (Action.GetAbsoluteXMouse <= FLstItems.GetArrowsRightEdge) then
+      ChangeByValue(Options.ChangeValueByMouseWheel, -1);
+  end;
+end;
+
+procedure TSellState.Increase;
+begin
+  FTimerDec.SetInterval(50);
+  FTimerInc.SetInterval(50);
+  ChangeByValue(1, 1);
+end;
+
+procedure TSellState.Decrease;
+begin
+  FTimerInc.SetInterval(50);
+  FTimerDec.SetInterval(50);
+  ChangeByValue(1, -1);
+end;
+
+procedure TSellState.CbxCategoryChange(Sender: TObject; Action: TAction);
+begin
+  UpdateList;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:StoresState.pas;encoding=utf8;eol=lf⟧
+unit StoresState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Base, Mod.RuleItem, Savegame.ItemContainer;
+
+type
+  TStoresState = class(TState)
+  private
+    FBase: TBase;
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtItem, FTxtQuantity, FTxtSpaceUsed: TText;
+    FLstStores: TTextList;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TStoresState.Create(AOwner: TComponent; Base: TBase);
+var
+  items: TStringList;
+  i: Integer;
+  rule: TRuleItem;
+  qty: Integer;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(300, 16, 10, 176);
+  FTxtTitle := TText.Create(310, 17, 5, 8);
+  FTxtItem := TText.Create(142, 9, 10, 32);
+  FTxtQuantity := TText.Create(88, 9, 152, 32);
+  FTxtSpaceUsed := TText.Create(74, 9, 240, 32);
+  FLstStores := TTextList.Create(288, 128, 8, 40);
+
+  SetInterface('storesInfo');
+  Add(FWindow, 'window', 'storesInfo');
+  Add(FBtnOk, 'button', 'storesInfo');
+  Add(FTxtTitle, 'text', 'storesInfo');
+  Add(FTxtItem, 'text', 'storesInfo');
+  Add(FTxtQuantity, 'text', 'storesInfo');
+  Add(FTxtSpaceUsed, 'text', 'storesInfo');
+  Add(FLstStores, 'list', 'storesInfo');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK13.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_STORES'));
+  FTxtItem.SetText(Translate('STR_ITEM'));
+  FTxtQuantity.SetText(Translate('STR_QUANTITY_UC'));
+  FTxtSpaceUsed.SetText(Translate('STR_SPACE_USED_UC'));
+
+  FLstStores.SetColumns([162, 92, 32]);
+  FLstStores.SetSelectable(True);
+  FLstStores.SetBackground(FWindow);
+  FLstStores.SetMargin(2);
+
+  items := FGame.GetMod.GetItemsList;
+  for i := 0 to items.Count - 1 do
+  begin
+    qty := FBase.GetStorageItems.GetItem(items[i]);
+    if qty > 0 then
+    begin
+      rule := FGame.GetMod.GetItem(items[i], True);
+      FLstStores.AddRow([
+        Translate(items[i]),
+        IntToStr(qty),
+        IntToStr(qty * rule.GetSize)
+      ]);
+    end;
+  end;
+end;
+
+destructor TStoresState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TStoresState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:TransferBaseState.pas;encoding=utf8;eol=lf⟧
+unit TransferBaseState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options, Engine.Unicode,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.SavedGame, Savegame.Base, Savegame.Region,
+  Mod.RuleRegion, TransferItemsState;
+
+type
+  TTransferBaseState = class(TState)
+  private
+    FBase: TBase;
+    FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtFunds, FTxtName, FTxtArea: TText;
+    FLstBases: TTextList;
+    FBases: TList<TBase>;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+    procedure LstBasesClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TTransferBaseState.Create(AOwner: TComponent; Base: TBase);
+var
+  i: Integer;
+  region: TRegion;
+  area: string;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FBases := TList<TBase>.Create;
+
+  FWindow := TWindow.Create(Self, 280, 140, 20, 30);
+  FBtnCancel := TTextButton.Create(264, 16, 28, 146);
+  FTxtTitle := TText.Create(270, 17, 25, 38);
+  FTxtFunds := TText.Create(250, 9, 30, 54);
+  FTxtName := TText.Create(130, 17, 28, 64);
+  FTxtArea := TText.Create(130, 17, 160, 64);
+  FLstBases := TTextList.Create(248, 64, 28, 80);
+
+  SetInterface('transferBaseSelect');
+  Add(FWindow, 'window', 'transferBaseSelect');
+  Add(FBtnCancel, 'button', 'transferBaseSelect');
+  Add(FTxtTitle, 'text', 'transferBaseSelect');
+  Add(FTxtFunds, 'text', 'transferBaseSelect');
+  Add(FTxtName, 'text', 'transferBaseSelect');
+  Add(FTxtArea, 'text', 'transferBaseSelect');
+  Add(FLstBases, 'list', 'transferBaseSelect');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK13.SCR'));
+  FBtnCancel.SetText(Translate('STR_CANCEL'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_SELECT_DESTINATION_BASE'));
+  FTxtFunds.SetText(Translate('STR_CURRENT_FUNDS').Arg(Unicode.FormatFunding(FGame.GetSavedGame.GetFunds)));
+  FTxtName.SetText(Translate('STR_NAME'));
+  FTxtName.SetBig;
+  FTxtArea.SetText(Translate('STR_AREA'));
+  FTxtArea.SetBig;
+
+  FLstBases.SetColumns([130, 116]);
+  FLstBases.SetSelectable(True);
+  FLstBases.SetBackground(FWindow);
+  FLstBases.SetMargin(2);
+  FLstBases.OnMouseClick := LstBasesClick;
+
+  for i := 0 to FGame.GetSavedGame.GetBases.Count - 1 do
+  begin
+    var b := FGame.GetSavedGame.GetBases[i];
+    if b <> FBase then
+    begin
+      area := '';
+      for region in FGame.GetSavedGame.GetRegions do
+        if region.GetRules.InsideRegion(b.GetLongitude, b.GetLatitude) then
+        begin
+          area := Translate(region.GetRules.GetType);
+          Break;
+        end;
+      FLstBases.AddRow([b.GetName, Unicode.TOK_COLOR_FLIP + area]);
+      FBases.Add(b);
+    end;
+  end;
+end;
+
+destructor TTransferBaseState.Destroy;
+begin
+  FBases.Free;
+  inherited;
+end;
+
+procedure TTransferBaseState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TTransferBaseState.LstBasesClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TTransferItemsState.Create(Self, FBase, FBases[FLstBases.GetSelectedRow]));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:TransferItemsState.pas;encoding=utf8;eol=lf⟧
+unit TransferItemsState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections, Math,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Timer, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Interface.ComboBox, Savegame.BaseFacility, Savegame.SavedGame,
+  Savegame.Base, Savegame.Soldier, Savegame.Craft,
+  Savegame.ItemContainer, Mod.RuleItem,
+  Menu.ErrorMessageState, TransferConfirmState,
+  fmath, Mod.RuleInterface, Mod.RuleCraftWeapon, Mod.Armor;
+
+type
+  TTransferItemsState = class(TState)
+  private
+    FBaseFrom, FBaseTo: TBase;
+    FBtnOk, FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtQuantity, FTxtAmountTransfer, FTxtAmountDestination: TText;
+    FCbxCategory: TComboBox;
+    FLstItems: TTextList;
+    FItems: TList<TTransferRow>;
+    FRows: TList<Integer>;
+    FCats: TStringList;
+    FCraftWeapons, FArmors: TSet<string>;
+    FSel: Integer;
+    FTotal: Integer;
+    FPQty: Integer;
+    FCQty: Integer;
+    FAQty: Integer;
+    FIQty: Double;
+    FDistance: Double;
+    FAmmoColor: Byte;
+    FTimerInc, FTimerDec: TTimer;
+
+    function GetCategory(Index: Integer): string;
+    function GetRow: TTransferRow;
+    procedure UpdateList;
+    procedure UpdateItemStrings;
+    procedure IncreaseByValue(Change: Integer);
+    procedure DecreaseByValue(Change: Integer);
+    function GetDistance: Double;
+  public
+    constructor Create(AOwner: TComponent; BaseFrom, BaseTo: TBase);
+    destructor Destroy; override;
+    procedure Think; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure CompleteTransfer;
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowPress(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowRelease(Sender: TObject; Action: TAction);
+    procedure LstItemsLeftArrowClick(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowPress(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowRelease(Sender: TObject; Action: TAction);
+    procedure LstItemsRightArrowClick(Sender: TObject; Action: TAction);
+    procedure LstItemsMousePress(Sender: TObject; Action: TAction);
+    procedure Increase;
+    procedure Decrease;
+    function GetTotal: Integer;
+    procedure CbxCategoryChange(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TTransferItemsState.Create(AOwner: TComponent; BaseFrom, BaseTo: TBase);
+var
+  cw: TStringList;
+  ar: TStringList;
+  items: TStringList;
+  i: Integer;
+  row: TTransferRow;
+  craft: TCraft;
+  rule: TRuleItem;
+begin
+  inherited Create(AOwner);
+  FBaseFrom := BaseFrom;
+  FBaseTo := BaseTo;
+  FItems := TList<TTransferRow>.Create;
+  FRows := TList<Integer>.Create;
+  FCats := TStringList.Create;
+  FCraftWeapons := TSet<string>.Create;
+  FArmors := TSet<string>.Create;
+
+  FWindow := TWindow.Create(Self, 320, 200, 0, 0);
+  FBtnOk := TTextButton.Create(148, 16, 8, 176);
+  FBtnCancel := TTextButton.Create(148, 16, 164, 176);
+  FTxtTitle := TText.Create(310, 17, 5, 8);
+  FTxtQuantity := TText.Create(50, 9, 150, 24);
+  FTxtAmountTransfer := TText.Create(60, 17, 200, 24);
+  FTxtAmountDestination := TText.Create(60, 17, 260, 24);
+  FCbxCategory := TComboBox.Create(Self, 120, 16, 10, 24);
+  FLstItems := TTextList.Create(287, 128, 8, 44);
+
+  SetInterface('transferMenu');
+  FAmmoColor := FGame.GetMod.GetInterface('transferMenu').GetElement('ammoColor').Color;
+  Add(FWindow, 'window', 'transferMenu');
+  Add(FBtnOk, 'button', 'transferMenu');
+  Add(FBtnCancel, 'button', 'transferMenu');
+  Add(FTxtTitle, 'text', 'transferMenu');
+  Add(FTxtQuantity, 'text', 'transferMenu');
+  Add(FTxtAmountTransfer, 'text', 'transferMenu');
+  Add(FTxtAmountDestination, 'text', 'transferMenu');
+  Add(FLstItems, 'list', 'transferMenu');
+  Add(FCbxCategory, 'text', 'transferMenu');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK13.SCR'));
+  FBtnOk.SetText(Translate('STR_TRANSFER'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnCancel.SetText(Translate('STR_CANCEL'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_TRANSFER'));
+  FTxtQuantity.SetText(Translate('STR_QUANTITY_UC'));
+  FTxtAmountTransfer.SetText(Translate('STR_AMOUNT_TO_TRANSFER'));
+  FTxtAmountTransfer.SetWordWrap(True);
+  FTxtAmountDestination.SetText(Translate('STR_AMOUNT_AT_DESTINATION'));
+  FTxtAmountDestination.SetWordWrap(True);
+
+  FLstItems.SetArrowColumn(193, ARROW_VERTICAL);
+  FLstItems.SetColumns([162, 58, 40, 27]);
+  FLstItems.SetSelectable(True);
+  FLstItems.SetBackground(FWindow);
+  FLstItems.SetMargin(2);
+  FLstItems.OnLeftArrowPress := LstItemsLeftArrowPress;
+  FLstItems.OnLeftArrowRelease := LstItemsLeftArrowRelease;
+  FLstItems.OnLeftArrowClick := LstItemsLeftArrowClick;
+  FLstItems.OnRightArrowPress := LstItemsRightArrowPress;
+  FLstItems.OnRightArrowRelease := LstItemsRightArrowRelease;
+  FLstItems.OnRightArrowClick := LstItemsRightArrowClick;
+  FLstItems.OnMousePress := LstItemsMousePress;
+
+  FDistance := GetDistance;
+  FCats.Add('STR_ALL_ITEMS');
+
+  // Craft weapons
+  cw := FGame.GetMod.GetCraftWeaponsList;
+  for i := 0 to cw.Count - 1 do
+  begin
+    var ruleCW := FGame.GetMod.GetCraftWeapon(cw[i]);
+    FCraftWeapons.Add(ruleCW.GetLauncherItem);
+    FCraftWeapons.Add(ruleCW.GetClipItem);
+  end;
+  ar := FGame.GetMod.GetArmorsList;
+  for i := 0 to ar.Count - 1 do
+    FArmors.Add(FGame.GetMod.GetArmor(ar[i]).GetStoreItem);
+
+  // Soldiers not on craft
+  for soldier in FBaseFrom.GetSoldiers do
+    if soldier.GetCraft = nil then
+    begin
+      row.Type := TRANSFER_SOLDIER;
+      row.Rule := soldier;
+      row.Name := soldier.GetName(True);
+      row.Cost := Round(5 * FDistance);
+      row.QtySrc := 1;
+      row.Amount := 0;
+      row.QtyDst := 0;
+      FItems.Add(row);
+      var cat := GetCategory(FItems.Count-1);
+      if FCats.IndexOf(cat) = -1 then FCats.Add(cat);
+    end;
+
+  // Crafts (not out or allowed airborne)
+  for craft in FBaseFrom.GetCrafts do
+    if (craft.GetStatus <> 'STR_OUT') or (Options.CanTransferCraftsWhileAirborne and (craft.GetFuel >= craft.GetFuelLimit(FBaseTo))) then
+    begin
+      row.Type := TRANSFER_CRAFT;
+      row.Rule := craft;
+      row.Name := craft.GetName(FGame.GetLanguage);
+      row.Cost := Round(25 * FDistance);
+      row.QtySrc := 1;
+      row.Amount := 0;
+      row.QtyDst := 0;
+      FItems.Add(row);
+      var cat2 := GetCategory(FItems.Count-1);
+      if FCats.IndexOf(cat2) = -1 then FCats.Add(cat2);
+    end;
+
+  // Scientists
+  if FBaseFrom.GetAvailableScientists > 0 then
+  begin
+    row.Type := TRANSFER_SCIENTIST;
+    row.Rule := nil;
+    row.Name := Translate('STR_SCIENTIST');
+    row.Cost := Round(5 * FDistance);
+    row.QtySrc := FBaseFrom.GetAvailableScientists;
+    row.Amount := 0;
+    row.QtyDst := FBaseTo.GetAvailableScientists;
+    FItems.Add(row);
+    var cat3 := GetCategory(FItems.Count-1);
+    if FCats.IndexOf(cat3) = -1 then FCats.Add(cat3);
+  end;
+
+  // Engineers
+  if FBaseFrom.GetAvailableEngineers > 0 then
+  begin
+    row.Type := TRANSFER_ENGINEER;
+    row.Rule := nil;
+    row.Name := Translate('STR_ENGINEER');
+    row.Cost := Round(5 * FDistance);
+    row.QtySrc := FBaseFrom.GetAvailableEngineers;
+    row.Amount := 0;
+    row.QtyDst := FBaseTo.GetAvailableEngineers;
+    FItems.Add(row);
+    var cat4 := GetCategory(FItems.Count-1);
+    if FCats.IndexOf(cat4) = -1 then FCats.Add(cat4);
+  end;
+
+  // Items
+  items := FGame.GetMod.GetItemsList;
+  for i := 0 to items.Count - 1 do
+  begin
+    var qty := FBaseFrom.GetStorageItems.GetItem(items[i]);
+    if qty > 0 then
+    begin
+      rule := FGame.GetMod.GetItem(items[i]);
+      row.Type := TRANSFER_ITEM;
+      row.Rule := rule;
+      row.Name := Translate(items[i]);
+      row.Cost := Round(1 * FDistance);
+      row.QtySrc := qty;
+      row.Amount := 0;
+      row.QtyDst := FBaseTo.GetStorageItems.GetItem(items[i]);
+      FItems.Add(row);
+      var cat5 := GetCategory(FItems.Count-1);
+      if FCats.IndexOf(cat5) = -1 then FCats.Add(cat5);
+    end;
+  end;
+
+  FCbxCategory.SetOptions(FCats, True);
+  FCbxCategory.OnChange := CbxCategoryChange;
+
+  UpdateList;
+
+  FTimerInc := TTimer.Create(250);
+  FTimerInc.OnTimer := Increase;
+  FTimerDec := TTimer.Create(250);
+  FTimerDec.OnTimer := Decrease;
+end;
+
+destructor TTransferItemsState.Destroy;
+begin
+  FItems.Free;
+  FRows.Free;
+  FCats.Free;
+  FCraftWeapons.Free;
+  FArmors.Free;
+  FTimerInc.Free;
+  FTimerDec.Free;
+  inherited;
+end;
+
+function TTransferItemsState.GetCategory(Index: Integer): string;
+var
+  rule: TRuleItem;
+begin
+  case FItems[Index].Type of
+    TRANSFER_SOLDIER, TRANSFER_SCIENTIST, TRANSFER_ENGINEER:
+      Result := 'STR_PERSONNEL';
+    TRANSFER_CRAFT:
+      Result := 'STR_CRAFT_ARMAMENT';
+    TRANSFER_ITEM:
+    begin
+      rule := TRuleItem(FItems[Index].Rule);
+      if (rule.GetBattleType = BT_CORPSE) or rule.IsAlien then
+        Result := 'STR_ALIENS'
+      else if rule.GetBattleType = BT_NONE then
+      begin
+        if FCraftWeapons.Contains(rule.GetType) then
+          Result := 'STR_CRAFT_ARMAMENT'
+        else if FArmors.Contains(rule.GetType) then
+          Result := 'STR_EQUIPMENT'
+        else
+          Result := 'STR_COMPONENTS';
+      end
+      else
+        Result := 'STR_EQUIPMENT';
+    end
+    else
+      Result := 'STR_ALL_ITEMS';
+  end;
+end;
+
+function TTransferItemsState.GetRow: TTransferRow;
+begin
+  Result := FItems[FRows[FSel]];
+end;
+
+procedure TTransferItemsState.UpdateList;
+var
+  i: Integer;
+  cat, name: string;
+  row: TTransferRow;
+  ammo: Boolean;
+begin
+  FLstItems.ClearList;
+  FRows.Clear;
+  cat := FCats[FCbxCategory.GetSelected];
+  for i := 0 to FItems.Count - 1 do
+  begin
+    if (cat <> 'STR_ALL_ITEMS') and (cat <> GetCategory(i)) then Continue;
+    row := FItems[i];
+    name := row.Name;
+    ammo := False;
+    if row.Type = TRANSFER_ITEM then
+    begin
+      var rule := TRuleItem(row.Rule);
+      ammo := (rule.GetBattleType = BT_AMMO) or ((rule.GetBattleType = BT_NONE) and (rule.GetClipSize > 0));
+      if ammo then name := '  ' + name;
+    end;
+    FLstItems.AddRow([
+      name,
+      IntToStr(row.QtySrc - row.Amount),
+      IntToStr(row.Amount),
+      IntToStr(row.QtyDst)
+    ]);
+    FRows.Add(i);
+    if row.Amount > 0 then
+      FLstItems.SetRowColor(FRows.Count-1, FLstItems.GetSecondaryColor)
+    else if ammo then
+      FLstItems.SetRowColor(FRows.Count-1, FAmmoColor);
+  end;
+end;
+
+procedure TTransferItemsState.UpdateItemStrings;
+var
+  row: TTransferRow;
+begin
+  row := GetRow;
+  FLstItems.SetCellText(FSel, 1, IntToStr(row.QtySrc - row.Amount));
+  FLstItems.SetCellText(FSel, 2, IntToStr(row.Amount));
+  if row.Amount > 0 then
+    FLstItems.SetRowColor(FSel, FLstItems.GetSecondaryColor)
+  else
+  begin
+    FLstItems.SetRowColor(FSel, FLstItems.GetColor);
+    if row.Type = TRANSFER_ITEM then
+    begin
+      var rule := TRuleItem(row.Rule);
+      if (rule.GetBattleType = BT_AMMO) or ((rule.GetBattleType = BT_NONE) and (rule.GetClipSize > 0)) then
+        FLstItems.SetRowColor(FSel, FAmmoColor);
+    end;
+  end;
+end;
+
+procedure TTransferItemsState.IncreaseByValue(Change: Integer);
+var
+  row: TTransferRow;
+  errorMessage: string;
+  craft: TCraft;
+  rule: TRuleItem;
+  freeQuarters, freeHangars, freeContainment: Integer;
+  freeStores: Double;
+  maxByStores: Integer;
+begin
+  if Change <= 0 then Exit;
+  row := GetRow;
+  errorMessage := '';
+  case row.Type of
+    TRANSFER_SOLDIER, TRANSFER_SCIENTIST, TRANSFER_ENGINEER:
+      if FPQty + 1 > FBaseTo.GetAvailableQuarters - FBaseTo.GetUsedQuarters then
+        errorMessage := Translate('STR_NO_FREE_ACCOMODATION');
+    TRANSFER_CRAFT:
+    begin
+      craft := TCraft(row.Rule);
+      if FCQty + 1 > FBaseTo.GetAvailableHangars - FBaseTo.GetUsedHangars then
+        errorMessage := Translate('STR_NO_FREE_HANGARS_FOR_TRANSFER')
+      else if FPQty + craft.GetNumSoldiers > FBaseTo.GetAvailableQuarters - FBaseTo.GetUsedQuarters then
+        errorMessage := Translate('STR_NO_FREE_ACCOMODATION_CREW')
+      else if Options.StorageLimitsEnforced and FBaseTo.StoresOverfull(FIQty + craft.GetItems.GetTotalSize(FGame.GetMod)) then
+        errorMessage := Translate('STR_NOT_ENOUGH_STORE_SPACE_FOR_CRAFT');
+    end;
+    TRANSFER_ITEM:
+    begin
+      rule := TRuleItem(row.Rule);
+      if not rule.IsAlien then
+      begin
+        if FBaseTo.StoresOverfull(rule.GetSize + FIQty) then
+          errorMessage := Translate('STR_NOT_ENOUGH_STORE_SPACE');
+      end
+      else
+      begin
+        freeContainment := IfThen(Options.StorageLimitsEnforced, FBaseTo.GetAvailableContainment - FBaseTo.GetUsedContainment - FAQty, MaxInt);
+        if freeContainment <= 0 then
+          errorMessage := Translate('STR_NO_ALIEN_CONTAINMENT_FOR_TRANSFER');
+      end;
+    end;
+  end;
+
+  if errorMessage = '' then
+  begin
+    freeQuarters := FBaseTo.GetAvailableQuarters - FBaseTo.GetUsedQuarters - FPQty;
+    case row.Type of
+      TRANSFER_SOLDIER, TRANSFER_SCIENTIST, TRANSFER_ENGINEER:
+      begin
+        Change := Min(Min(freeQuarters, row.QtySrc - row.Amount), Change);
+        FPQty := FPQty + Change;
+        row.Amount := row.Amount + Change;
+        FTotal := FTotal + row.Cost * Change;
+      end;
+      TRANSFER_CRAFT:
+      begin
+        craft := TCraft(row.Rule);
+        FCQty := FCQty + 1;
+        FPQty := FPQty + craft.GetNumSoldiers;
+        FIQty := FIQty + craft.GetItems.GetTotalSize(FGame.GetMod);
+        row.Amount := row.Amount + 1;
+        if not Options.CanTransferCraftsWhileAirborne or (craft.GetStatus <> 'STR_OUT') then
+          FTotal := FTotal + row.Cost;
+      end;
+      TRANSFER_ITEM:
+      begin
+        rule := TRuleItem(row.Rule);
+        if not rule.IsAlien then
+        begin
+          freeStores := FBaseTo.GetAvailableStores - FBaseTo.GetUsedStores - FIQty;
+          if not AreSame(rule.GetSize, 0.0) then
+            maxByStores := Floor((freeStores + 0.05) / rule.GetSize)
+          else
+            maxByStores := MaxInt;
+          Change := Min(Min(maxByStores, row.QtySrc - row.Amount), Change);
+          FIQty := FIQty + Change * rule.GetSize;
+          row.Amount := row.Amount + Change;
+          FTotal := FTotal + row.Cost * Change;
+        end
+        else
+        begin
+          freeContainment := IfThen(Options.StorageLimitsEnforced, FBaseTo.GetAvailableContainment - FBaseTo.GetUsedContainment - FAQty, MaxInt);
+          Change := Min(Min(freeContainment, row.QtySrc - row.Amount), Change);
+          FAQty := FAQty + Change;
+          row.Amount := row.Amount + Change;
+          FTotal := FTotal + row.Cost * Change;
+        end;
+      end;
+    end;
+    FItems[FRows[FSel]] := row;
+    UpdateItemStrings;
+  end
+  else
+  begin
+    FTimerInc.Stop;
+    var menuInterface := FGame.GetMod.GetInterface('transferMenu');
+    FGame.PushState(TErrorMessageState.Create(Self, errorMessage, FPalette,
+      menuInterface.GetElement('errorMessage').Color, 'BACK13.SCR',
+      menuInterface.GetElement('errorPalette').Color));
+  end;
+end;
+
+procedure TTransferItemsState.DecreaseByValue(Change: Integer);
+var
+  row: TTransferRow;
+  craft: TCraft;
+  rule: TRuleItem;
+begin
+  if Change <= 0 then Exit;
+  row := GetRow;
+  if row.Amount <= 0 then Exit;
+  Change := Min(row.Amount, Change);
+  case row.Type of
+    TRANSFER_SOLDIER, TRANSFER_SCIENTIST, TRANSFER_ENGINEER:
+      FPQty := FPQty - Change;
+    TRANSFER_CRAFT:
+    begin
+      craft := TCraft(row.Rule);
+      FCQty := FCQty - 1;
+      FPQty := FPQty - craft.GetNumSoldiers;
+      FIQty := FIQty - craft.GetItems.GetTotalSize(FGame.GetMod);
+    end;
+    TRANSFER_ITEM:
+    begin
+      rule := TRuleItem(row.Rule);
+      if not rule.IsAlien then
+        FIQty := FIQty - rule.GetSize * Change
+      else
+        FAQty := FAQty - Change;
+    end;
+  end;
+  row.Amount := row.Amount - Change;
+  if not Options.CanTransferCraftsWhileAirborne or (row.Type <> TRANSFER_CRAFT) or (TCraft(row.Rule).GetStatus <> 'STR_OUT') then
+    FTotal := FTotal - row.Cost * Change;
+  FItems[FRows[FSel]] := row;
+  UpdateItemStrings;
+end;
+
+procedure TTransferItemsState.Think;
+begin
+  inherited;
+  FTimerInc.Think(Self, 0);
+  FTimerDec.Think(Self, 0);
+end;
+
+procedure TTransferItemsState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TTransferConfirmState.Create(Self, FBaseTo, Self));
+end;
+
+procedure TTransferItemsState.CompleteTransfer;
+var
+  row: TTransferRow;
+  time: Integer;
+  t: TTransfer;
+  craft: TCraft;
+  soldier: TSoldier;
+  i: Integer;
+begin
+  time := Round(6 + FDistance / 10);
+  FGame.GetSavedGame.SetFunds(FGame.GetSavedGame.GetFunds - FTotal);
+  for row in FItems do
+  begin
+    if row.Amount <= 0 then Continue;
+    t := nil;
+    case row.Type of
+      TRANSFER_SOLDIER:
+      begin
+        soldier := TSoldier(row.Rule);
+        if FBaseFrom.GetSoldiers.Remove(soldier) then
+        begin
+          soldier.SetPsiTraining(False);
+          t := TTransfer.Create(time);
+          t.SetSoldier(soldier);
+          FBaseTo.GetTransfers.Add(t);
+        end;
+      end;
+      TRANSFER_CRAFT:
+      begin
+        craft := TCraft(row.Rule);
+        // transfer soldiers inside
+        for i := FBaseFrom.GetSoldiers.Count - 1 downto 0 do
+        begin
+          var s := FBaseFrom.GetSoldiers[i];
+          if s.GetCraft = craft then
+          begin
+            s.SetPsiTraining(False);
+            if craft.GetStatus = 'STR_OUT' then
+              FBaseTo.GetSoldiers.Add(s)
+            else
+            begin
+              t := TTransfer.Create(time);
+              t.SetSoldier(s);
+              FBaseTo.GetTransfers.Add(t);
+            end;
+            FBaseFrom.GetSoldiers.Delete(i);
+          end;
+        end;
+        // transfer craft
+        FBaseFrom.RemoveCraft(craft, False);
+        if craft.GetStatus = 'STR_OUT' then
+        begin
+          FBaseTo.GetCrafts.Add(craft);
+          craft.SetBase(FBaseTo, False);
+          if craft.GetFuel <= craft.GetFuelLimit(FBaseTo) then
+          begin
+            craft.SetLowFuel(True);
+            craft.ReturnToBase;
+          end
+          else if craft.GetDestination = craft.GetBase then
+          begin
+            craft.SetLowFuel(False);
+            craft.ReturnToBase;
+          end;
+        end
+        else
+        begin
+          t := TTransfer.Create(time);
+          t.SetCraft(craft);
+          FBaseTo.GetTransfers.Add(t);
+        end;
+      end;
+      TRANSFER_SCIENTIST:
+      begin
+        FBaseFrom.SetScientists(FBaseFrom.GetScientists - row.Amount);
+        t := TTransfer.Create(time);
+        t.SetScientists(row.Amount);
+        FBaseTo.GetTransfers.Add(t);
+      end;
+      TRANSFER_ENGINEER:
+      begin
+        FBaseFrom.SetEngineers(FBaseFrom.GetEngineers - row.Amount);
+        t := TTransfer.Create(time);
+        t.SetEngineers(row.Amount);
+        FBaseTo.GetTransfers.Add(t);
+      end;
+      TRANSFER_ITEM:
+      begin
+        var rule := TRuleItem(row.Rule);
+        FBaseFrom.GetStorageItems.RemoveItem(rule.GetType, row.Amount);
+        t := TTransfer.Create(time);
+        t.SetItems(rule.GetType, row.Amount);
+        FBaseTo.GetTransfers.Add(t);
+      end;
+    end;
+  end;
+end;
+
+procedure TTransferItemsState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+  FGame.PopState;
+end;
+
+procedure TTransferItemsState.LstItemsLeftArrowPress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstItems.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (not FTimerInc.IsRunning) then
+    FTimerInc.Start;
+end;
+
+procedure TTransferItemsState.LstItemsLeftArrowRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FTimerInc.Stop;
+end;
+
+procedure TTransferItemsState.LstItemsLeftArrowClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    IncreaseByValue(MaxInt)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    IncreaseByValue(1);
+    FTimerInc.SetInterval(250);
+    FTimerDec.SetInterval(250);
+  end;
+end;
+
+procedure TTransferItemsState.LstItemsRightArrowPress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstItems.GetSelectedRow;
+  if (Action.GetDetails.button.button = SDL_BUTTON_LEFT) and (not FTimerDec.IsRunning) then
+    FTimerDec.Start;
+end;
+
+procedure TTransferItemsState.LstItemsRightArrowRelease(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+    FTimerDec.Stop;
+end;
+
+procedure TTransferItemsState.LstItemsRightArrowClick(Sender: TObject; Action: TAction);
+begin
+  if Action.GetDetails.button.button = SDL_BUTTON_RIGHT then
+    DecreaseByValue(MaxInt)
+  else if Action.GetDetails.button.button = SDL_BUTTON_LEFT then
+  begin
+    DecreaseByValue(1);
+    FTimerInc.SetInterval(250);
+    FTimerDec.SetInterval(250);
+  end;
+end;
+
+procedure TTransferItemsState.LstItemsMousePress(Sender: TObject; Action: TAction);
+begin
+  FSel := FLstItems.GetSelectedRow;
+  if Action.GetDetails.button.button = SDL_BUTTON_WHEELUP then
+  begin
+    FTimerInc.Stop;
+    FTimerDec.Stop;
+    if (Action.GetAbsoluteXMouse >= FLstItems.GetArrowsLeftEdge) and
+       (Action.GetAbsoluteXMouse <= FLstItems.GetArrowsRightEdge) then
+      IncreaseByValue(Options.ChangeValueByMouseWheel);
+  end
+  else if Action.GetDetails.button.button = SDL_BUTTON_WHEELDOWN then
+  begin
+    FTimerInc.Stop;
+    FTimerDec.Stop;
+    if (Action.GetAbsoluteXMouse >= FLstItems.GetArrowsLeftEdge) and
+       (Action.GetAbsoluteXMouse <= FLstItems.GetArrowsRightEdge) then
+      DecreaseByValue(Options.ChangeValueByMouseWheel);
+  end;
+end;
+
+procedure TTransferItemsState.Increase;
+begin
+  FTimerDec.SetInterval(50);
+  FTimerInc.SetInterval(50);
+  IncreaseByValue(1);
+end;
+
+procedure TTransferItemsState.Decrease;
+begin
+  FTimerInc.SetInterval(50);
+  FTimerDec.SetInterval(50);
+  DecreaseByValue(1);
+end;
+
+function TTransferItemsState.GetTotal: Integer;
+begin
+  Result := FTotal;
+end;
+
+procedure TTransferItemsState.CbxCategoryChange(Sender: TObject; Action: TAction);
+begin
+  UpdateList;
+end;
+
+function TTransferItemsState.GetDistance: Double;
+var
+  x, y, z: array[0..2] of Double;
+  r: Double;
+  base: TBase;
+  i: Integer;
+begin
+  r := 51.2;
+  base := FBaseFrom;
+  for i := 0 to 1 do
+  begin
+    x[i] := r * Cos(base.GetLatitude) * Cos(base.GetLongitude);
+    y[i] := r * Cos(base.GetLatitude) * Sin(base.GetLongitude);
+    z[i] := r * -Sin(base.GetLatitude);
+    base := FBaseTo;
+  end;
+  x[2] := x[1] - x[0];
+  y[2] := y[1] - y[0];
+  z[2] := z[1] - z[0];
+  Result := Sqrt(x[2]*x[2] + y[2]*y[2] + z[2]*z[2]);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:TransferConfirmState.pas;encoding=utf8;eol=lf⟧
+unit TransferConfirmState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options, Engine.Unicode,
+  Interface.TextButton, Interface.Window, Interface.Text,
+  Savegame.Base, TransferItemsState;
+
+type
+  TTransferConfirmState = class(TState)
+  private
+    FBase: TBase;
+    FState: TTransferItemsState;
+    FBtnCancel, FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtCost, FTxtTotal: TText;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; State: TTransferItemsState);
+    destructor Destroy; override;
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TTransferConfirmState.Create(AOwner: TComponent; Base: TBase; State: TTransferItemsState);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FState := State;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 320, 80, 0, 60);
+  FBtnCancel := TTextButton.Create(128, 16, 176, 115);
+  FBtnOk := TTextButton.Create(128, 16, 16, 115);
+  FTxtTitle := TText.Create(310, 17, 5, 75);
+  FTxtCost := TText.Create(60, 17, 110, 95);
+  FTxtTotal := TText.Create(100, 17, 170, 95);
+
+  SetInterface('transferConfirm');
+  Add(FWindow, 'window', 'transferConfirm');
+  Add(FBtnCancel, 'button', 'transferConfirm');
+  Add(FBtnOk, 'button', 'transferConfirm');
+  Add(FTxtTitle, 'text', 'transferConfirm');
+  Add(FTxtCost, 'text', 'transferConfirm');
+  Add(FTxtTotal, 'text', 'transferConfirm');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK13.SCR'));
+  FBtnCancel.SetText(Translate('STR_CANCEL_UC'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_TRANSFER_ITEMS_TO').Arg(FBase.GetName));
+  FTxtCost.SetBig;
+  FTxtCost.SetText(Translate('STR_COST'));
+  FTxtTotal.SetBig;
+  FTxtTotal.SetText(Unicode.TOK_COLOR_FLIP + Unicode.FormatFunding(FState.GetTotal));
+end;
+
+destructor TTransferConfirmState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TTransferConfirmState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TTransferConfirmState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FState.CompleteTransfer;
+  FGame.PopState;
+  FGame.PopState;
+  FGame.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:TransfersState.pas;encoding=utf8;eol=lf⟧
+unit TransfersState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text, Interface.TextList,
+  Savegame.Base, Savegame.Transfer;
+
+type
+  TTransfersState = class(TState)
+  private
+    FBase: TBase;
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtItem, FTxtQuantity, FTxtArrivalTime: TText;
+    FLstTransfers: TTextList;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase);
+    destructor Destroy; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TTransfersState.Create(AOwner: TComponent; Base: TBase);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 320, 184, 0, 8, POPUP_BOTH);
+  FBtnOk := TTextButton.Create(288, 16, 16, 166);
+  FTxtTitle := TText.Create(278, 17, 21, 18);
+  FTxtItem := TText.Create(114, 9, 16, 34);
+  FTxtQuantity := TText.Create(54, 9, 152, 34);
+  FTxtArrivalTime := TText.Create(112, 9, 212, 34);
+  FLstTransfers := TTextList.Create(273, 112, 14, 50);
+
+  SetInterface('transferInfo');
+  Add(FWindow, 'window', 'transferInfo');
+  Add(FBtnOk, 'button', 'transferInfo');
+  Add(FTxtTitle, 'text', 'transferInfo');
+  Add(FTxtItem, 'text', 'transferInfo');
+  Add(FTxtQuantity, 'text', 'transferInfo');
+  Add(FTxtArrivalTime, 'text', 'transferInfo');
+  Add(FLstTransfers, 'list', 'transferInfo');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK13.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_TRANSFERS'));
+  FTxtItem.SetText(Translate('STR_ITEM'));
+  FTxtQuantity.SetText(Translate('STR_QUANTITY_UC'));
+  FTxtArrivalTime.SetText(Translate('STR_ARRIVAL_TIME_HOURS'));
+
+  FLstTransfers.SetColumns([155, 75, 46]);
+  FLstTransfers.SetSelectable(True);
+  FLstTransfers.SetBackground(FWindow);
+  FLstTransfers.SetMargin(2);
+
+  for t in FBase.GetTransfers do
+    FLstTransfers.AddRow([
+      t.GetName(FGame.GetLanguage),
+      IntToStr(t.GetQuantity),
+      IntToStr(t.GetHours)
+    ]);
+end;
+
+destructor TTransfersState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TTransfersState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

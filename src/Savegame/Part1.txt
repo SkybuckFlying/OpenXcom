@@ -1,0 +1,3597 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦INDEX⟧
+{
+  "project": "OpenXcom Savegame Delphi Conversion",
+  "version": "1.0",
+  "description": "Full conversion of all OpenXcom savegame C++ headers and implementations to Delphi (Object Pascal)",
+  "units": [
+    "GameTime.pas",
+    "WeightedOptions.pas",
+    "SerializationHelper.pas",
+    "Target.pas",
+    "MovingTarget.pas",
+    "SavedGame.pas",
+    "SavedBattleGame.pas",
+    "Base.pas",
+    "Craft.pas",
+    "Ufo.pas",
+    "Soldier.pas",
+    "AlienMission.pas",
+    "AlienStrategy.pas",
+    "Country.pas",
+    "Region.pas",
+    "MissionSite.pas",
+    "AlienBase.pas",
+    "ItemContainer.pas",
+    "Transfer.pas",
+    "Production.pas",
+    "ResearchProject.pas",
+    "Node.pas",
+    "BattleItem.pas",
+    "BattleUnit.pas",
+    "Vehicle.pas",
+    "CraftWeapon.pas",
+    "CraftWeaponProjectile.pas",
+    "EquipmentLayoutItem.pas",
+    "SoldierDeath.pas",
+    "SoldierDiary.pas",
+    "MissionStatistics.pas",
+    "BattleUnitStatistics.pas",
+    "Tile.pas",
+    "Waypoint.pas",
+    "BaseFacility.pas",
+    "SaveConverter.pas"
+  ]
+}
+⟦/INDEX⟧
+⟦FILE:GameTime.pas;encoding=utf8;eol=lf⟧
+unit GameTime;
+
+interface
+
+uses
+  Classes, SysUtils, YAML;
+
+type
+  TTimeTrigger = (tt5Sec, tt10Min, tt30Min, tt1Hour, tt1Day, tt1Month);
+
+  TGameTime = class
+  private
+    FSecond: Integer;
+    FMinute: Integer;
+    FHour: Integer;
+    FWeekday: Integer;
+    FDay: Integer;
+    FMonth: Integer;
+    FYear: Integer;
+  public
+    constructor Create(AWeekday, ADay, AMonth, AYear, AHour, AMinute, ASecond: Integer);
+    destructor Destroy; override;
+    procedure Load(const Node: TYamlNode);
+    function Save: TYamlNode;
+    function Advance: TTimeTrigger;
+    property Second: Integer read FSecond;
+    property Minute: Integer read FMinute;
+    property Hour: Integer read FHour;
+    property Weekday: Integer read FWeekday;
+    function WeekdayString: string;
+    property Day: Integer read FDay;
+    function DayString(Lang: TLanguage): string;
+    property Month: Integer read FMonth;
+    function MonthString: string;
+    property Year: Integer read FYear;
+    function Daylight: Double;
+  end;
+
+implementation
+
+uses
+  Math;
+
+constructor TGameTime.Create(AWeekday, ADay, AMonth, AYear, AHour, AMinute, ASecond: Integer);
+begin
+  FSecond := ASecond;
+  FMinute := AMinute;
+  FHour := AHour;
+  FWeekday := AWeekday;
+  FDay := ADay;
+  FMonth := AMonth;
+  FYear := AYear;
+end;
+
+destructor TGameTime.Destroy;
+begin
+  inherited;
+end;
+
+procedure TGameTime.Load(const Node: TYamlNode);
+begin
+  FSecond := Node['second'].AsInteger(FSecond);
+  FMinute := Node['minute'].AsInteger(FMinute);
+  FHour := Node['hour'].AsInteger(FHour);
+  FWeekday := Node['weekday'].AsInteger(FWeekday);
+  FDay := Node['day'].AsInteger(FDay);
+  FMonth := Node['month'].AsInteger(FMonth);
+  FYear := Node['year'].AsInteger(FYear);
+end;
+
+function TGameTime.Save: TYamlNode;
+begin
+  Result := TYamlNode.Create;
+  Result['second'] := FSecond;
+  Result['minute'] := FMinute;
+  Result['hour'] := FHour;
+  Result['weekday'] := FWeekday;
+  Result['day'] := FDay;
+  Result['month'] := FMonth;
+  Result['year'] := FYear;
+end;
+
+function TGameTime.Advance: TTimeTrigger;
+var
+  monthDays: array[1..12] of Integer;
+begin
+  Result := tt5Sec;
+  monthDays := [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if ((FYear mod 4 = 0) and not ((FYear mod 100 = 0) and (FYear mod 400 <> 0))) then
+    Inc(monthDays[2]);
+
+  Inc(FSecond, 5);
+  if FSecond >= 60 then
+  begin
+    Inc(FMinute);
+    FSecond := 0;
+    if FMinute mod 10 = 0 then
+      Result := tt10Min;
+    if FMinute mod 30 = 0 then
+      Result := tt30Min;
+  end;
+  if FMinute >= 60 then
+  begin
+    Inc(FHour);
+    FMinute := 0;
+    Result := tt1Hour;
+  end;
+  if FHour >= 24 then
+  begin
+    Inc(FDay);
+    Inc(FWeekday);
+    FHour := 0;
+    Result := tt1Day;
+  end;
+  if FWeekday > 7 then
+    FWeekday := 1;
+  if FDay > monthDays[FMonth] then
+  begin
+    FDay := 1;
+    Inc(FMonth);
+    Result := tt1Month;
+  end;
+  if FMonth > 12 then
+  begin
+    FMonth := 1;
+    Inc(FYear);
+  end;
+end;
+
+function TGameTime.WeekdayString: string;
+var
+  weekdays: array[0..6] of string;
+begin
+  weekdays := ['STR_SUNDAY', 'STR_MONDAY', 'STR_TUESDAY', 'STR_WEDNESDAY', 'STR_THURSDAY', 'STR_FRIDAY', 'STR_SATURDAY'];
+  Result := weekdays[FWeekday - 1];
+end;
+
+function TGameTime.DayString(Lang: TLanguage): string;
+var
+  s: string;
+begin
+  case FDay of
+    1, 21, 31: s := 'STR_DATE_FIRST';
+    2, 22: s := 'STR_DATE_SECOND';
+    3, 23: s := 'STR_DATE_THIRD';
+  else
+    s := 'STR_DATE_FOURTH';
+  end;
+  Result := Lang.GetString(s).Format([FDay]);
+end;
+
+function TGameTime.MonthString: string;
+var
+  months: array[0..11] of string;
+begin
+  months := ['STR_JAN', 'STR_FEB', 'STR_MAR', 'STR_APR', 'STR_MAY', 'STR_JUN',
+             'STR_JUL', 'STR_AUG', 'STR_SEP', 'STR_OCT', 'STR_NOV', 'STR_DEC'];
+  Result := months[FMonth - 1];
+end;
+
+function TGameTime.Daylight: Double;
+begin
+  Result := (((((FHour + 18) mod 24) * 60 + FMinute) * 60 + FSecond) / (60 * 60 * 24));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:WeightedOptions.pas;encoding=utf8;eol=lf⟧
+unit WeightedOptions;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections, YAML, RNG;
+
+type
+  TWeightedOptions = class
+  private
+    FChoices: TDictionary<string, Integer>;
+    FTotalWeight: Integer;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function Choose: string;
+    procedure SetOption(const ID: string; Weight: Integer);
+    function IsEmpty: Boolean;
+    procedure Clear;
+    procedure Load(const Node: TYamlNode);
+    function Save: TYamlNode;
+    function GetNames: TArray<string>;
+  end;
+
+implementation
+
+constructor TWeightedOptions.Create;
+begin
+  FChoices := TDictionary<string, Integer>.Create;
+  FTotalWeight := 0;
+end;
+
+destructor TWeightedOptions.Destroy;
+begin
+  FChoices.Free;
+  inherited;
+end;
+
+function TWeightedOptions.Choose: string;
+var
+  r: Integer;
+  pair: TPair<string, Integer>;
+begin
+  if FTotalWeight = 0 then
+    Exit('');
+  r := RNG.Generate(0, FTotalWeight);
+  for pair in FChoices do
+  begin
+    if r <= pair.Value then
+      Exit(pair.Key);
+    Dec(r, pair.Value);
+  end;
+  Result := '';
+end;
+
+procedure TWeightedOptions.SetOption(const ID: string; Weight: Integer);
+var
+  old: Integer;
+begin
+  if FChoices.TryGetValue(ID, old) then
+  begin
+    Dec(FTotalWeight, old);
+    if Weight = 0 then
+      FChoices.Remove(ID)
+    else
+    begin
+      FChoices[ID] := Weight;
+      Inc(FTotalWeight, Weight);
+    end;
+  end
+  else if Weight <> 0 then
+  begin
+    FChoices.Add(ID, Weight);
+    Inc(FTotalWeight, Weight);
+  end;
+end;
+
+function TWeightedOptions.IsEmpty: Boolean;
+begin
+  Result := FTotalWeight = 0;
+end;
+
+procedure TWeightedOptions.Clear;
+begin
+  FChoices.Clear;
+  FTotalWeight := 0;
+end;
+
+procedure TWeightedOptions.Load(const Node: TYamlNode);
+var
+  pair: TPair<string, TYamlNode>;
+begin
+  for pair in Node do
+    SetOption(pair.Key, pair.Value.AsInteger);
+end;
+
+function TWeightedOptions.Save: TYamlNode;
+var
+  pair: TPair<string, Integer>;
+begin
+  Result := TYamlNode.Create;
+  for pair in FChoices do
+    Result[pair.Key] := pair.Value;
+end;
+
+function TWeightedOptions.GetNames: TArray<string>;
+begin
+  Result := FChoices.Keys.ToArray;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SerializationHelper.pas;encoding=utf8;eol=lf⟧
+unit SerializationHelper;
+
+interface
+
+uses
+  SysUtils, Classes, Math;
+
+function UnserializeInt(var Buffer: PByte; SizeKey: Byte): Integer;
+procedure SerializeInt(var Buffer: PByte; SizeKey: Byte; Value: Integer);
+function SerializeDouble(Value: Double): string;
+
+implementation
+
+function UnserializeInt(var Buffer: PByte; SizeKey: Byte): Integer;
+begin
+  Result := 0;
+  case SizeKey of
+    1: Result := Buffer^;
+    2: begin
+         Move(Buffer^, Result, 2);
+       end;
+    4: begin
+         Move(Buffer^, Result, 4);
+       end;
+  else
+    raise Exception.Create('Invalid size key');
+  end;
+  Inc(Buffer, SizeKey);
+end;
+
+procedure SerializeInt(var Buffer: PByte; SizeKey: Byte; Value: Integer);
+begin
+  case SizeKey of
+    1: begin
+         if (Value < 0) or (Value > 255) then
+           raise Exception.Create('Value out of range');
+         Buffer^ := Byte(Value);
+       end;
+    2: begin
+         if (Value < -32768) or (Value > 65535) then
+           raise Exception.Create('Value out of range');
+         Move(Value, Buffer^, 2);
+       end;
+    4: Move(Value, Buffer^, 4);
+  else
+    raise Exception.Create('Invalid size key');
+  end;
+  Inc(Buffer, SizeKey);
+end;
+
+function SerializeDouble(Value: Double): string;
+begin
+  Result := FloatToStr(Value);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:Target.pas;encoding=utf8;eol=lf⟧
+unit Target;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections, YAML;
+
+type
+  TTarget = class
+  private
+    FLon: Double;
+    FLat: Double;
+    FId: Integer;
+    FName: string;
+    FFollowers: TList<TMovingTarget>;
+  protected
+    function GetType: string; virtual; abstract;
+    function GetMarkerName: string; virtual;
+    function GetMarkerId: Integer; virtual;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Load(const Node: TYamlNode); virtual;
+    function Save: TYamlNode; virtual;
+    function SaveId: TYamlNode;
+    property Longitude: Double read FLon write SetLongitude;
+    property Latitude: Double read FLat write SetLatitude;
+    property Id: Integer read FId write FId;
+    property Name: string read FName write FName;
+    function GetName(Lang: TLanguage): string; virtual;
+    function GetDefaultName(Lang: TLanguage): string; virtual;
+    function GetMarker: Integer; virtual; abstract;
+    function GetFollowers: TList<TMovingTarget>;
+    function GetCraftFollowers: TArray<TCraft>;
+    function GetDistance(ATarget: TTarget): Double; overload;
+    function GetDistance(Lon, Lat: Double): Double; overload;
+    procedure SetLongitude(Lon: Double);
+    procedure SetLatitude(Lat: Double);
+  end;
+
+  TMovingTarget = class; // forward
+
+implementation
+
+uses
+  Math, MovingTarget, Craft;
+
+constructor TTarget.Create;
+begin
+  FLon := 0.0;
+  FLat := 0.0;
+  FId := 0;
+  FFollowers := TList<TMovingTarget>.Create;
+end;
+
+destructor TTarget.Destroy;
+begin
+  FFollowers.Free;
+  inherited;
+end;
+
+procedure TTarget.Load(const Node: TYamlNode);
+begin
+  FLon := Node['lon'].AsDouble(FLon);
+  FLat := Node['lat'].AsDouble(FLat);
+  FId := Node['id'].AsInteger(FId);
+  if Node['name'] <> nil then
+    FName := Node['name'].AsString;
+end;
+
+function TTarget.Save: TYamlNode;
+begin
+  Result := TYamlNode.Create;
+  Result['lon'] := SerializeDouble(FLon);
+  Result['lat'] := SerializeDouble(FLat);
+  if FId <> 0 then Result['id'] := FId;
+  if FName <> '' then Result['name'] := FName;
+end;
+
+function TTarget.SaveId: TYamlNode;
+begin
+  Result := TYamlNode.Create;
+  Result['lon'] := SerializeDouble(FLon);
+  Result['lat'] := SerializeDouble(FLat);
+  Result['type'] := GetType;
+  Result['id'] := FId;
+end;
+
+function TTarget.GetName(Lang: TLanguage): string;
+begin
+  if FName = '' then
+    Result := GetDefaultName(Lang)
+  else
+    Result := FName;
+end;
+
+function TTarget.GetDefaultName(Lang: TLanguage): string;
+begin
+  Result := Lang.GetString(GetMarkerName) + IntToStr(FId);
+end;
+
+function TTarget.GetMarkerName: string;
+begin
+  Result := GetType + '_';
+end;
+
+function TTarget.GetMarkerId: Integer;
+begin
+  Result := FId;
+end;
+
+procedure TTarget.SetLongitude(Lon: Double);
+begin
+  FLon := Lon;
+  while FLon < 0 do FLon := FLon + 2 * Pi;
+  while FLon >= 2 * Pi do FLon := FLon - 2 * Pi;
+end;
+
+procedure TTarget.SetLatitude(Lat: Double);
+begin
+  FLat := Lat;
+  if FLat < -Pi/2 then
+  begin
+    FLat := -Pi - FLat;
+    SetLongitude(FLon + Pi);
+  end
+  else if FLat > Pi/2 then
+  begin
+    FLat := Pi - FLat;
+    SetLongitude(FLon - Pi);
+  end;
+end;
+
+function TTarget.GetFollowers: TList<TMovingTarget>;
+begin
+  Result := FFollowers;
+end;
+
+function TTarget.GetDistance(ATarget: TTarget): Double;
+begin
+  Result := GetDistance(ATarget.Longitude, ATarget.Latitude);
+end;
+
+function TTarget.GetDistance(Lon, Lat: Double): Double;
+begin
+  if (Abs(Lon - FLon) < 1e-12) and (Abs(Lat - FLat) < 1e-12) then
+    Exit(0.0);
+  Result := ArcCos(Cos(FLat) * Cos(Lat) * Cos(Lon - FLon) + Sin(FLat) * Sin(Lat));
+end;
+
+function TTarget.GetCraftFollowers: TArray<TCraft>;
+var
+  mt: TMovingTarget;
+  craft: TCraft;
+begin
+  Result := [];
+  for mt in FFollowers do
+    if mt is TCraft then
+    begin
+      craft := TCraft(mt);
+      SetLength(Result, Length(Result) + 1);
+      Result[High(Result)] := craft;
+    end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:MovingTarget.pas;encoding=utf8;eol=lf⟧
+unit MovingTarget;
+
+interface
+
+uses
+  Target, YAML, Options;
+
+type
+  TMovingTarget = class(TTarget)
+  private
+    FDest: TTarget;
+    FSpeedLon: Double;
+    FSpeedLat: Double;
+    FSpeedRadian: Double;
+    FMeetPointLon: Double;
+    FMeetPointLat: Double;
+    FSpeed: Integer;
+    FMeetCalculated: Boolean;
+  protected
+    procedure CalculateSpeed; virtual;
+    class function CalculateRadianSpeed(Speed: Integer): Double;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Load(const Node: TYamlNode); override;
+    function Save: TYamlNode; override;
+    property Destination: TTarget read FDest write SetDestination;
+    property Speed: Integer read FSpeed write SetSpeed;
+    property SpeedRadian: Double read FSpeedRadian;
+    function ReachedDestination: Boolean;
+    procedure Move;
+    procedure CalculateMeetPoint;
+    property MeetLatitude: Double read FMeetPointLat;
+    property MeetLongitude: Double read FMeetPointLon;
+    procedure ResetMeetPoint;
+    function IsMeetCalculated: Boolean;
+    procedure SetDestination(Dest: TTarget); virtual;
+    procedure SetSpeed(Speed: Integer);
+  end;
+
+implementation
+
+uses
+  Math, SerializationHelper;
+
+constructor TMovingTarget.Create;
+begin
+  inherited;
+  FDest := nil;
+  FSpeedLon := 0.0;
+  FSpeedLat := 0.0;
+  FSpeedRadian := 0.0;
+  FMeetPointLon := 0.0;
+  FMeetPointLat := 0.0;
+  FSpeed := 0;
+  FMeetCalculated := False;
+end;
+
+destructor TMovingTarget.Destroy;
+begin
+  SetDestination(nil);
+  inherited;
+end;
+
+procedure TMovingTarget.Load(const Node: TYamlNode);
+begin
+  inherited;
+  FSpeedLon := Node['speedLon'].AsDouble(FSpeedLon);
+  FSpeedLat := Node['speedLat'].AsDouble(FSpeedLat);
+  FSpeedRadian := Node['speedRadian'].AsDouble(FSpeedRadian);
+  FSpeed := Node['speed'].AsInteger(FSpeed);
+end;
+
+function TMovingTarget.Save: TYamlNode;
+begin
+  Result := inherited Save;
+  if FDest <> nil then
+    Result['dest'] := FDest.SaveId;
+  Result['speedLon'] := SerializeDouble(FSpeedLon);
+  Result['speedLat'] := SerializeDouble(FSpeedLat);
+  Result['speedRadian'] := SerializeDouble(FSpeedRadian);
+  Result['speed'] := FSpeed;
+end;
+
+class function TMovingTarget.CalculateRadianSpeed(Speed: Integer): Double;
+begin
+  Result := (Speed / 60.0) / 720.0;
+end;
+
+procedure TMovingTarget.SetDestination(Dest: TTarget);
+var
+  i: Integer;
+begin
+  FMeetCalculated := False;
+  if FDest <> nil then
+  begin
+    for i := FDest.GetFollowers.Count - 1 downto 0 do
+      if FDest.GetFollowers[i] = Self then
+      begin
+        FDest.GetFollowers.Delete(i);
+        Break;
+      end;
+  end;
+  FDest := Dest;
+  if FDest <> nil then
+    FDest.GetFollowers.Add(Self);
+  for i := 0 to GetFollowers.Count - 1 do
+    GetFollowers[i].ResetMeetPoint;
+  CalculateSpeed;
+end;
+
+procedure TMovingTarget.SetSpeed(Speed: Integer);
+var
+  i: Integer;
+begin
+  FSpeed := Speed;
+  FSpeedRadian := CalculateRadianSpeed(FSpeed);
+  for i := 0 to GetFollowers.Count - 1 do
+    GetFollowers[i].ResetMeetPoint;
+  CalculateSpeed;
+end;
+
+procedure TMovingTarget.CalculateSpeed;
+var
+  dLon, dLat, length: Double;
+begin
+  CalculateMeetPoint;
+  if FDest <> nil then
+  begin
+    dLon := Sin(FMeetPointLon - FLon) * Cos(FMeetPointLat);
+    dLat := Cos(FLat) * Sin(FMeetPointLat) - Sin(FLat) * Cos(FMeetPointLat) * Cos(FMeetPointLon - FLon);
+    length := Sqrt(dLon * dLon + dLat * dLat);
+    if length <> 0 then
+    begin
+      FSpeedLat := dLat / length * FSpeedRadian;
+      FSpeedLon := dLon / length * FSpeedRadian / Cos(FLat + FSpeedLat);
+    end
+    else
+    begin
+      FSpeedLon := 0;
+      FSpeedLat := 0;
+    end;
+  end
+  else
+  begin
+    FSpeedLon := 0;
+    FSpeedLat := 0;
+  end;
+end;
+
+function TMovingTarget.ReachedDestination: Boolean;
+begin
+  Result := (FDest <> nil) and (Abs(FDest.Longitude - FLon) < 1e-12) and (Abs(FDest.Latitude - FLat) < 1e-12);
+end;
+
+procedure TMovingTarget.Move;
+begin
+  CalculateSpeed;
+  if FDest <> nil then
+  begin
+    if GetDistance(FMeetPointLon, FMeetPointLat) > FSpeedRadian then
+    begin
+      SetLongitude(FLon + FSpeedLon);
+      SetLatitude(FLat + FSpeedLat);
+    end
+    else
+    begin
+      if GetDistance(FDest) > FSpeedRadian then
+      begin
+        SetLongitude(FMeetPointLon);
+        SetLatitude(FMeetPointLat);
+      end
+      else
+      begin
+        SetLongitude(FDest.Longitude);
+        SetLatitude(FDest.Latitude);
+      end;
+      ResetMeetPoint;
+    end;
+  end;
+end;
+
+procedure TMovingTarget.CalculateMeetPoint;
+var
+  speedRatio, nx, ny, nz, nk, path, distance: Double;
+begin
+  if not Options.MeetingPoint then FMeetCalculated := False;
+  if FMeetCalculated then Exit;
+  if FDest <> nil then
+  begin
+    FMeetPointLat := FDest.Latitude;
+    FMeetPointLon := FDest.Longitude;
+  end
+  else
+  begin
+    FMeetPointLat := FLat;
+    FMeetPointLon := FLon;
+  end;
+  if (FDest = nil) or (not Options.MeetingPoint) or ReachedDestination then Exit;
+  if not (FDest is TMovingTarget) then Exit;
+  if Abs((FDest as TMovingTarget).SpeedRadian) < 1e-12 then Exit;
+  speedRatio := FSpeedRadian / (FDest as TMovingTarget).SpeedRadian;
+  nx := Cos((FDest as TMovingTarget).Latitude) * Sin((FDest as TMovingTarget).Longitude) * Sin((FDest as TMovingTarget).Destination.Latitude)
+        - Sin((FDest as TMovingTarget).Latitude) * Cos((FDest as TMovingTarget).Destination.Latitude) * Sin((FDest as TMovingTarget).Destination.Longitude);
+  ny := Sin((FDest as TMovingTarget).Latitude) * Cos((FDest as TMovingTarget).Destination.Latitude) * Cos((FDest as TMovingTarget).Destination.Longitude)
+        - Cos((FDest as TMovingTarget).Latitude) * Cos((FDest as TMovingTarget).Longitude) * Sin((FDest as TMovingTarget).Destination.Latitude);
+  nz := Cos((FDest as TMovingTarget).Latitude) * Cos((FDest as TMovingTarget).Destination.Latitude) * Sin((FDest as TMovingTarget).Destination.Longitude - (FDest as TMovingTarget).Longitude);
+  nk := FSpeedRadian / Sqrt(nx*nx + ny*ny + nz*nz);
+  nx := nx * nk;
+  ny := ny * nk;
+  nz := nz * nk;
+
+  path := 0;
+  while path < Pi do
+  begin
+    distance := ArcCos(Cos(FLat) * Cos(FMeetPointLat) * Cos(FMeetPointLon - FLon) + Sin(FLat) * Sin(FMeetPointLat));
+    if distance - path * speedRatio <= 0 then Break;
+    if path * speedRatio >= 1 then Break;
+    FMeetPointLat := FMeetPointLat + nx * Sin(FMeetPointLon) - ny * Cos(FMeetPointLon);
+    if Abs(FMeetPointLat) < Pi/2 then
+      FMeetPointLon := FMeetPointLon + nz - (nx * Cos(FMeetPointLon) + ny * Sin(FMeetPointLon)) * Tan(FMeetPointLat)
+    else
+      FMeetPointLon := FMeetPointLon + Pi;
+    path := path + FSpeedRadian;
+  end;
+  while Abs(FMeetPointLon) > Pi do
+    if FMeetPointLon > 0 then FMeetPointLon := FMeetPointLon - 2*Pi else FMeetPointLon := FMeetPointLon + 2*Pi;
+  while Abs(FMeetPointLat) > Pi do
+    if FMeetPointLat > 0 then FMeetPointLat := FMeetPointLat - 2*Pi else FMeetPointLat := FMeetPointLat + 2*Pi;
+  if Abs(FMeetPointLat) > Pi/2 then
+  begin
+    FMeetPointLat := Sign(FMeetPointLat) * Abs(2*Pi - Abs(FMeetPointLat));
+    FMeetPointLon := FMeetPointLon - Sign(FMeetPointLon) * Pi;
+  end;
+  FMeetCalculated := True;
+end;
+
+procedure TMovingTarget.ResetMeetPoint;
+begin
+  FMeetCalculated := False;
+end;
+
+function TMovingTarget.IsMeetCalculated: Boolean;
+begin
+  Result := FMeetCalculated;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SavedGame.pas;encoding=utf8;eol=lf⟧
+unit SavedGame;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections, YAML, GameTime, Country, Base, Region,
+  Ufo, Waypoint, MissionSite, AlienBase, AlienStrategy, AlienMission, SavedBattleGame,
+  ResearchProject, Soldier, RuleResearch, RuleManufacture, Production, Craft, Target,
+  Mod;
+
+type
+  TGameDifficulty = (diffBeginner, diffExperienced, diffVeteran, diffGenius, diffSuperhuman);
+  TGameEnding = (endNone, endWin, endLose);
+  TSaveType = (stDefault, stQuick, stAutoGeoscape, stAutoBattlescape, stIronman, stIronmanEnd);
+
+  TSaveInfo = record
+    FileName: string;
+    DisplayName: string;
+    Timestamp: TDateTime;
+    IsoDate: string;
+    IsoTime: string;
+    Details: string;
+    Mods: TArray<string>;
+    Reserved: Boolean;
+  end;
+
+  TPromotionInfo = record
+    TotalCommanders: Integer;
+    TotalColonels: Integer;
+    TotalCaptains: Integer;
+    TotalSergeants: Integer;
+  end;
+
+  TSavedGame = class
+  private
+    FName: string;
+    FDifficulty: TGameDifficulty;
+    FEnding: TGameEnding;
+    FIronman: Boolean;
+    FTime: TGameTime;
+    FResearchScores: TList<Integer>;
+    FFunds: TList<Int64>;
+    FMaintenance: TList<Int64>;
+    FIncomes: TList<Int64>;
+    FExpenditures: TList<Int64>;
+    FGlobeLon: Double;
+    FGlobeLat: Double;
+    FGlobeZoom: Integer;
+    FIds: TDictionary<string, Integer>;
+    FCountries: TObjectList<TCountry>;
+    FRegions: TObjectList<TRegion>;
+    FBases: TObjectList<TBase>;
+    FUfos: TObjectList<TUfo>;
+    FWaypoints: TObjectList<TWaypoint>;
+    FMissionSites: TObjectList<TMissionSite>;
+    FAlienBases: TObjectList<TAlienBase>;
+    FAlienStrategy: TAlienStrategy;
+    FActiveMissions: TObjectList<TAlienMission>;
+    FDiscoveredResearch: TList<TRuleResearch>;
+    FPoppedResearch: TList<TRuleResearch>;
+    FDeadSoldiers: TObjectList<TSoldier>;
+    FBattleGame: TSavedBattleGame;
+    FDebug: Boolean;
+    FWarned: Boolean;
+    FMonthsPassed: Integer;
+    FGraphRegionToggles: string;
+    FGraphCountryToggles: string;
+    FGraphFinanceToggles: string;
+    FSelectedBase: Integer;
+    FLastSelectedArmor: string;
+    FMissionStatistics: TObjectList<TMissionStatistics>;
+
+    function GetSelectedBase: TBase;
+    procedure SetSelectedBase(Index: Integer);
+    function GetFunds: Int64;
+    procedure SetFunds(Value: Int64);
+    procedure ProcessSoldier(Soldier: TSoldier; var Info: TPromotionInfo);
+    function InspectSoldiers(const Soldiers, Participants: TArray<TSoldier>; Rank: Integer): TSoldier;
+    function GetSoldierScore(Soldier: TSoldier): Integer;
+  public
+    const AUTOSAVE_GEOSCAPE = '_autogeo_.asav';
+    const AUTOSAVE_BATTLESCAPE = '_autobattle_.asav';
+    const QUICKSAVE = '_quick_.asav';
+
+    constructor Create;
+    destructor Destroy; override;
+
+    class function SanitizeModName(const Name: string): string;
+    class function GetList(Lang: TLanguage; AutoQuick: Boolean): TArray<TSaveInfo>;
+    class function GetSaveInfo(const FileName: string; Lang: TLanguage): TSaveInfo;
+
+    procedure Load(const Filename: string; Mod: TMod);
+    procedure Save(const Filename: string);
+
+    property Name: string read FName write FName;
+    property Difficulty: TGameDifficulty read FDifficulty write FDifficulty;
+    function DifficultyCoefficient: Integer;
+    property Ending: TGameEnding read FEnding write FEnding;
+    property Ironman: Boolean read FIronman write FIronman;
+    property Time: TGameTime read FTime write SetTime;
+    property Funds: Int64 read GetFunds write SetFunds;
+    property FundsList: TList<Int64> read FFunds;
+    property GlobeLongitude: Double read FGlobeLon write FGlobeLon;
+    property GlobeLatitude: Double read FGlobeLat write FGlobeLat;
+    property GlobeZoom: Integer read FGlobeZoom write FGlobeZoom;
+    property Ids: TDictionary<string, Integer> read FIds;
+
+    function GetId(const Name: string): Integer;
+    procedure SetAllIds(const Ids: TDictionary<string, Integer>);
+
+    property Countries: TObjectList<TCountry> read FCountries;
+    function CountryFunding: Integer;
+
+    property Regions: TObjectList<TRegion> read FRegions;
+    property Bases: TObjectList<TBase> read FBases;
+    function BaseMaintenance: Integer;
+
+    procedure MonthlyFunding;
+
+    property Ufos: TObjectList<TUfo> read FUfos;
+    property Waypoints: TObjectList<TWaypoint> read FWaypoints;
+    property MissionSites: TObjectList<TMissionSite> read FMissionSites;
+
+    property AlienBases: TObjectList<TAlienBase> read FAlienBases;
+    property AlienStrategy: TAlienStrategy read FAlienStrategy;
+
+    property ActiveMissions: TObjectList<TAlienMission> read FActiveMissions;
+    function FindAlienMission(const Region: string; Objective: TMissionObjective): TAlienMission;
+
+    property SavedBattle: TSavedBattleGame read FBattleGame write SetBattleGame;
+
+    procedure AddFinishedResearchSimple(Research: TRuleResearch);
+    procedure AddFinishedResearch(Research: TRuleResearch; Mod: TMod; Base: TBase; Score: Boolean = True);
+    function GetAvailableResearchProjects(Mod: TMod; Base: TBase; ConsiderDebug: Boolean = False): TArray<TRuleResearch>;
+    procedure GetNewlyAvailableResearchProjects(const Before, After: TArray<TRuleResearch>; var Diff: TArray<TRuleResearch>);
+
+    function GetAvailableProductions(Mod: TMod; Base: TBase): TArray<TRuleManufacture>;
+    procedure GetDependableManufacture(Research: TRuleResearch; Mod: TMod; Base: TBase; var Dependables: TArray<TRuleManufacture>);
+
+    function HasUndiscoveredProtectedUnlock(R: TRuleResearch; Mod: TMod): Boolean;
+    function IsResearched(const Research: string; ConsiderDebug: Boolean = True): Boolean; overload;
+    function IsResearched(const Research: TArray<string>; ConsiderDebug: Boolean = True): Boolean; overload;
+
+    function GetSoldier(Id: Integer): TSoldier;
+
+    function HandlePromotions(Participants: TArray<TSoldier>): Boolean;
+
+    function GetSelectedBase: TBase;
+    procedure SetSelectedBase(Index: Integer);
+
+    procedure SetDebugMode;
+    property DebugMode: Boolean read FDebug;
+
+    property Maintenances: TList<Int64> read FMaintenance;
+    procedure AddResearchScore(Score: Integer);
+    property ResearchScores: TList<Integer> read FResearchScores;
+    property Incomes: TList<Int64> read FIncomes;
+    property Expenditures: TList<Int64> read FExpenditures;
+
+    property Warned: Boolean read FWarned write FWarned;
+
+    function LocateRegion(Lon, Lat: Double): TRegion; overload;
+    function LocateRegion(const Target: TTarget): TRegion; overload;
+
+    property MonthsPassed: Integer read FMonthsPassed;
+    property GraphRegionToggles: string read FGraphRegionToggles write FGraphRegionToggles;
+    property GraphCountryToggles: string read FGraphCountryToggles write FGraphCountryToggles;
+    property GraphFinanceToggles: string read FGraphFinanceToggles write FGraphFinanceToggles;
+
+    procedure AddMonth;
+
+    procedure AddPoppedResearch(Research: TRuleResearch);
+    function WasResearchPopped(Research: TRuleResearch): Boolean;
+    procedure RemovePoppedResearch(Research: TRuleResearch);
+
+    property DeadSoldiers: TObjectList<TSoldier> read FDeadSoldiers;
+
+    property LastSelectedArmor: string read FLastSelectedArmor write FLastSelectedArmor;
+
+    property MissionStatistics: TObjectList<TMissionStatistics> read FMissionStatistics;
+
+    function KillSoldier(Soldier: TSoldier; Cause: TBattleUnitKills = nil): Integer;
+
+    procedure SetTime(const Time: TGameTime);
+    procedure SetBattleGame(Battle: TSavedBattleGame);
+  end;
+
+implementation
+
+uses
+  Math, RNG, SerializationHelper, RuleSoldier, Armor;
+
+constructor TSavedGame.Create;
+begin
+  FTime := TGameTime.Create(6, 1, 1, 1999, 12, 0, 0);
+  FResearchScores := TList<Integer>.Create;
+  FFunds := TList<Int64>.Create;
+  FFunds.Add(0);
+  FMaintenance := TList<Int64>.Create;
+  FMaintenance.Add(0);
+  FIncomes := TList<Int64>.Create;
+  FIncomes.Add(0);
+  FExpenditures := TList<Int64>.Create;
+  FExpenditures.Add(0);
+  FIds := TDictionary<string, Integer>.Create;
+  FCountries := TObjectList<TCountry>.Create;
+  FRegions := TObjectList<TRegion>.Create;
+  FBases := TObjectList<TBase>.Create;
+  FUfos := TObjectList<TUfo>.Create;
+  FWaypoints := TObjectList<TWaypoint>.Create;
+  FMissionSites := TObjectList<TMissionSite>.Create;
+  FAlienBases := TObjectList<TAlienBase>.Create;
+  FAlienStrategy := TAlienStrategy.Create;
+  FActiveMissions := TObjectList<TAlienMission>.Create;
+  FDiscoveredResearch := TList<TRuleResearch>.Create;
+  FPoppedResearch := TList<TRuleResearch>.Create;
+  FDeadSoldiers := TObjectList<TSoldier>.Create;
+  FMissionStatistics := TObjectList<TMissionStatistics>.Create;
+  FBattleGame := nil;
+  FDifficulty := diffBeginner;
+  FEnding := endNone;
+  FIronman := False;
+  FDebug := False;
+  FWarned := False;
+  FMonthsPassed := -1;
+  FSelectedBase := 0;
+  FLastSelectedArmor := 'STR_NONE_UC';
+end;
+
+destructor TSavedGame.Destroy;
+begin
+  FTime.Free;
+  FResearchScores.Free;
+  FFunds.Free;
+  FMaintenance.Free;
+  FIncomes.Free;
+  FExpenditures.Free;
+  FIds.Free;
+  FCountries.Free;
+  FRegions.Free;
+  FBases.Free;
+  FUfos.Free;
+  FWaypoints.Free;
+  FMissionSites.Free;
+  FAlienBases.Free;
+  FAlienStrategy.Free;
+  FActiveMissions.Free;
+  FDiscoveredResearch.Free;
+  FPoppedResearch.Free;
+  FDeadSoldiers.Free;
+  FMissionStatistics.Free;
+  FBattleGame.Free;
+  inherited;
+end;
+
+class function TSavedGame.SanitizeModName(const Name: string): string;
+var
+  p: Integer;
+begin
+  p := Pos(' ver: ', Name);
+  if p > 0 then
+    Result := Copy(Name, 1, p - 1)
+  else
+    Result := Name;
+end;
+
+class function TSavedGame.GetList(Lang: TLanguage; AutoQuick: Boolean): TArray<TSaveInfo>;
+begin
+  // Placeholder: implement file scanning
+  SetLength(Result, 0);
+end;
+
+class function TSavedGame.GetSaveInfo(const FileName: string; Lang: TLanguage): TSaveInfo;
+begin
+  // Placeholder
+end;
+
+procedure TSavedGame.Load(const Filename: string; Mod: TMod);
+begin
+  // Placeholder: YAML load
+end;
+
+procedure TSavedGame.Save(const Filename: string);
+begin
+  // Placeholder: YAML save
+end;
+
+function TSavedGame.DifficultyCoefficient: Integer;
+begin
+  Result := TMod.DIFFICULTY_COEFFICIENT[Ord(FDifficulty)];
+end;
+
+function TSavedGame.GetFunds: Int64;
+begin
+  Result := FFunds.Last;
+end;
+
+procedure TSavedGame.SetFunds(Value: Int64);
+var
+  diff: Int64;
+begin
+  diff := Value - FFunds.Last;
+  if diff > 0 then
+    FIncomes.Last := FIncomes.Last + diff
+  else
+    FExpenditures.Last := FExpenditures.Last - diff;
+  FFunds.Last := Value;
+end;
+
+function TSavedGame.GetId(const Name: string): Integer;
+begin
+  if not FIds.TryGetValue(Name, Result) then
+  begin
+    Result := 1;
+    FIds.Add(Name, Result + 1);
+  end
+  else
+  begin
+    Inc(Result);
+    FIds[Name] := Result;
+  end;
+end;
+
+procedure TSavedGame.SetAllIds(const Ids: TDictionary<string, Integer>);
+var
+  pair: TPair<string, Integer>;
+begin
+  FIds.Clear;
+  for pair in Ids do
+    FIds.Add(pair.Key, pair.Value);
+end;
+
+function TSavedGame.CountryFunding: Integer;
+var
+  c: TCountry;
+begin
+  Result := 0;
+  for c in FCountries do
+    Result := Result + c.Funding.Last;
+end;
+
+function TSavedGame.BaseMaintenance: Integer;
+var
+  b: TBase;
+begin
+  Result := 0;
+  for b in FBases do
+    Result := Result + b.MonthlyMaintenance;
+end;
+
+procedure TSavedGame.MonthlyFunding;
+begin
+  SetFunds(GetFunds + CountryFunding - BaseMaintenance);
+  FFunds.Add(GetFunds);
+  FMaintenance.Add(BaseMaintenance);
+  FIncomes.Add(CountryFunding);
+  FExpenditures.Add(BaseMaintenance);
+  FResearchScores.Add(0);
+  while FIncomes.Count > 12 do FIncomes.Delete(0);
+  while FExpenditures.Count > 12 do FExpenditures.Delete(0);
+  while FResearchScores.Count > 12 do FResearchScores.Delete(0);
+  while FFunds.Count > 12 do FFunds.Delete(0);
+  while FMaintenance.Count > 12 do FMaintenance.Delete(0);
+end;
+
+function TSavedGame.FindAlienMission(const Region: string; Objective: TMissionObjective): TAlienMission;
+var
+  m: TAlienMission;
+begin
+  for m in FActiveMissions do
+    if (m.Region = Region) and (m.Rules.Objective = Objective) then
+      Exit(m);
+  Result := nil;
+end;
+
+procedure TSavedGame.AddFinishedResearchSimple(Research: TRuleResearch);
+begin
+  if not FDiscoveredResearch.Contains(Research) then
+    FDiscoveredResearch.Add(Research);
+end;
+
+procedure TSavedGame.AddFinishedResearch(Research: TRuleResearch; Mod: TMod; Base: TBase; Score: Boolean);
+var
+  queue: TList<TRuleResearch>;
+  i: Integer;
+  current: TRuleResearch;
+  hasUndiscovered: Boolean;
+  available: TArray<TRuleResearch>;
+  j: Integer;
+begin
+  queue := TList<TRuleResearch>.Create;
+  try
+    queue.Add(Research);
+    i := 0;
+    while i < queue.Count do
+    begin
+      current := queue[i];
+      hasUndiscovered := HasUndiscoveredProtectedUnlock(current, Mod);
+      if not IsResearched(current.Name, False) then
+      begin
+        FDiscoveredResearch.Add(current);
+        if not hasUndiscovered and IsResearched(current.GetOneFree, False) then
+          RemovePoppedResearch(current);
+        if Score then
+          AddResearchScore(current.Points);
+      end
+      else
+      begin
+        if not hasUndiscovered then
+        begin
+          Inc(i);
+          Continue;
+        end;
+      end;
+
+      available := GetAvailableResearchProjects(Mod, Base, False);
+      for j := 0 to High(available) do
+      begin
+        if available[j].Cost = 0 then
+        begin
+          if not queue.Contains(available[j]) then
+          begin
+            if available[j].Requirements = [] then
+              queue.Add(available[j])
+            else
+            begin
+              for var unlock in current.Unlocked do
+                if available[j].Name = unlock then
+                begin
+                  queue.Add(available[j]);
+                  Break;
+                end;
+            end;
+          end;
+        end;
+      end;
+      Inc(i);
+    end;
+  finally
+    queue.Free;
+  end;
+end;
+
+function TSavedGame.GetAvailableResearchProjects(Mod: TMod; Base: TBase; ConsiderDebug: Boolean): TArray<TRuleResearch>;
+var
+  unlocked: TList<TRuleResearch>;
+  research: TRuleResearch;
+  i: Integer;
+begin
+  unlocked := TList<TRuleResearch>.Create;
+  try
+    for var r in FDiscoveredResearch do
+      for var u in r.Unlocked do
+        unlocked.Add(Mod.GetResearch(u));
+
+    Result := [];
+    for var name in Mod.ResearchList do
+    begin
+      research := Mod.GetResearch(name);
+      if ConsiderDebug and FDebug then
+        // allowed
+      else if not unlocked.Contains(research) then
+      begin
+        if not IsResearched(research.Dependencies, ConsiderDebug) then
+          Continue;
+      end;
+
+      if not IsResearched(research.Requirements, ConsiderDebug) then
+        Continue;
+
+      if IsResearched(research.Name, False) then
+      begin
+        if not IsResearched(research.GetOneFree, False) then
+          // keep
+        else if not HasUndiscoveredProtectedUnlock(research, Mod) then
+          Continue;
+      end;
+
+      if Base <> nil then
+      begin
+        if Base.ResearchProjects.Find(function(p: TResearchProject): Boolean begin Result := p.Rules = research; end) <> nil then
+          Continue;
+        if research.NeedItem and (Base.StorageItems.GetItem(research.Name) = 0) then
+          Continue;
+      end
+      else
+      begin
+        if research.NeedItem and (research.Cost = 0) then
+          Continue;
+      end;
+
+      SetLength(Result, Length(Result) + 1);
+      Result[High(Result)] := research;
+    end;
+  finally
+    unlocked.Free;
+  end;
+end;
+
+procedure TSavedGame.GetNewlyAvailableResearchProjects(const Before, After: TArray<TRuleResearch>; var Diff: TArray<TRuleResearch>);
+var
+  i, j: Integer;
+  found: Boolean;
+begin
+  Diff := [];
+  for i := 0 to High(After) do
+  begin
+    found := False;
+    for j := 0 to High(Before) do
+      if After[i] = Before[j] then
+      begin
+        found := True;
+        Break;
+      end;
+    if not found then
+    begin
+      SetLength(Diff, Length(Diff) + 1);
+      Diff[High(Diff)] := After[i];
+    end;
+  end;
+end;
+
+function TSavedGame.GetAvailableProductions(Mod: TMod; Base: TBase): TArray<TRuleManufacture>;
+begin
+  // Placeholder
+end;
+
+procedure TSavedGame.GetDependableManufacture(Research: TRuleResearch; Mod: TMod; Base: TBase; var Dependables: TArray<TRuleManufacture>);
+begin
+  // Placeholder
+end;
+
+function TSavedGame.HasUndiscoveredProtectedUnlock(R: TRuleResearch; Mod: TMod): Boolean;
+var
+  unlock: TRuleResearch;
+begin
+  for var u in R.Unlocked do
+  begin
+    unlock := Mod.GetResearch(u);
+    if unlock.Requirements <> [] then
+      if not IsResearched(unlock.Name, False) then
+        Exit(True);
+  end;
+  Result := False;
+end;
+
+function TSavedGame.IsResearched(const Research: string; ConsiderDebug: Boolean): Boolean;
+begin
+  if ConsiderDebug and FDebug then Exit(True);
+  for var r in FDiscoveredResearch do
+    if r.Name = Research then Exit(True);
+  Result := False;
+end;
+
+function TSavedGame.IsResearched(const Research: TArray<string>; ConsiderDebug: Boolean): Boolean;
+begin
+  if ConsiderDebug and FDebug then Exit(True);
+  for var s in Research do
+    if not IsResearched(s, False) then
+      Exit(False);
+  Result := True;
+end;
+
+function TSavedGame.GetSoldier(Id: Integer): TSoldier;
+var
+  b: TBase;
+  s: TSoldier;
+begin
+  for b in FBases do
+    for s in b.Soldiers do
+      if s.Id = Id then Exit(s);
+  for s in FDeadSoldiers do
+    if s.Id = Id then Exit(s);
+  Result := nil;
+end;
+
+function TSavedGame.GetSelectedBase: TBase;
+begin
+  if (FSelectedBase >= 0) and (FSelectedBase < FBases.Count) then
+    Result := FBases[FSelectedBase]
+  else if FBases.Count > 0 then
+    Result := FBases[0]
+  else
+    Result := nil;
+end;
+
+procedure TSavedGame.SetSelectedBase(Index: Integer);
+begin
+  FSelectedBase := Index;
+end;
+
+procedure TSavedGame.SetDebugMode;
+begin
+  FDebug := not FDebug;
+end;
+
+procedure TSavedGame.AddResearchScore(Score: Integer);
+begin
+  FResearchScores.Last := FResearchScores.Last + Score;
+end;
+
+function TSavedGame.LocateRegion(Lon, Lat: Double): TRegion;
+var
+  r: TRegion;
+begin
+  for r in FRegions do
+    if r.Rules.InsideRegion(Lon, Lat) then Exit(r);
+  Result := nil;
+end;
+
+function TSavedGame.LocateRegion(const Target: TTarget): TRegion;
+begin
+  Result := LocateRegion(Target.Longitude, Target.Latitude);
+end;
+
+procedure TSavedGame.AddMonth;
+begin
+  Inc(FMonthsPassed);
+end;
+
+procedure TSavedGame.AddPoppedResearch(Research: TRuleResearch);
+begin
+  if not FPoppedResearch.Contains(Research) then
+    FPoppedResearch.Add(Research);
+end;
+
+function TSavedGame.WasResearchPopped(Research: TRuleResearch): Boolean;
+begin
+  Result := FPoppedResearch.Contains(Research);
+end;
+
+procedure TSavedGame.RemovePoppedResearch(Research: TRuleResearch);
+begin
+  FPoppedResearch.Remove(Research);
+end;
+
+function TSavedGame.KillSoldier(Soldier: TSoldier; Cause: TBattleUnitKills = nil): Integer;
+var
+  b: TBase;
+  i: Integer;
+begin
+  for b in FBases do
+  begin
+    for i := 0 to b.Soldiers.Count - 1 do
+      if b.Soldiers[i] = Soldier then
+      begin
+        Soldier.Die(TSoldierDeath.Create(FTime, Cause));
+        FDeadSoldiers.Add(Soldier);
+        b.Soldiers.Delete(i);
+        Exit(i);
+      end;
+  end;
+  Result := -1;
+end;
+
+procedure TSavedGame.SetTime(const Time: TGameTime);
+begin
+  FTime.Free;
+  FTime := TGameTime.Create(Time.Weekday, Time.Day, Time.Month, Time.Year,
+                            Time.Hour, Time.Minute, Time.Second);
+end;
+
+procedure TSavedGame.SetBattleGame(Battle: TSavedBattleGame);
+begin
+  FBattleGame.Free;
+  FBattleGame := Battle;
+end;
+
+function TSavedGame.HandlePromotions(Participants: TArray<TSoldier>): Boolean;
+var
+  allSoldiers: TArray<TSoldier>;
+  info: TPromotionInfo;
+  total: Integer;
+  highest: TSoldier;
+begin
+  SetLength(allSoldiers, 0);
+  for var b in FBases do
+  begin
+    for var s in b.Soldiers do
+    begin
+      SetLength(allSoldiers, Length(allSoldiers) + 1);
+      allSoldiers[High(allSoldiers)] := s;
+      ProcessSoldier(s, info);
+    end;
+    for var t in b.Transfers do
+      if t.Soldier <> nil then
+      begin
+        SetLength(allSoldiers, Length(allSoldiers) + 1);
+        allSoldiers[High(allSoldiers)] := t.Soldier;
+        ProcessSoldier(t.Soldier, info);
+      end;
+  end;
+  total := Length(allSoldiers);
+  Result := False;
+
+  if info.TotalCommanders = 0 then
+  begin
+    if total >= 30 then
+    begin
+      highest := InspectSoldiers(allSoldiers, Participants, Ord(RANK_COLONEL));
+      if highest <> nil then
+      begin
+        highest.PromoteRank;
+        Inc(info.TotalCommanders);
+        Dec(info.TotalColonels);
+        Result := True;
+      end;
+    end;
+  end;
+
+  while (total div 23) > info.TotalColonels do
+  begin
+    highest := InspectSoldiers(allSoldiers, Participants, Ord(RANK_CAPTAIN));
+    if highest = nil then Break;
+    highest.PromoteRank;
+    Inc(info.TotalColonels);
+    Dec(info.TotalCaptains);
+    Result := True;
+  end;
+
+  while (total div 11) > info.TotalCaptains do
+  begin
+    highest := InspectSoldiers(allSoldiers, Participants, Ord(RANK_SERGEANT));
+    if highest = nil then Break;
+    highest.PromoteRank;
+    Inc(info.TotalCaptains);
+    Dec(info.TotalSergeants);
+    Result := True;
+  end;
+
+  while (total div 5) > info.TotalSergeants do
+  begin
+    highest := InspectSoldiers(allSoldiers, Participants, Ord(RANK_SQUADDIE));
+    if highest = nil then Break;
+    highest.PromoteRank;
+    Inc(info.TotalSergeants);
+    Result := True;
+  end;
+end;
+
+procedure TSavedGame.ProcessSoldier(Soldier: TSoldier; var Info: TPromotionInfo);
+begin
+  case Soldier.Rank of
+    RANK_COMMANDER: Inc(Info.TotalCommanders);
+    RANK_COLONEL: Inc(Info.TotalColonels);
+    RANK_CAPTAIN: Inc(Info.TotalCaptains);
+    RANK_SERGEANT: Inc(Info.TotalSergeants);
+  end;
+end;
+
+function TSavedGame.InspectSoldiers(const Soldiers, Participants: TArray<TSoldier>; Rank: Integer): TSoldier;
+var
+  s: TSoldier;
+  score, best: Integer;
+begin
+  Result := nil;
+  best := -1;
+  for s in Soldiers do
+    if Ord(s.Rank) = Rank then
+    begin
+      score := GetSoldierScore(s);
+      if (score > best) and ((not Options.FieldPromotions) or (Participants.Contains(s))) then
+      begin
+        best := score;
+        Result := s;
+      end;
+    end;
+end;
+
+function TSavedGame.GetSoldierScore(Soldier: TSoldier): Integer;
+var
+  stats: TUnitStats;
+begin
+  stats := Soldier.CurrentStats;
+  Result := 2*stats.Health + 2*stats.Stamina + 4*stats.Reactions + 4*stats.Bravery +
+            3*(stats.TU + 2*stats.Firing) +
+            stats.Melee + stats.Throwing + stats.Strength;
+  if stats.PsiSkill > 0 then
+    Result := Result + stats.PsiStrength + 2*stats.PsiSkill;
+  Result := Result + 10 * (Soldier.Missions + Soldier.Kills);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SavedBattleGame.pas;encoding=utf8;eol=lf⟧
+unit SavedBattleGame;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections, YAML, BattleUnit, BattleItem, Tile, Node,
+  MapDataSet, Mod, SavedGame, Pathfinding, TileEngine, BattlescapeState, BattlescapeGame,
+  Position, RuleInventory, RuleItem, AlienDeployment;
+
+type
+  ChronoTrigger = (ctForceLose, ctForceWin, ctSpawnReinforcements);
+
+  TSavedBattleGame = class
+  private
+    FBattleState: TBattlescapeState;
+    FMapsizeX, FMapsizeY, FMapsizeZ: Integer;
+    FMapDataSets: TList<TMapDataSet>;
+    FTiles: TArray<TTile>;
+    FSelectedUnit: TBattleUnit;
+    FLastSelectedUnit: TBattleUnit;
+    FNodes: TObjectList<TNode>;
+    FUnits: TObjectList<TBattleUnit>;
+    FItems: TObjectList<TBattleItem>;
+    FDeleted: TList<TBattleItem>;
+    FPathfinding: TPathfinding;
+    FTileEngine: TTileEngine;
+    FMissionType: string;
+    FGlobalShade: Integer;
+    FSide: TUnitFaction;
+    FTurn: Integer;
+    FDebugMode: Boolean;
+    FAborted: Boolean;
+    FItemId: Integer;
+    FObjectiveType: Integer;
+    FObjectivesDestroyed: Integer;
+    FObjectivesNeeded: Integer;
+    FFallingUnits: TList<TBattleUnit>;
+    FUnitsFalling: Boolean;
+    FCheating: Boolean;
+    FTileSearch: TArray<TPosition>;
+    FStorageSpace: TArray<TPosition>;
+    FTUReserved: TBattleActionType;
+    FKneelReserved: Boolean;
+    FBaseModules: TArray<TArray<TPair<Integer,Integer>>>;
+    FDepth: Integer;
+    FAmbience: Integer;
+    FAmbientVolume: Double;
+    FRecoverGuaranteed: TObjectList<TBattleItem>;
+    FRecoverConditional: TObjectList<TBattleItem>;
+    FMusic: string;
+    FTurnLimit: Integer;
+    FCheatTurn: Integer;
+    FChronoTrigger: ChronoTrigger;
+    FBeforeGame: Boolean;
+    FExposedUnits: TList<TBattleUnit>;
+
+    function GetTileIndex(Pos: TPosition): Integer;
+    function GetTile(Pos: TPosition): TTile;
+    procedure SetTile(Pos: TPosition; Value: TTile);
+    function SelectPlayerUnit(Dir: Integer; CheckReselect, SetReselect, CheckInventory: Boolean): TBattleUnit;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Load(const Node: TYamlNode; Mod: TMod; SavedGame: TSavedGame);
+    function Save: TYamlNode;
+    procedure InitMap(MapsizeX, MapsizeY, MapsizeZ: Integer; ResetTerrain: Boolean = True);
+    procedure InitUtilities(Mod: TMod);
+    property MapDataSets: TList<TMapDataSet> read FMapDataSets;
+    property MissionType: string read FMissionType write FMissionType;
+    property GlobalShade: Integer read FGlobalShade write FGlobalShade;
+    property Tiles[Pos: TPosition]: TTile read GetTile write SetTile; default;
+    property Nodes: TObjectList<TNode> read FNodes;
+    property Items: TObjectList<TBattleItem> read FItems;
+    property Units: TObjectList<TBattleUnit> read FUnits;
+    property MapSizeX: Integer read FMapsizeX;
+    property MapSizeY: Integer read FMapsizeY;
+    property MapSizeZ: Integer read FMapsizeZ;
+    function MapSizeXYZ: Integer;
+    procedure GetTileCoords(Index: Integer; var X, Y, Z: Integer);
+    property SelectedUnit: TBattleUnit read FSelectedUnit write FSelectedUnit;
+    function SelectPreviousPlayerUnit(CheckReselect: Boolean = False; SetReselect: Boolean = False; CheckInventory: Boolean = False): TBattleUnit;
+    function SelectNextPlayerUnit(CheckReselect: Boolean = False; SetReselect: Boolean = False; CheckInventory: Boolean = False): TBattleUnit;
+    function SelectUnit(Pos: TPosition): TBattleUnit;
+    property Pathfinding: TPathfinding read FPathfinding;
+    property TileEngine: TTileEngine read FTileEngine;
+    property Side: TUnitFaction read FSide;
+    property Turn: Integer read FTurn;
+    procedure EndTurn;
+    procedure SetDebugMode;
+    property DebugMode: Boolean read FDebugMode;
+    procedure LoadMapResources(Mod: TMod);
+    procedure ResetUnitTiles;
+    procedure RemoveItem(Item: TBattleItem);
+    function ConvertUnit(Unit: TBattleUnit; SaveGame: TSavedGame; Mod: TMod): TBattleUnit;
+    property Aborted: Boolean read FAborted write FAborted;
+    procedure SetObjectiveCount(Counter: Integer);
+    procedure AddDestroyedObjective;
+    function AllObjectivesDestroyed: Boolean;
+    function GetCurrentItemId: PInteger;
+    function GetSpawnNode(NodeRank: TNodeRank; Unit: TBattleUnit): TNode;
+    function GetPatrolNode(Scout: Boolean; Unit: TBattleUnit; FromNode: TNode): TNode;
+    procedure PrepareNewTurn;
+    procedure ReviveUnconsciousUnits;
+    procedure RemoveUnconsciousBodyItem(BU: TBattleUnit);
+    function SetUnitPosition(BU: TBattleUnit; Position: TPosition; TestOnly: Boolean = False): Boolean;
+    function AddFallingUnit(Unit: TBattleUnit): Boolean;
+    property FallingUnits: TList<TBattleUnit> read FFallingUnits;
+    property UnitsFalling: Boolean read FUnitsFalling write FUnitsFalling;
+    property BattleState: TBattlescapeState read FBattleState write FBattleState;
+    function GetBattleGame: TBattlescapeGame;
+    function GetHighestRankedXCom: TBattleUnit;
+    function GetMoraleModifier(Unit: TBattleUnit = nil): Integer;
+    function EyesOnTarget(Faction: TUnitFaction; Unit: TBattleUnit): Boolean;
+    function PlaceUnitNearPosition(Unit: TBattleUnit; const EntryPoint: TPosition; LargeFriend: Boolean): Boolean;
+    procedure ResetTurnCounter;
+    procedure ResetTiles;
+    property TileSearch: TArray<TPosition> read FTileSearch;
+    property Cheating: Boolean read FCheating;
+    property TUReserved: TBattleActionType read FTUReserved write FTUReserved;
+    property KneelReserved: Boolean read FKneelReserved write FKneelReserved;
+    property StorageSpace: TArray<TPosition> read FStorageSpace write FStorageSpace;
+    procedure RandomizeItemLocations(Tile: TTile);
+    property ModuleMap: TArray<TArray<TPair<Integer,Integer>>> read FBaseModules;
+    procedure CalculateModuleMap;
+    function GetGeoscapeSave: TSavedGame;
+    property Depth: Integer read FDepth write FDepth;
+    procedure SetPaletteByDepth(State: TState);
+    property AmbientSound: Integer read FAmbience write FAmbience;
+    property AmbientVolume: Double read FAmbientVolume write FAmbientVolume;
+    property RecoverGuaranteed: TObjectList<TBattleItem> read FRecoverGuaranteed;
+    property RecoverConditional: TObjectList<TBattleItem> read FRecoverConditional;
+    property Music: string read FMusic write FMusic;
+    property ObjectiveType: Integer read FObjectiveType write FObjectiveType;
+    property TurnLimit: Integer read FTurnLimit write FTurnLimit;
+    property ChronoTrigger: ChronoTrigger read FChronoTrigger write FChronoTrigger;
+    property CheatTurn: Integer read FCheatTurn write FCheatTurn;
+    property BeforeGame: Boolean read FBeforeGame;
+    function GetItemUsable(Item: TBattleItem): string;
+    function IsItemUsable(Item: TBattleItem): Boolean;
+    procedure ResetUnitHitStates;
+  end;
+
+implementation
+
+uses
+  Math, RNG, SerializationHelper, Options, Logger;
+
+constructor TSavedBattleGame.Create;
+begin
+  inherited;
+  FMapsizeX := 0; FMapsizeY := 0; FMapsizeZ := 0;
+  FMapDataSets := TList<TMapDataSet>.Create;
+  FNodes := TObjectList<TNode>.Create;
+  FUnits := TObjectList<TBattleUnit>.Create;
+  FItems := TObjectList<TBattleItem>.Create;
+  FDeleted := TList<TBattleItem>.Create;
+  FFallingUnits := TList<TBattleUnit>.Create;
+  FRecoverGuaranteed := TObjectList<TBattleItem>.Create;
+  FRecoverConditional := TObjectList<TBattleItem>.Create;
+  FExposedUnits := TList<TBattleUnit>.Create;
+  FPathfinding := nil;
+  FTileEngine := nil;
+  FSelectedUnit := nil;
+  FLastSelectedUnit := nil;
+  FSide := FACTION_PLAYER;
+  FTurn := 1;
+  FDebugMode := False;
+  FAborted := False;
+  FItemId := 0;
+  FObjectiveType := -1;
+  FObjectivesDestroyed := 0;
+  FObjectivesNeeded := 0;
+  FUnitsFalling := False;
+  FCheating := False;
+  FTUReserved := BA_NONE;
+  FKneelReserved := False;
+  FDepth := 0;
+  FAmbience := -1;
+  FAmbientVolume := 0.5;
+  FTurnLimit := 0;
+  FCheatTurn := 20;
+  FChronoTrigger := ctForceLose;
+  FBeforeGame := True;
+  FTileSearch := [];
+  FStorageSpace := [];
+end;
+
+destructor TSavedBattleGame.Destroy;
+begin
+  FMapDataSets.Free;
+  FNodes.Free;
+  FUnits.Free;
+  FItems.Free;
+  FDeleted.Free;
+  FFallingUnits.Free;
+  FRecoverGuaranteed.Free;
+  FRecoverConditional.Free;
+  FExposedUnits.Free;
+  FPathfinding.Free;
+  FTileEngine.Free;
+  inherited;
+end;
+
+procedure TSavedBattleGame.Load(const Node: TYamlNode; Mod: TMod; SavedGame: TSavedGame);
+begin
+  // Load map data from YAML; placeholder
+end;
+
+function TSavedBattleGame.Save: TYamlNode;
+begin
+  Result := TYamlNode.Create;
+  // Placeholder
+end;
+
+procedure TSavedBattleGame.InitMap(MapsizeX, MapsizeY, MapsizeZ: Integer; ResetTerrain: Boolean);
+begin
+  FMapsizeX := MapsizeX;
+  FMapsizeY := MapsizeY;
+  FMapsizeZ := MapsizeZ;
+  SetLength(FTiles, MapsizeX * MapsizeY * MapsizeZ);
+  for var i := 0 to High(FTiles) do
+    FTiles[i] := TTile.Create(GetTileCoords(i));
+end;
+
+procedure TSavedBattleGame.InitUtilities(Mod: TMod);
+begin
+  FPathfinding.Free;
+  FTileEngine.Free;
+  FPathfinding := TPathfinding.Create(Self);
+  FTileEngine := TTileEngine.Create(Self, Mod.VoxelData);
+end;
+
+function TSavedBattleGame.GetTileIndex(Pos: TPosition): Integer;
+begin
+  Result := Pos.z * FMapsizeY * FMapsizeX + Pos.y * FMapsizeX + Pos.x;
+end;
+
+function TSavedBattleGame.GetTile(Pos: TPosition): TTile;
+begin
+  if (Pos.x < 0) or (Pos.y < 0) or (Pos.z < 0) or
+     (Pos.x >= FMapsizeX) or (Pos.y >= FMapsizeY) or (Pos.z >= FMapsizeZ) then
+    Exit(nil);
+  Result := FTiles[GetTileIndex(Pos)];
+end;
+
+procedure TSavedBattleGame.SetTile(Pos: TPosition; Value: TTile);
+begin
+  FTiles[GetTileIndex(Pos)] := Value;
+end;
+
+function TSavedBattleGame.MapSizeXYZ: Integer;
+begin
+  Result := FMapsizeX * FMapsizeY * FMapsizeZ;
+end;
+
+procedure TSavedBattleGame.GetTileCoords(Index: Integer; var X, Y, Z: Integer);
+begin
+  Z := Index div (FMapsizeY * FMapsizeX);
+  Y := (Index mod (FMapsizeY * FMapsizeX)) div FMapsizeX;
+  X := (Index mod (FMapsizeY * FMapsizeX)) mod FMapsizeX;
+end;
+
+function TSavedBattleGame.SelectPreviousPlayerUnit(CheckReselect, SetReselect, CheckInventory: Boolean): TBattleUnit;
+begin
+  Result := SelectPlayerUnit(-1, CheckReselect, SetReselect, CheckInventory);
+end;
+
+function TSavedBattleGame.SelectNextPlayerUnit(CheckReselect, SetReselect, CheckInventory: Boolean): TBattleUnit;
+begin
+  Result := SelectPlayerUnit(1, CheckReselect, SetReselect, CheckInventory);
+end;
+
+function TSavedBattleGame.SelectPlayerUnit(Dir: Integer; CheckReselect, SetReselect, CheckInventory: Boolean): TBattleUnit;
+var
+  i, start: Integer;
+  unit: TBattleUnit;
+begin
+  if (FSelectedUnit <> nil) and SetReselect then
+    FSelectedUnit.DontReselect;
+  if FUnits.Count = 0 then Exit(nil);
+
+  if Dir > 0 then
+  begin
+    i := 0;
+    while i < FUnits.Count do
+    begin
+      unit := FUnits[i];
+      if unit.IsSelectable(FSide, CheckReselect, CheckInventory) then
+      begin
+        FSelectedUnit := unit;
+        Exit(unit);
+      end;
+      Inc(i);
+    end;
+  end
+  else
+  begin
+    i := FUnits.Count - 1;
+    while i >= 0 do
+    begin
+      unit := FUnits[i];
+      if unit.IsSelectable(FSide, CheckReselect, CheckInventory) then
+      begin
+        FSelectedUnit := unit;
+        Exit(unit);
+      end;
+      Dec(i);
+    end;
+  end;
+  Result := nil;
+end;
+
+function TSavedBattleGame.SelectUnit(Pos: TPosition): TBattleUnit;
+var
+  tile: TTile;
+begin
+  tile := GetTile(Pos);
+  if tile = nil then Exit(nil);
+  Result := tile.GetUnit;
+  if (Result <> nil) and Result.IsOut then
+    Result := nil;
+end;
+
+procedure TSavedBattleGame.EndTurn;
+var
+  liveSoldiers, liveAliens: Integer;
+begin
+  if FSide = FACTION_PLAYER then
+  begin
+    if (FSelectedUnit <> nil) and (FSelectedUnit.OriginalFaction = FACTION_PLAYER) then
+      FLastSelectedUnit := FSelectedUnit;
+    FSelectedUnit := nil;
+    FSide := FACTION_HOSTILE;
+  end
+  else if FSide = FACTION_HOSTILE then
+  begin
+    FSide := FACTION_NEUTRAL;
+    if SelectNextPlayerUnit(False, False, False) = nil then
+    begin
+      PrepareNewTurn;
+      Inc(FTurn);
+      FSide := FACTION_PLAYER;
+      if (FLastSelectedUnit <> nil) and FLastSelectedUnit.IsSelectable(FACTION_PLAYER, False, False) then
+        FSelectedUnit := FLastSelectedUnit
+      else
+        SelectNextPlayerUnit;
+      while (FSelectedUnit <> nil) and (FSelectedUnit.Faction <> FACTION_PLAYER) do
+        SelectNextPlayerUnit;
+    end;
+  end
+  else if FSide = FACTION_NEUTRAL then
+  begin
+    PrepareNewTurn;
+    Inc(FTurn);
+    FSide := FACTION_PLAYER;
+    if (FLastSelectedUnit <> nil) and FLastSelectedUnit.IsSelectable(FACTION_PLAYER, False, False) then
+      FSelectedUnit := FLastSelectedUnit
+    else
+      SelectNextPlayerUnit;
+    while (FSelectedUnit <> nil) and (FSelectedUnit.Faction <> FACTION_PLAYER) do
+      SelectNextPlayerUnit;
+  end;
+
+  GetBattleGame.TallyUnits(liveAliens, liveSoldiers);
+  if (FTurn > FCheatTurn div 2) and (liveAliens <= 2) or (FTurn > FCheatTurn) then
+    FCheating := True;
+
+  if FSide = FACTION_PLAYER then
+  begin
+    for var u in FUnits do
+    begin
+      if u.TurnsSinceSpotted < 255 then
+        u.TurnsSinceSpotted := u.TurnsSinceSpotted + 1;
+      if FCheating and (u.Faction = FACTION_PLAYER) and not u.IsOut then
+        u.TurnsSinceSpotted := 0;
+      if u.AIModule <> nil then
+        u.AIModule.Reset;
+    end;
+  end;
+
+  for var u in FUnits do
+  begin
+    if u.Faction = FSide then
+      u.PrepareNewTurn;
+    if u.Faction <> FACTION_PLAYER then
+      u.SetVisible(False);
+  end;
+
+  FTileEngine.RecalculateFOV;
+  if FSide <> FACTION_PLAYER then
+    SelectNextPlayerUnit;
+end;
+
+procedure TSavedBattleGame.SetDebugMode;
+begin
+  for var tile in FTiles do
+    tile.SetDiscovered(True, 2);
+  FDebugMode := True;
+end;
+
+procedure TSavedBattleGame.LoadMapResources(Mod: TMod);
+begin
+  // Load map data sets
+end;
+
+procedure TSavedBattleGame.ResetUnitTiles;
+begin
+  for var u in FUnits do
+  begin
+    if not u.IsOut then
+    begin
+      var size := u.Armor.Size - 1;
+      if (u.Tile <> nil) and (u.Tile.GetUnit = u) then
+      begin
+        for var x := size downto 0 do
+          for var y := size downto 0 do
+            GetTile(u.Tile.Position + TPosition.Create(x, y, 0)).SetUnit(nil);
+      end;
+      for var x := size downto 0 do
+        for var y := size downto 0 do
+        begin
+          var tile := GetTile(u.Position + TPosition.Create(x, y, 0));
+          tile.SetUnit(u, GetTile(tile.Position + TPosition.Create(0,0,-1)));
+        end;
+    end;
+    if u.Faction = FACTION_PLAYER then
+      u.SetVisible(True);
+  end;
+  FBeforeGame := False;
+end;
+
+procedure TSavedBattleGame.RemoveItem(Item: TBattleItem);
+begin
+  // Remove from tiles, units, and items list
+end;
+
+function TSavedBattleGame.ConvertUnit(Unit: TBattleUnit; SaveGame: TSavedGame; Mod: TMod): TBattleUnit;
+begin
+  // Placeholder
+  Result := nil;
+end;
+
+procedure TSavedBattleGame.SetObjectiveCount(Counter: Integer);
+begin
+  FObjectivesNeeded := Counter;
+  FObjectivesDestroyed := 0;
+end;
+
+procedure TSavedBattleGame.AddDestroyedObjective;
+begin
+  if not AllObjectivesDestroyed then
+  begin
+    Inc(FObjectivesDestroyed);
+    if AllObjectivesDestroyed then
+    begin
+      if FObjectiveType = MUST_DESTROY then
+        GetBattleGame.AutoEndBattle
+      else
+        GetBattleGame.MissionComplete;
+    end;
+  end;
+end;
+
+function TSavedBattleGame.AllObjectivesDestroyed: Boolean;
+begin
+  Result := (FObjectivesNeeded > 0) and (FObjectivesDestroyed = FObjectivesNeeded);
+end;
+
+function TSavedBattleGame.GetCurrentItemId: PInteger;
+begin
+  Result := @FItemId;
+end;
+
+function TSavedBattleGame.GetSpawnNode(NodeRank: TNodeRank; Unit: TBattleUnit): TNode;
+begin
+  // Placeholder
+  Result := nil;
+end;
+
+function TSavedBattleGame.GetPatrolNode(Scout: Boolean; Unit: TBattleUnit; FromNode: TNode): TNode;
+begin
+  // Placeholder
+  Result := nil;
+end;
+
+procedure TSavedBattleGame.PrepareNewTurn;
+begin
+  // Fire and smoke spread, etc.
+end;
+
+procedure TSavedBattleGame.ReviveUnconsciousUnits;
+begin
+  // Check stun levels
+end;
+
+procedure TSavedBattleGame.RemoveUnconsciousBodyItem(BU: TBattleUnit);
+begin
+  // Remove body item
+end;
+
+function TSavedBattleGame.SetUnitPosition(BU: TBattleUnit; Position: TPosition; TestOnly: Boolean): Boolean;
+begin
+  // Placeholder
+  Result := True;
+end;
+
+function TSavedBattleGame.AddFallingUnit(Unit: TBattleUnit): Boolean;
+begin
+  if not FFallingUnits.Contains(Unit) then
+  begin
+    FFallingUnits.Add(Unit);
+    FUnitsFalling := True;
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+function TSavedBattleGame.GetBattleGame: TBattlescapeGame;
+begin
+  Result := FBattleState.GetBattleGame;
+end;
+
+function TSavedBattleGame.GetHighestRankedXCom: TBattleUnit;
+begin
+  Result := nil;
+  for var u in FUnits do
+    if (u.OriginalFaction = FACTION_PLAYER) and not u.IsOut then
+      if (Result = nil) or (u.RankInt > Result.RankInt) then
+        Result := u;
+end;
+
+function TSavedBattleGame.GetMoraleModifier(Unit: TBattleUnit): Integer;
+begin
+  Result := 100;
+  if Unit = nil then
+  begin
+    var leader := GetHighestRankedXCom;
+    if leader <> nil then
+    begin
+      case leader.RankInt of
+        5: Result := Result + 25;
+        4: Result := Result + 10;
+        3: Result := Result + 5;
+        2: Result := Result + 10;
+      end;
+    end;
+  end
+  else if Unit.Faction = FACTION_PLAYER then
+  begin
+    case Unit.RankInt of
+      5: Result := Result + 25;
+      4: Result := Result + 20;
+      3: Result := Result + 10;
+      2: Result := Result + 20;
+    end;
+  end;
+end;
+
+function TSavedBattleGame.EyesOnTarget(Faction: TUnitFaction; Unit: TBattleUnit): Boolean;
+begin
+  for var u in FUnits do
+    if u.Faction = Faction then
+      if u.VisibleUnits.Contains(Unit) then
+        Exit(True);
+  Result := False;
+end;
+
+function TSavedBattleGame.PlaceUnitNearPosition(Unit: TBattleUnit; const EntryPoint: TPosition; LargeFriend: Boolean): Boolean;
+begin
+  // Placeholder
+  Result := True;
+end;
+
+procedure TSavedBattleGame.ResetTurnCounter;
+begin
+  FTurn := 1;
+  FCheating := False;
+  FSide := FACTION_PLAYER;
+  FBeforeGame := True;
+end;
+
+procedure TSavedBattleGame.ResetTiles;
+begin
+  for var tile in FTiles do
+  begin
+    tile.SetDiscovered(False, 0);
+    tile.SetDiscovered(False, 1);
+    tile.SetDiscovered(False, 2);
+  end;
+end;
+
+procedure TSavedBattleGame.RandomizeItemLocations(Tile: TTile);
+begin
+  // Placeholder
+end;
+
+procedure TSavedBattleGame.CalculateModuleMap;
+begin
+  // Placeholder
+end;
+
+function TSavedBattleGame.GetGeoscapeSave: TSavedGame;
+begin
+  Result := FBattleState.GetGame.SavedGame;
+end;
+
+procedure TSavedBattleGame.SetPaletteByDepth(State: TState);
+begin
+  if FDepth = 0 then
+    State.SetPalette('PAL_BATTLESCAPE')
+  else
+    State.SetPalette('PAL_BATTLESCAPE_' + IntToStr(FDepth));
+end;
+
+function TSavedBattleGame.GetItemUsable(Item: TBattleItem): string;
+begin
+  if (FDepth = 0) and ((Item.Rules.IsWaterOnly) or ((Item.AmmoItem <> nil) and (Item.AmmoItem.Rules.IsWaterOnly))) then
+    Exit('STR_UNDERWATER_EQUIPMENT');
+  if (FDepth <> 0) and ((Item.Rules.IsLandOnly) or ((Item.AmmoItem <> nil) and (Item.AmmoItem.Rules.IsLandOnly))) then
+    Exit('STR_LAND_EQUIPMENT');
+  Result := '';
+end;
+
+function TSavedBattleGame.IsItemUsable(Item: TBattleItem): Boolean;
+begin
+  Result := GetItemUsable(Item) = '';
+end;
+
+procedure TSavedBattleGame.ResetUnitHitStates;
+begin
+  for var u in FUnits do
+    u.ResetHitState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:Base.pas;encoding=utf8;eol=lf⟧
+unit Base;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections, YAML, Target, Mod, BaseFacility,
+  Soldier, Craft, ItemContainer, Transfer, ResearchProject, Production, Vehicle,
+  SavedGame;
+
+type
+  TBase = class(TTarget)
+  private
+    const BASE_SIZE = 6;
+    FMod: TMod;
+    FFacilities: TObjectList<TBaseFacility>;
+    FSoldiers: TObjectList<TSoldier>;
+    FCrafts: TObjectList<TCraft>;
+    FTransfers: TObjectList<TTransfer>;
+    FItems: TItemContainer;
+    FScientists: Integer;
+    FEngineers: Integer;
+    FResearch: TObjectList<TResearchProject>;
+    FProductions: TObjectList<TProduction>;
+    FInBattlescape: Boolean;
+    FRetaliationTarget: Boolean;
+    FVehicles: TObjectList<TVehicle>;
+    FDefenses: TObjectList<TBaseFacility>;
+    function GetIgnoredStores: Double;
+  public
+    constructor Create(Mod: TMod);
+    destructor Destroy; override;
+    procedure Load(const Node: TYamlNode; Save: TSavedGame; NewGame: Boolean; NewBattleGame: Boolean = False);
+    function Save: TYamlNode;
+    function GetType: string; override;
+    function GetName(Lang: TLanguage): string; override;
+    function GetMarker: Integer; override;
+    property Facilities: TObjectList<TBaseFacility> read FFacilities;
+    property Soldiers: TObjectList<TSoldier> read FSoldiers;
+    property Crafts: TObjectList<TCraft> read FCrafts;
+    property Transfers: TObjectList<TTransfer> read FTransfers;
+    property StorageItems: TItemContainer read FItems;
+    property Scientists: Integer read FScientists write FScientists;
+    property Engineers: Integer read FEngineers write FEngineers;
+    function Detect(Target: TTarget): Integer;
+    function InsideRadarRange(Target: TTarget): Integer;
+    function GetAvailableSoldiers(CheckCombatReadiness: Boolean = False): Integer;
+    function GetTotalSoldiers: Integer;
+    function GetAvailableScientists: Integer;
+    function GetTotalScientists: Integer;
+    function GetAvailableEngineers: Integer;
+    function GetTotalEngineers: Integer;
+    function GetUsedQuarters: Integer;
+    function GetAvailableQuarters: Integer;
+    function GetUsedStores: Double;
+    function StoresOverfull(Offset: Double = 0.0): Boolean;
+    function GetAvailableStores: Integer;
+    function GetUsedLaboratories: Integer;
+    function GetAvailableLaboratories: Integer;
+    function GetUsedWorkshops: Integer;
+    function GetAvailableWorkshops: Integer;
+    function GetUsedHangars: Integer;
+    function GetAvailableHangars: Integer;
+    function GetFreeLaboratories: Integer;
+    function GetFreeWorkshops: Integer;
+    function GetFreePsiLabs: Integer;
+    function GetFreeContainment: Integer;
+    function GetAllocatedScientists: Integer;
+    function GetAllocatedEngineers: Integer;
+    function GetDefenseValue: Integer;
+    function GetShortRangeDetection: Integer;
+    function GetLongRangeDetection: Integer;
+    function GetCraftCount(const CraftType: string): Integer;
+    function GetCraftMaintenance: Integer;
+    function GetSoldierCount(const SoldierType: string): Integer;
+    function GetPersonnelMaintenance: Integer;
+    function GetFacilityMaintenance: Integer;
+    function GetMonthlyMaintenance: Integer;
+    property Research: TObjectList<TResearchProject> read FResearch;
+    procedure AddResearch(Project: TResearchProject);
+    procedure RemoveResearch(Project: TResearchProject);
+    procedure AddProduction(Prod: TProduction);
+    procedure RemoveProduction(Prod: TProduction);
+    property Productions: TObjectList<TProduction> read FProductions;
+    function GetAvailablePsiLabs: Integer;
+    function GetUsedPsiLabs: Integer;
+    function GetAvailableContainment: Integer;
+    function GetUsedContainment: Integer;
+    property InBattlescape: Boolean read FInBattlescape write FInBattlescape;
+    property RetaliationTarget: Boolean read FRetaliationTarget write FRetaliationTarget;
+    function GetDetectionChance: Integer;
+    function GetGravShields: Integer;
+    procedure SetupDefenses;
+    property Defenses: TObjectList<TBaseFacility> read FDefenses;
+    property Vehicles: TObjectList<TVehicle> read FVehicles;
+    procedure DestroyDisconnectedFacilities;
+    function GetDisconnectedFacilities(Remove: TBaseFacility): TList<TObject>;
+    procedure DestroyFacility(Facility: TBaseFacility);
+    procedure CleanupDefenses(ReclaimItems: Boolean);
+    function RemoveCraft(Craft: TCraft; Unload: Boolean): Integer;
+  end;
+
+implementation
+
+uses
+  Math, RNG, Options, Logger, RuleBaseFacility, RuleCraft, RuleItem, Armor,
+  RuleManufacture, RuleResearch, Language;
+
+constructor TBase.Create(Mod: TMod);
+begin
+  inherited Create;
+  FMod := Mod;
+  FFacilities := TObjectList<TBaseFacility>.Create;
+  FSoldiers := TObjectList<TSoldier>.Create;
+  FCrafts := TObjectList<TCraft>.Create;
+  FTransfers := TObjectList<TTransfer>.Create;
+  FItems := TItemContainer.Create;
+  FResearch := TObjectList<TResearchProject>.Create;
+  FProductions := TObjectList<TProduction>.Create;
+  FVehicles := TObjectList<TVehicle>.Create;
+  FDefenses := TObjectList<TBaseFacility>.Create;
+  FScientists := 0;
+  FEngineers := 0;
+  FInBattlescape := False;
+  FRetaliationTarget := False;
+end;
+
+destructor TBase.Destroy;
+begin
+  FFacilities.Free;
+  FSoldiers.Free;
+  FCrafts.Free;
+  FTransfers.Free;
+  FItems.Free;
+  FResearch.Free;
+  FProductions.Free;
+  FVehicles.Free;
+  FDefenses.Free;
+  inherited;
+end;
+
+procedure TBase.Load(const Node: TYamlNode; Save: TSavedGame; NewGame: Boolean; NewBattleGame: Boolean);
+begin
+  inherited Load(Node);
+  // Load facilities, soldiers, crafts, etc. from YAML
+end;
+
+function TBase.Save: TYamlNode;
+begin
+  Result := inherited Save;
+  // Save all contents
+end;
+
+function TBase.GetType: string;
+begin
+  Result := 'STR_BASE';
+end;
+
+function TBase.GetName(Lang: TLanguage): string;
+begin
+  Result := FName;
+end;
+
+function TBase.GetMarker: Integer;
+begin
+  if (Abs(FLon) < 1e-12) and (Abs(FLat) < 1e-12) then
+    Result := -1
+  else
+    Result := 0;
+end;
+
+function TBase.Detect(Target: TTarget): Integer;
+var
+  chance: Integer;
+  distance: Double;
+begin
+  chance := 0;
+  distance := GetDistance(Target) * 60.0 * (180.0 / Pi);
+  for var fac in FFacilities do
+  begin
+    if (fac.Rules.RadarRange >= distance) and (fac.BuildTime = 0) then
+    begin
+      if fac.Rules.IsHyperwave then
+      begin
+        if (fac.Rules.RadarChance = 100) or RNG.Percent(fac.Rules.RadarChance) then
+          Exit(2);
+      end
+      else
+        chance := chance + fac.Rules.RadarChance;
+    end;
+  end;
+  if chance = 0 then Exit(0);
+  var u := Target as TUfo;
+  if u <> nil then
+    chance := chance * (100 + u.Visibility) div 100;
+  if RNG.Percent(chance) then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function TBase.InsideRadarRange(Target: TTarget): Integer;
+var
+  inside: Boolean;
+  distance: Double;
+begin
+  inside := False;
+  distance := GetDistance(Target) * 60.0 * (180.0 / Pi);
+  for var fac in FFacilities do
+  begin
+    if (fac.Rules.RadarRange >= distance) and (fac.BuildTime = 0) then
+    begin
+      if fac.Rules.IsHyperwave then
+        Exit(2);
+      inside := True;
+    end;
+  end;
+  if inside then Result := 1 else Result := 0;
+end;
+
+function TBase.GetAvailableSoldiers(CheckCombatReadiness: Boolean): Integer;
+begin
+  Result := 0;
+  for var s in FSoldiers do
+  begin
+    if not CheckCombatReadiness then
+    begin
+      if s.Craft = nil then Inc(Result);
+    end
+    else
+    begin
+      if ((s.Craft <> nil) and (s.Craft.Status <> 'STR_OUT')) or
+         ((s.Craft = nil) and (s.WoundRecovery = 0)) then
+        Inc(Result);
+    end;
+  end;
+end;
+
+function TBase.GetTotalSoldiers: Integer;
+begin
+  Result := FSoldiers.Count;
+  for var t in FTransfers do
+    if t.Type = TRANSFER_SOLDIER then
+      Result := Result + t.Quantity;
+end;
+
+function TBase.GetAvailableScientists: Integer;
+begin
+  Result := FScientists;
+end;
+
+function TBase.GetTotalScientists: Integer;
+begin
+  Result := FScientists;
+  for var t in FTransfers do
+    if t.Type = TRANSFER_SCIENTIST then
+      Result := Result + t.Quantity;
+  for var r in FResearch do
+    Result := Result + r.Assigned;
+end;
+
+function TBase.GetAvailableEngineers: Integer;
+begin
+  Result := FEngineers;
+end;
+
+function TBase.GetTotalEngineers: Integer;
+begin
+  Result := FEngineers;
+  for var t in FTransfers do
+    if t.Type = TRANSFER_ENGINEER then
+      Result := Result + t.Quantity;
+  for var p in FProductions do
+    Result := Result + p.AssignedEngineers;
+end;
+
+function TBase.GetUsedQuarters: Integer;
+begin
+  Result := GetTotalSoldiers + GetTotalScientists + GetTotalEngineers;
+end;
+
+function TBase.GetAvailableQuarters: Integer;
+begin
+  Result := 0;
+  for var fac in FFacilities do
+    if fac.BuildTime = 0 then
+      Result := Result + fac.Rules.Personnel;
+end;
+
+function TBase.GetUsedStores: Double;
+begin
+  Result := FItems.GetTotalSize(FMod);
+  for var c in FCrafts do
+  begin
+    Result := Result + c.Items.GetTotalSize(FMod);
+    for var v in c.Vehicles do
+      Result := Result + v.Rules.Size;
+  end;
+  for var t in FTransfers do
+  begin
+    if t.Type = TRANSFER_ITEM then
+      Result := Result + t.Quantity * FMod.GetItem(t.Items).Size
+    else if t.Type = TRANSFER_CRAFT then
+      Result := Result + t.Craft.Items.GetTotalSize(FMod);
+  end;
+  Result := Result - GetIgnoredStores;
+end;
+
+function TBase.StoresOverfull(Offset: Double): Boolean;
+var
+  capacity: Integer;
+begin
+  capacity := GetAvailableStores * 100;
+  Result := Round((GetUsedStores + Offset) * 100) > capacity;
+end;
+
+function TBase.GetAvailableStores: Integer;
+begin
+  Result := 0;
+  for var fac in FFacilities do
+    if fac.BuildTime = 0 then
+      Result := Result + fac.Rules.Storage;
+end;
+
+function TBase.GetIgnoredStores: Double;
+begin
+  Result := 0;
+  for var c in FCrafts do
+  begin
+    if c.Status = 'STR_REARMING' then
+    begin
+      for var w in c.Weapons do
+      begin
+        if (w <> nil) and w.IsRearming then
+        begin
+          var clip := w.Rules.ClipItem;
+          var available := FItems.GetItem(clip);
+          if (clip <> '') and (available > 0) then
+          begin
+            var clipSize := FMod.GetItem(clip).ClipSize;
+            var needed := 0;
+            if clipSize > 0 then
+              needed := (w.Rules.AmmoMax - w.Ammo) div clipSize;
+            Result := Result + Min(available, needed) * FMod.GetItem(clip).Size;
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function TBase.GetUsedLaboratories: Integer;
+begin
+  Result := 0;
+  for var r in FResearch do
+    Result := Result + r.Assigned;
+end;
+
+function TBase.GetAvailableLaboratories: Integer;
+begin
+  Result := 0;
+  for var fac in FFacilities do
+    if fac.BuildTime = 0 then
+      Result := Result + fac.Rules.Laboratories;
+end;
+
+function TBase.GetUsedWorkshops: Integer;
+begin
+  Result := 0;
+  for var p in FProductions do
+    Result := Result + p.AssignedEngineers + p.Rules.RequiredSpace;
+end;
+
+function TBase.GetAvailableWorkshops: Integer;
+begin
+  Result := 0;
+  for var fac in FFacilities do
+    if fac.BuildTime = 0 then
+      Result := Result + fac.Rules.Workshops;
+end;
+
+function TBase.GetUsedHangars: Integer;
+begin
+  Result := FCrafts.Count;
+  for var t in FTransfers do
+    if t.Type = TRANSFER_CRAFT then
+      Result := Result + t.Quantity;
+  for var p in FProductions do
+    if p.Rules.Category = 'STR_CRAFT' then
+      Result := Result + (p.AmountTotal - p.AmountProduced);
+end;
+
+function TBase.GetAvailableHangars: Integer;
+begin
+  Result := 0;
+  for var fac in FFacilities do
+    if fac.BuildTime = 0 then
+      Result := Result + fac.Rules.Crafts;
+end;
+
+function TBase.GetFreeLaboratories: Integer;
+begin
+  Result := GetAvailableLaboratories - GetUsedLaboratories;
+end;
+
+function TBase.GetFreeWorkshops: Integer;
+begin
+  Result := GetAvailableWorkshops - GetUsedWorkshops;
+end;
+
+function TBase.GetFreePsiLabs: Integer;
+begin
+  Result := GetAvailablePsiLabs - GetUsedPsiLabs;
+end;
+
+function TBase.GetFreeContainment: Integer;
+begin
+  Result := GetAvailableContainment - GetUsedContainment;
+end;
+
+function TBase.GetAllocatedScientists: Integer;
+begin
+  Result := 0;
+  for var r in FResearch do
+    Result := Result + r.Assigned;
+end;
+
+function TBase.GetAllocatedEngineers: Integer;
+begin
+  Result := 0;
+  for var p in FProductions do
+    Result := Result + p.AssignedEngineers;
+end;
+
+function TBase.GetDefenseValue: Integer;
+begin
+  Result := 0;
+  for var fac in FFacilities do
+    if fac.BuildTime = 0 then
+      Result := Result + fac.Rules.DefenseValue;
+end;
+
+function TBase.GetShortRangeDetection: Integer;
+begin
+  Result := 0;
+  var minRange := FMod.GetMinRadarRange;
+  if minRange = 0 then Exit(0);
+  for var fac in FFacilities do
+    if (fac.Rules.RadarRange = minRange) and (fac.BuildTime = 0) then
+      Inc(Result);
+end;
+
+function TBase.GetLongRangeDetection: Integer;
+begin
+  Result := 0;
+  var minRange := FMod.GetMinRadarRange;
+  for var fac in FFacilities do
+    if (fac.Rules.RadarRange > minRange) and (fac.BuildTime = 0) then
+      Inc(Result);
+end;
+
+function TBase.GetCraftCount(const CraftType: string): Integer;
+begin
+  Result := 0;
+  for var t in FTransfers do
+    if (t.Type = TRANSFER_CRAFT) and (t.Craft.Rules.Type = CraftType) then
+      Inc(Result);
+  for var c in FCrafts do
+    if c.Rules.Type = CraftType then
+      Inc(Result);
+end;
+
+function TBase.GetCraftMaintenance: Integer;
+begin
+  Result := 0;
+  for var t in FTransfers do
+    if t.Type = TRANSFER_CRAFT then
+      Result := Result + t.Craft.Rules.RentCost;
+  for var c in FCrafts do
+    Result := Result + c.Rules.RentCost;
+end;
+
+function TBase.GetSoldierCount(const SoldierType: string): Integer;
+begin
+  Result := 0;
+  for var t in FTransfers do
+    if (t.Type = TRANSFER_SOLDIER) and (t.Soldier.Rules.Type = SoldierType) then
+      Inc(Result);
+  for var s in FSoldiers do
+    if s.Rules.Type = SoldierType then
+      Inc(Result);
+end;
+
+function TBase.GetPersonnelMaintenance: Integer;
+begin
+  Result := 0;
+  for var t in FTransfers do
+    if t.Type = TRANSFER_SOLDIER then
+      Result := Result + t.Soldier.Rules.SalaryCost;
+  for var s in FSoldiers do
+    Result := Result + s.Rules.SalaryCost;
+  Result := Result + GetTotalEngineers * FMod.EngineerCost;
+  Result := Result + GetTotalScientists * FMod.ScientistCost;
+end;
+
+function TBase.GetFacilityMaintenance: Integer;
+begin
+  Result := 0;
+  for var fac in FFacilities do
+    if fac.BuildTime = 0 then
+      Result := Result + fac.Rules.MonthlyCost;
+end;
+
+function TBase.GetMonthlyMaintenance: Integer;
+begin
+  Result := GetCraftMaintenance + GetPersonnelMaintenance + GetFacilityMaintenance;
+end;
+
+procedure TBase.AddResearch(Project: TResearchProject);
+begin
+  FResearch.Add(Project);
+end;
+
+procedure TBase.RemoveResearch(Project: TResearchProject);
+begin
+  FScientists := FScientists + Project.Assigned;
+  FResearch.Remove(Project);
+  Project.Free;
+end;
+
+procedure TBase.AddProduction(Prod: TProduction);
+begin
+  FProductions.Add(Prod);
+end;
+
+procedure TBase.RemoveProduction(Prod: TProduction);
+begin
+  FEngineers := FEngineers + Prod.AssignedEngineers;
+  FProductions.Remove(Prod);
+  Prod.Free;
+end;
+
+function TBase.GetAvailablePsiLabs: Integer;
+begin
+  Result := 0;
+  for var fac in FFacilities do
+    if fac.BuildTime = 0 then
+      Result := Result + fac.Rules.PsiLaboratories;
+end;
+
+function TBase.GetUsedPsiLabs: Integer;
+begin
+  Result := 0;
+  for var s in FSoldiers do
+    if s.IsInPsiTraining then
+      Inc(Result);
+end;
+
+function TBase.GetAvailableContainment: Integer;
+begin
+  Result := 0;
+  for var fac in FFacilities do
+    if fac.BuildTime = 0 then
+      Result := Result + fac.Rules.Aliens;
+end;
+
+function TBase.GetUsedContainment: Integer;
+begin
+  Result := 0;
+  for var pair in FItems.Contents do
+    if FMod.GetItem(pair.Key).IsAlien then
+      Result := Result + pair.Value;
+  for var t in FTransfers do
+    if (t.Type = TRANSFER_ITEM) and FMod.GetItem(t.Items).IsAlien then
+      Result := Result + t.Quantity;
+  for var r in FResearch do
+    if r.Rules.NeedItem and (FMod.GetUnit(r.Rules.Name) <> nil) then
+      Inc(Result);
+end;
+
+function TBase.GetDetectionChance: Integer;
+var
+  mindShields, completedFacilities: Integer;
+begin
+  mindShields := 0;
+  completedFacilities := 0;
+  for var fac in FFacilities do
+  begin
+    if fac.BuildTime = 0 then
+    begin
+      if fac.Rules.IsMindShield then
+        Inc(mindShields);
+      completedFacilities := completedFacilities + fac.Rules.Size * fac.Rules.Size;
+    end;
+  end;
+  Result := (completedFacilities div 6 + 15) div (mindShields + 1);
+end;
+
+function TBase.GetGravShields: Integer;
+begin
+  Result := 0;
+  for var fac in FFacilities do
+    if (fac.BuildTime = 0) and fac.Rules.IsGravShield then
+      Inc(Result);
+end;
+
+procedure TBase.SetupDefenses;
+begin
+  // Build defenses list and vehicles
+end;
+
+procedure TBase.DestroyDisconnectedFacilities;
+begin
+  // Remove disconnected facilities
+end;
+
+function TBase.GetDisconnectedFacilities(Remove: TBaseFacility): TList<TObject>;
+begin
+  Result := TList<TObject>.Create;
+  // Implement connectivity algorithm
+end;
+
+procedure TBase.DestroyFacility(Facility: TBaseFacility);
+begin
+  // Remove facility and handle consequences
+end;
+
+procedure TBase.CleanupDefenses(ReclaimItems: Boolean);
+begin
+  // Cleanup defenses
+end;
+
+function TBase.RemoveCraft(Craft: TCraft; Unload: Boolean): Integer;
+begin
+  if Unload then
+    Craft.Unload(FMod);
+  // Clear hangar and remove craft
+  Result := FCrafts.IndexOf(Craft);
+  FCrafts.Remove(Craft);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:Craft.pas;encoding=utf8;eol=lf⟧
+unit Craft;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections, YAML, MovingTarget, Mod, Base,
+  RuleCraft, CraftWeapon, ItemContainer, Soldier, Vehicle, SavedGame, Target,
+  Ufo, Waypoint, MissionSite, AlienBase, Language;
+
+type
+  TCraftId = record
+    CraftType: string;
+    Id: Integer;
+  end;
+
+  TCraft = class(TMovingTarget)
+  private
+    FRules: TRuleCraft;
+    FBase: TBase;
+    FFuel: Integer;
+    FDamage: Integer;
+    FInterceptionOrder: Integer;
+    FTakeoff: Integer;
+    FWeapons: TObjectList<TCraftWeapon>;
+    FItems: TItemContainer;
+    FVehicles: TObjectList<TVehicle>;
+    FStatus: string;
+    FLowFuel: Boolean;
+    FMission: Boolean;
+    FInBattlescape: Boolean;
+    FInDogfight: Boolean;
+    FSpeedMaxRadian: Double;
+  public
+    constructor Create(Rules: TRuleCraft; Base: TBase; Id: Integer = 0);
+    destructor Destroy; override;
+    procedure Load(const Node: TYamlNode; Mod: TMod; Save: TSavedGame);
+    function Save: TYamlNode;
+    class function LoadId(const Node: TYamlNode): TCraftId;
+    function GetType: string; override;
+    property Rules: TRuleCraft read FRules write FRules;
+    function GetDefaultName(Lang: TLanguage): string;
+    function GetMarker: Integer; override;
+    property Base: TBase read FBase write SetBase;
+    procedure SetBase(Base: TBase; Move: Boolean = True);
+    property Status: string read FStatus write FStatus;
+    function GetAltitude: string;
+    procedure SetDestination(Dest: TTarget); override;
+    function GetNumWeapons: Integer;
+    function GetNumSoldiers: Integer;
+    function GetNumEquipment: Integer;
+    function GetNumVehicles: Integer;
+    property Weapons: TObjectList<TCraftWeapon> read FWeapons;
+    property Items: TItemContainer read FItems;
+    property Vehicles: TObjectList<TVehicle> read FVehicles;
+    property Fuel: Integer read FFuel write SetFuel;
+    function GetFuelPercentage: Integer;
+    property Damage: Integer read FDamage write SetDamage;
+    function GetDamagePercentage: Integer;
+    property LowFuel: Boolean read FLowFuel write FLowFuel;
+    property MissionComplete: Boolean read FMission write FMission;
+    function GetDistanceFromBase: Double;
+    function GetFuelConsumption: Integer; overload;
+    function GetFuelConsumption(Speed: Integer): Integer; overload;
+    function GetFuelLimit: Integer; overload;
+    function GetFuelLimit(Base: TBase): Integer; overload;
+    function GetBaseRange: Double;
+    procedure ReturnToBase;
+    function Detect(Target: TTarget): Boolean;
+    function InsideRadarRange(Target: TTarget): Boolean;
+    procedure Think;
+    procedure Checkup;
+    procedure ConsumeFuel;
+    procedure Repair;
+    function Refuel: string;
+    function Rearm(Mod: TMod): string;
+    property InBattlescape: Boolean read FInBattlescape write FInBattlescape;
+    function IsDestroyed: Boolean;
+    function GetSpaceAvailable: Integer;
+    function GetSpaceUsed: Integer;
+    function GetVehicleCount(const VehicleType: string): Integer;
+    property InDogfight: Boolean read FInDogfight write FInDogfight;
+    property InterceptionOrder: Integer read FInterceptionOrder write FInterceptionOrder;
+    function GetUniqueId: TCraftId;
+    procedure Unload(Mod: TMod);
+    procedure ReuseItem(const Item: string);
+  end;
+
+implementation
+
+uses
+  Math, RNG, Logger, RuleCraftWeapon, RuleItem, Mod;
+
+constructor TCraft.Create(Rules: TRuleCraft; Base: TBase; Id: Integer);
+begin
+  inherited Create;
+  FRules := Rules;
+  FBase := Base;
+  FFuel := 0;
+  FDamage := 0;
+  FInterceptionOrder := 0;
+  FTakeoff := 0;
+  FStatus := 'STR_READY';
+  FLowFuel := False;
+  FMission := False;
+  FInBattlescape := False;
+  FInDogfight := False;
+  FItems := TItemContainer.Create;
+  FWeapons := TObjectList<TCraftWeapon>.Create;
+  FVehicles := TObjectList<TVehicle>.Create;
+  FId := Id;
+  if Base <> nil then
+    SetBase(Base);
+  FSpeedMaxRadian := CalculateRadianSpeed(FRules.MaxSpeed) * 120;
+end;
+
+destructor TCraft.Destroy;
+begin
+  FItems.Free;
+  FWeapons.Free;
+  FVehicles.Free;
+  inherited;
+end;
+
+procedure TCraft.Load(const Node: TYamlNode; Mod: TMod; Save: TSavedGame);
+begin
+  inherited Load(Node);
+  // Load craft specific data
+end;
+
+function TCraft.Save: TYamlNode;
+begin
+  Result := inherited Save;
+  // Save craft data
+end;
+
+class function TCraft.LoadId(const Node: TYamlNode): TCraftId;
+begin
+  Result.CraftType := Node['type'].AsString;
+  Result.Id := Node['id'].AsInteger;
+end;
+
+function TCraft.GetType: string;
+begin
+  Result := FRules.Type;
+end;
+
+function TCraft.GetDefaultName(Lang: TLanguage): string;
+begin
+  Result := Lang.GetString('STR_CRAFTNAME').Format([Lang.GetString(GetType), FId]);
+end;
+
+function TCraft.GetMarker: Integer;
+begin
+  if FStatus <> 'STR_OUT' then
+    Result := -1
+  else if FRules.Marker = -1 then
+    Result := 1
+  else
+    Result := FRules.Marker;
+end;
+
+procedure TCraft.SetBase(Base: TBase; Move: Boolean);
+begin
+  FBase := Base;
+  if Move then
+  begin
+    FLon := FBase.Longitude;
+    FLat := FBase.Latitude;
+  end;
+end;
+
+function TCraft.GetAltitude: string;
+var
+  u: TUfo;
+begin
+  u := FDest as TUfo;
+  if (u <> nil) and (u.Altitude <> 'STR_GROUND') then
+    Result := u.Altitude
+  else
+    Result := 'STR_VERY_LOW';
+end;
+
+procedure TCraft.SetDestination(Dest: TTarget);
+begin
+  if FStatus <> 'STR_OUT' then
+    FTakeoff := 60;
+  if Dest = nil then
+    SetSpeed(FRules.MaxSpeed div 2)
+  else
+    SetSpeed(FRules.MaxSpeed);
+  inherited SetDestination(Dest);
+end;
+
+function TCraft.GetNumWeapons: Integer;
+begin
+  Result := 0;
+  for var w in FWeapons do
+    if w <> nil then Inc(Result);
+end;
+
+function TCraft.GetNumSoldiers: Integer;
+begin
+  if FRules.Soldiers = 0 then Exit(0);
+  Result := 0;
+  for var s in FBase.Soldiers do
+    if s.Craft = Self then Inc(Result);
+end;
+
+function TCraft.GetNumEquipment: Integer;
+begin
+  Result := FItems.GetTotalQuantity;
+end;
+
+function TCraft.GetNumVehicles: Integer;
+begin
+  Result := FVehicles.Count;
+end;
+
+procedure TCraft.SetFuel(Value: Integer);
+begin
+  FFuel := Value;
+  if FFuel > FRules.MaxFuel then FFuel := FRules.MaxFuel;
+  if FFuel < 0 then FFuel := 0;
+end;
+
+function TCraft.GetFuelPercentage: Integer;
+begin
+  Result := Round(FFuel / FRules.MaxFuel * 100);
+end;
+
+procedure TCraft.SetDamage(Value: Integer);
+begin
+  FDamage := Value;
+  if FDamage < 0 then FDamage := 0;
+end;
+
+function TCraft.GetDamagePercentage: Integer;
+begin
+  Result := Round(FDamage / FRules.MaxDamage * 100);
+end;
+
+function TCraft.GetDistanceFromBase: Double;
+begin
+  Result := GetDistance(FBase);
+end;
+
+function TCraft.GetFuelConsumption: Integer;
+begin
+  Result := GetFuelConsumption(FSpeed);
+end;
+
+function TCraft.GetFuelConsumption(Speed: Integer): Integer;
+begin
+  if FRules.RefuelItem <> '' then
+    Result := 1
+  else
+    Result := Speed div 100;
+end;
+
+function TCraft.GetFuelLimit: Integer;
+begin
+  Result := GetFuelLimit(FBase);
+end;
+
+function TCraft.GetFuelLimit(Base: TBase): Integer;
+begin
+  Result := Round(GetFuelConsumption(FRules.MaxSpeed) * GetDistance(Base) / FSpeedMaxRadian);
+end;
+
+function TCraft.GetBaseRange: Double;
+begin
+  Result := FFuel / 2.0 / GetFuelConsumption(FRules.MaxSpeed) * FSpeedMaxRadian;
+end;
+
+procedure TCraft.ReturnToBase;
+begin
+  SetDestination(FBase);
+end;
+
+function TCraft.Detect(Target: TTarget): Boolean;
+begin
+  if FRules.RadarRange = 0 then Exit(False);
+  if not InsideRadarRange(Target) then Exit(False);
+  if FRules.RadarChance = 100 then Exit(True);
+  var u := Target as TUfo;
+  var chance := FRules.RadarChance * (100 + u.Visibility) div 100;
+  Result := RNG.Percent(chance);
+end;
+
+function TCraft.InsideRadarRange(Target: TTarget): Boolean;
+begin
+  Result := GetDistance(Target) <= Nautical(FRules.RadarRange);
+end;
+
+procedure TCraft.Think;
+begin
+  if FTakeoff = 0 then
+    Move
+  else
+    Dec(FTakeoff);
+  if ReachedDestination and (FDest = FBase) then
+  begin
+    FInterceptionOrder := 0;
+    Checkup;
+    SetDestination(nil);
+    SetSpeed(0);
+    FLowFuel := False;
+    FMission := False;
+    FTakeoff := 0;
+  end;
+end;
+
+procedure TCraft.Checkup;
+var
+  available, full: Integer;
+begin
+  available := 0;
+  full := 0;
+  for var w in FWeapons do
+  begin
+    if w = nil then Continue;
+    Inc(available);
+    if w.Ammo >= w.Rules.AmmoMax then
+      Inc(full)
+    else
+      w.IsRearming := True;
+  end;
+  if FDamage > 0 then
+    FStatus := 'STR_REPAIRS'
+  else if available <> full then
+    FStatus := 'STR_REARMING'
+  else
+    FStatus := 'STR_REFUELLING';
+end;
+
+procedure TCraft.ConsumeFuel;
+begin
+  SetFuel(FFuel - GetFuelConsumption);
+end;
+
+procedure TCraft.Repair;
+begin
+  SetDamage(FDamage - FRules.RepairRate);
+  if FDamage <= 0 then
+    FStatus := 'STR_REARMING';
+end;
+
+function TCraft.Refuel: string;
+var
+  fuelItem: string;
+begin
+  if FFuel < FRules.MaxFuel then
+  begin
+    fuelItem := FRules.RefuelItem;
+    if fuelItem = '' then
+      SetFuel(FFuel + FRules.RefuelRate)
+    else
+    begin
+      if FBase.StorageItems.GetItem(fuelItem) > 0 then
+      begin
+        FBase.StorageItems.RemoveItem(fuelItem);
+        SetFuel(FFuel + FRules.RefuelRate);
+        FLowFuel := False;
+      end
+      else if not FLowFuel then
+      begin
+        Result := fuelItem;
+        if FFuel > 0 then
+          FStatus := 'STR_READY'
+        else
+          FLowFuel := True;
+      end;
+    end;
+  end;
+  if FFuel >= FRules.MaxFuel then
+  begin
+    FStatus := 'STR_READY';
+    for var w in FWeapons do
+      if (w <> nil) and w.IsRearming then
+      begin
+        FStatus := 'STR_REARMING';
+        Break;
+      end;
+  end;
+end;
+
+function TCraft.Rearm(Mod: TMod): string;
+begin
+  for var i := 0 to FWeapons.Count - 1 do
+  begin
+    var w := FWeapons[i];
+    if (w <> nil) and w.IsRearming then
+    begin
+      var clip := w.Rules.ClipItem;
+      var available := FBase.StorageItems.GetItem(clip);
+      if clip = '' then
+        w.Rearm(0, 0)
+      else if available > 0 then
+      begin
+        var used := w.Rearm(available, Mod.GetItem(clip).ClipSize);
+        if used = available then
+          Result := clip;
+        FBase.StorageItems.RemoveItem(clip, used);
+      end
+      else
+      begin
+        Result := clip;
+        w.IsRearming := False;
+      end;
+      Break;
+    end;
+  end;
+end;
+
+function TCraft.IsDestroyed: Boolean;
+begin
+  Result := FDamage >= FRules.MaxDamage;
+end;
+
+function TCraft.GetSpaceAvailable: Integer;
+begin
+  Result := FRules.Soldiers - GetSpaceUsed;
+end;
+
+function TCraft.GetSpaceUsed: Integer;
+var
+  vehicleSpace: Integer;
+begin
+  vehicleSpace := 0;
+  for var v in FVehicles do
+    vehicleSpace := vehicleSpace + v.Size;
+  Result := GetNumSoldiers + vehicleSpace;
+end;
+
+function TCraft.GetVehicleCount(const VehicleType: string): Integer;
+begin
+  Result := 0;
+  for var v in FVehicles do
+    if v.Rules.Type = VehicleType then Inc(Result);
+end;
+
+function TCraft.GetUniqueId: TCraftId;
+begin
+  Result.CraftType := FRules.Type;
+  Result.Id := FId;
+end;
+
+procedure TCraft.Unload(Mod: TMod);
+begin
+  // Unload weapons, items, vehicles, soldiers
+end;
+
+procedure TCraft.ReuseItem(const Item: string);
+begin
+  // Check if this item can be used
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:Ufo.pas;encoding=utf8;eol=lf⟧
+unit Ufo;
+
+interface
+
+uses
+  Classes, SysUtils, YAML, MovingTarget, Mod, RuleUfo, AlienMission,
+  UfoTrajectory, SavedGame, Target, Craft, Language;
+
+type
+  TUfoStatus = (usFlying, usLanded, usCrashed, usDestroyed);
+
+  TUfo = class(TMovingTarget)
+  private
+    FRules: TRuleUfo;
+    FCrashId: Integer;
+    FLandId: Integer;
+    FDamage: Integer;
+    FDirection: string;
+    FAltitude: string;
+    FStatus: TUfoStatus;
+    FSecondsRemaining: Integer;
+    FInBattlescape: Boolean;
+    FShotDownByCraftId: TCraftId;
+    FMission: TAlienMission;
+    FTrajectory: TUfoTrajectory;
+    FTrajectoryPoint: Integer;
+    FDetected: Boolean;
+    FHyperDetected: Boolean;
+    FProcessedIntercept: Boolean;
+    FShootingAt: Integer;
+    FHitFrame: Integer;
+    FFireCountdown: Integer;
+    FEscapeCountdown: Integer;
+    procedure CalculateSpeed; override;
+  public
+    constructor Create(Rules: TRuleUfo);
+    destructor Destroy; override;
+    procedure Load(const Node: TYamlNode; Mod: TMod; Game: TSavedGame);
+    function Save(NewBattle: Boolean): TYamlNode;
+    function GetType: string; override;
+    property Rules: TRuleUfo read FRules write FRules;
+    function GetDefaultName(Lang: TLanguage): string; override;
+    function GetMarkerName: string; override;
+    function GetMarkerId: Integer; override;
+    function GetMarker: Integer; override;
+    property Damage: Integer read FDamage write FDamage;
+    property Detected: Boolean read FDetected write FDetected;
+    property SecondsRemaining: Integer read FSecondsRemaining write FSecondsRemaining;
+    property Direction: string read FDirection;
+    property Altitude: string read FAltitude write FAltitude;
+    property Status: TUfoStatus read FStatus write FStatus;
+    function IsCrashed: Boolean;
+    function IsDestroyed: Boolean;
+    procedure Think;
+    property InBattlescape: Boolean read FInBattlescape write FInBattlescape;
+    function GetAlienRace: string;
+    procedure SetShotDownByCraftId(const CraftId: TCraftId);
+    function GetShotDownByCraftId: TCraftId;
+    function GetVisibility: Integer;
+    function GetMissionType: string;
+    procedure SetMissionInfo(Mission: TAlienMission; Trajectory: TUfoTrajectory);
+    property HyperDetected: Boolean read FHyperDetected write FHyperDetected;
+    property TrajectoryPoint: Integer read FTrajectoryPoint write FTrajectoryPoint;
+    property Trajectory: TUfoTrajectory read FTrajectory;
+    property Mission: TAlienMission read FMission;
+    procedure SetDestination(Dest: TTarget); override;
+    property ShootingAt: Integer read FShootingAt write FShootingAt;
+    property LandId: Integer read FLandId write FLandId;
+    property CrashId: Integer read FCrashId write FCrashId;
+    property HitFrame: Integer read FHitFrame write FHitFrame;
+    property FireCountdown: Integer read FFireCountdown write FFireCountdown;
+    property EscapeCountdown: Integer read FEscapeCountdown write FEscapeCountdown;
+    property InterceptionProcessed: Boolean read FProcessedIntercept write FProcessedIntercept;
+  end;
+
+implementation
+
+uses
+  Math, Logger;
+
+constructor TUfo.Create(Rules: TRuleUfo);
+begin
+  inherited Create;
+  FRules := Rules;
+  FCrashId := 0;
+  FLandId := 0;
+  FDamage := 0;
+  FDirection := 'STR_NORTH';
+  FAltitude := 'STR_HIGH_UC';
+  FStatus := usFlying;
+  FSecondsRemaining := 0;
+  FInBattlescape := False;
+  FMission := nil;
+  FTrajectory := nil;
+  FTrajectoryPoint := 0;
+  FDetected := False;
+  FHyperDetected := False;
+  FProcessedIntercept := False;
+  FShootingAt := 0;
+  FHitFrame := 0;
+  FFireCountdown := 0;
+  FEscapeCountdown := 0;
+end;
+
+destructor TUfo.Destroy;
+begin
+  if FMission <> nil then
+    FMission.DecreaseLiveUfos;
+  inherited;
+end;
+
+procedure TUfo.Load(const Node: TYamlNode; Mod: TMod; Game: TSavedGame);
+begin
+  inherited Load(Node);
+  // Load UFO specific data
+end;
+
+function TUfo.Save(NewBattle: Boolean): TYamlNode;
+begin
+  Result := inherited Save;
+  // Save UFO data
+end;
+
+function TUfo.GetType: string;
+begin
+  Result := 'STR_UFO';
+end;
+
+function TUfo.GetDefaultName(Lang: TLanguage): string;
+begin
+  case FStatus of
+    usLanded: Result := Lang.GetString('STR_LANDING_SITE_') + IntToStr(FLandId);
+    usCrashed: Result := Lang.GetString('STR_CRASH_SITE_') + IntToStr(FCrashId);
+    else Result := Lang.GetString('STR_UFO_') + IntToStr(FId);
+  end;
+end;
+
+function TUfo.GetMarkerName: string;
+begin
+  case FStatus of
+    usLanded: Result := 'STR_LANDING_SITE_';
+    usCrashed: Result := 'STR_CRASH_SITE_';
+    else Result := 'STR_UFO_';
+  end;
+end;
+
+function TUfo.GetMarkerId: Integer;
+begin
+  case FStatus of
+    usLanded: Result := FLandId;
+    usCrashed: Result := FCrashId;
+    else Result := FId;
+  end;
+end;
+
+function TUfo.GetMarker: Integer;
+begin
+  if not FDetected then Exit(-1);
+  case FStatus of
+    usLanded: Result := FRules.LandMarker;
+    usCrashed: Result := FRules.CrashMarker;
+    else Result := FRules.Marker;
+  end;
+  if Result = -1 then
+    Result := 2;
+end;
+
+function TUfo.IsCrashed: Boolean;
+begin
+  Result := FDamage > FRules.MaxDamage div 2;
+end;
+
+function TUfo.IsDestroyed: Boolean;
+begin
+  Result := FDamage >= FRules.MaxDamage;
+end;
+
+procedure TUfo.CalculateSpeed;
+begin
+  inherited CalculateSpeed;
+  // Set direction based on speed components
+end;
+
+procedure TUfo.Think;
+begin
+  case FStatus of
+    usFlying:
+    begin
+      Move;
+      if ReachedDestination then
+        SetSpeed(0);
+    end;
+    usLanded:
+      FSecondsRemaining := FSecondsRemaining - 5;
+    usCrashed:
+      if not FDetected then FDetected := True;
+    usDestroyed: ; // do nothing
+  end;
+end;
+
+function TUfo.GetAlienRace: string;
+begin
+  if FMission <> nil then
+    Result := FMission.Race
+  else
+    Result := '';
+end;
+
+procedure TUfo.SetShotDownByCraftId(const CraftId: TCraftId);
+begin
+  FShotDownByCraftId := CraftId;
+end;
+
+function TUfo.GetShotDownByCraftId: TCraftId;
+begin
+  Result := FShotDownByCraftId;
+end;
+
+function TUfo.GetVisibility: Integer;
+var
+  size: Integer;
+begin
+  if FRules.Size = 'STR_VERY_SMALL' then size := -30
+  else if FRules.Size = 'STR_SMALL' then size := -15
+  else if FRules.Size = 'STR_MEDIUM_UC' then size := 0
+  else if FRules.Size = 'STR_LARGE' then size := 15
+  else if FRules.Size = 'STR_VERY_LARGE' then size := 30
+  else size := 0;
+
+  if FAltitude = 'STR_GROUND' then
+    Result := -30
+  else if FAltitude = 'STR_VERY_LOW' then
+    Result := size - 20
+  else if FAltitude = 'STR_LOW_UC' then
+    Result := size - 10
+  else if FAltitude = 'STR_HIGH_UC' then
+    Result := size
+  else // STR_VERY_HIGH
+    Result := size - 10;
+end;
+
+function TUfo.GetMissionType: string;
+begin
+  if FMission <> nil then
+    Result := FMission.Rules.Type
+  else
+    Result := '';
+end;
+
+procedure TUfo.SetMissionInfo(Mission: TAlienMission; Trajectory: TUfoTrajectory);
+begin
+  FMission := Mission;
+  if FMission <> nil then
+    FMission.IncreaseLiveUfos;
+  FTrajectory := Trajectory;
+  FTrajectoryPoint := 0;
+end;
+
+procedure TUfo.SetDestination(Dest: TTarget);
+begin
+  // Delete old waypoint if any
+  inherited SetDestination(Dest);
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

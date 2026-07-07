@@ -1,0 +1,2012 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦FILE:BaseInfoState.pas;encoding=utf8;eol=lf⟧
+unit BaseInfoState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.Game, Engine.Action, Engine.State,
+  Engine.LocalizedText, Engine.Options,
+  Mod.Mod, Interface.Bar, Interface.TextButton,
+  Interface.Text, Interface.TextEdit, Engine.Surface,
+  MiniBaseView, Savegame.SavedGame, Savegame.Base,
+  MonthlyCostsState, TransfersState, StoresState, BasescapeState;
+
+type
+  TBaseInfoState = class(TState)
+  private
+    FBase: TBase;
+    FState: TBasescapeState;
+
+    FBg: TSurface;
+    FMini: TMiniBaseView;
+    FBtnOk: TTextButton;
+    FBtnTransfers: TTextButton;
+    FBtnStores: TTextButton;
+    FBtnMonthlyCosts: TTextButton;
+    FEdtBase: TTextEdit;
+
+    FTxtPersonnel, FTxtSoldiers, FTxtEngineers, FTxtScientists: TText;
+    FNumSoldiers, FNumEngineers, FNumScientists: TText;
+    FBarSoldiers, FBarEngineers, FBarScientists: TBar;
+
+    FTxtSpace, FTxtQuarters, FTxtStores, FTxtLaboratories, FTxtWorkshops, FTxtContainment, FTxtHangars: TText;
+    FNumQuarters, FNumStores, FNumLaboratories, FNumWorkshops, FNumContainment, FNumHangars: TText;
+    FBarQuarters, FBarStores, FBarLaboratories, FBarWorkshops, FBarContainment, FBarHangars: TBar;
+
+    FTxtDefense, FTxtShortRange, FTxtLongRange: TText;
+    FNumDefense, FNumShortRange, FNumLongRange: TText;
+    FBarDefense, FBarShortRange, FBarLongRange: TBar;
+
+    procedure UpdateStats;
+    procedure EdtBaseChange(Sender: TObject; Action: TAction);
+    procedure MiniClick(Sender: TObject; Action: TAction);
+    procedure HandleKeyPress(Sender: TObject; Action: TAction);
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnTransfersClick(Sender: TObject; Action: TAction);
+    procedure BtnStoresClick(Sender: TObject; Action: TAction);
+    procedure BtnMonthlyCostsClick(Sender: TObject; Action: TAction);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; State: TBasescapeState);
+    destructor Destroy; override;
+    procedure Init; override;
+  end;
+
+implementation
+
+uses Math, Engine.Mod;
+
+constructor TBaseInfoState.Create(AOwner: TComponent; Base: TBase; State: TBasescapeState);
+var
+  ss: TStringStream;
+  i: Integer;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FState := State;
+
+  FBg := TSurface.Create(320, 200, 0, 0);
+  FMini := TMiniBaseView.Create(128, 16, 182, 8);
+  FBtnOk := TTextButton.Create(30, 14, 10, 180);
+  FBtnTransfers := TTextButton.Create(80, 14, 46, 180);
+  FBtnStores := TTextButton.Create(80, 14, 132, 180);
+  FBtnMonthlyCosts := TTextButton.Create(92, 14, 218, 180);
+  FEdtBase := TTextEdit.Create(Self, 127, 16, 8, 8);
+
+  FTxtPersonnel := TText.Create(300, 9, 8, 30);
+  FTxtSoldiers := TText.Create(114, 9, 8, 41);
+  FNumSoldiers := TText.Create(40, 9, 126, 41);
+  FBarSoldiers := TBar.Create(150, 5, 166, 43);
+  FTxtEngineers := TText.Create(114, 9, 8, 51);
+  FNumEngineers := TText.Create(40, 9, 126, 51);
+  FBarEngineers := TBar.Create(150, 5, 166, 53);
+  FTxtScientists := TText.Create(114, 9, 8, 61);
+  FNumScientists := TText.Create(40, 9, 126, 61);
+  FBarScientists := TBar.Create(150, 5, 166, 63);
+
+  FTxtSpace := TText.Create(300, 9, 8, 72);
+  FTxtQuarters := TText.Create(114, 9, 8, 83);
+  FNumQuarters := TText.Create(40, 9, 126, 83);
+  FBarQuarters := TBar.Create(150, 5, 166, 85);
+  FTxtStores := TText.Create(114, 9, 8, 93);
+  FNumStores := TText.Create(40, 9, 126, 93);
+  FBarStores := TBar.Create(150, 5, 166, 95);
+  FTxtLaboratories := TText.Create(114, 9, 8, 103);
+  FNumLaboratories := TText.Create(40, 9, 126, 103);
+  FBarLaboratories := TBar.Create(150, 5, 166, 105);
+  FTxtWorkshops := TText.Create(114, 9, 8, 113);
+  FNumWorkshops := TText.Create(40, 9, 126, 113);
+  FBarWorkshops := TBar.Create(150, 5, 166, 115);
+  if Options.StorageLimitsEnforced then
+  begin
+    FTxtContainment := TText.Create(114, 9, 8, 123);
+    FNumContainment := TText.Create(40, 9, 126, 123);
+    FBarContainment := TBar.Create(150, 5, 166, 125);
+  end;
+  FTxtHangars := TText.Create(114, 9, 8, IfThen(Options.StorageLimitsEnforced, 133, 123));
+  FNumHangars := TText.Create(40, 9, 126, IfThen(Options.StorageLimitsEnforced, 133, 123));
+  FBarHangars := TBar.Create(150, 5, 166, IfThen(Options.StorageLimitsEnforced, 135, 125));
+
+  FTxtDefense := TText.Create(114, 9, 8, IfThen(Options.StorageLimitsEnforced, 147, 138));
+  FNumDefense := TText.Create(40, 9, 126, IfThen(Options.StorageLimitsEnforced, 147, 138));
+  FBarDefense := TBar.Create(150, 5, 166, IfThen(Options.StorageLimitsEnforced, 149, 140));
+  FTxtShortRange := TText.Create(114, 9, 8, IfThen(Options.StorageLimitsEnforced, 157, 153));
+  FNumShortRange := TText.Create(40, 9, 126, IfThen(Options.StorageLimitsEnforced, 157, 153));
+  FBarShortRange := TBar.Create(150, 5, 166, IfThen(Options.StorageLimitsEnforced, 159, 155));
+  FTxtLongRange := TText.Create(114, 9, 8, IfThen(Options.StorageLimitsEnforced, 167, 163));
+  FNumLongRange := TText.Create(40, 9, 126, IfThen(Options.StorageLimitsEnforced, 167, 163));
+  FBarLongRange := TBar.Create(150, 5, 166, IfThen(Options.StorageLimitsEnforced, 169, 165));
+
+  SetInterface('baseInfo');
+  Add(FBg);
+  Add(FMini, 'miniBase', 'basescape');
+  Add(FBtnOk, 'button', 'baseInfo');
+  Add(FBtnTransfers, 'button', 'baseInfo');
+  Add(FBtnStores, 'button', 'baseInfo');
+  Add(FBtnMonthlyCosts, 'button', 'baseInfo');
+  Add(FEdtBase, 'text1', 'baseInfo');
+  Add(FTxtPersonnel, 'text1', 'baseInfo');
+  Add(FTxtSoldiers, 'text2', 'baseInfo');
+  Add(FNumSoldiers, 'numbers', 'baseInfo');
+  Add(FBarSoldiers, 'personnelBars', 'baseInfo');
+  Add(FTxtEngineers, 'text2', 'baseInfo');
+  Add(FNumEngineers, 'numbers', 'baseInfo');
+  Add(FBarEngineers, 'personnelBars', 'baseInfo');
+  Add(FTxtScientists, 'text2', 'baseInfo');
+  Add(FNumScientists, 'numbers', 'baseInfo');
+  Add(FBarScientists, 'personnelBars', 'baseInfo');
+  Add(FTxtSpace, 'text1', 'baseInfo');
+  Add(FTxtQuarters, 'text2', 'baseInfo');
+  Add(FNumQuarters, 'numbers', 'baseInfo');
+  Add(FBarQuarters, 'facilityBars', 'baseInfo');
+  Add(FTxtStores, 'text2', 'baseInfo');
+  Add(FNumStores, 'numbers', 'baseInfo');
+  Add(FBarStores, 'facilityBars', 'baseInfo');
+  Add(FTxtLaboratories, 'text2', 'baseInfo');
+  Add(FNumLaboratories, 'numbers', 'baseInfo');
+  Add(FBarLaboratories, 'facilityBars', 'baseInfo');
+  Add(FTxtWorkshops, 'text2', 'baseInfo');
+  Add(FNumWorkshops, 'numbers', 'baseInfo');
+  Add(FBarWorkshops, 'facilityBars', 'baseInfo');
+  if Options.StorageLimitsEnforced then
+  begin
+    Add(FTxtContainment, 'text2', 'baseInfo');
+    Add(FNumContainment, 'numbers', 'baseInfo');
+    Add(FBarContainment, 'facilityBars', 'baseInfo');
+  end;
+  Add(FTxtHangars, 'text2', 'baseInfo');
+  Add(FNumHangars, 'numbers', 'baseInfo');
+  Add(FBarHangars, 'facilityBars', 'baseInfo');
+  Add(FTxtDefense, 'text2', 'baseInfo');
+  Add(FNumDefense, 'numbers', 'baseInfo');
+  Add(FBarDefense, 'defenceBar', 'baseInfo');
+  Add(FTxtShortRange, 'text2', 'baseInfo');
+  Add(FNumShortRange, 'numbers', 'baseInfo');
+  Add(FBarShortRange, 'detectionBars', 'baseInfo');
+  Add(FTxtLongRange, 'text2', 'baseInfo');
+  Add(FNumLongRange, 'numbers', 'baseInfo');
+  Add(FBarLongRange, 'detectionBars', 'baseInfo');
+
+  CenterAllSurfaces;
+
+  ss := TStringStream.Create;
+  try
+    if Options.StorageLimitsEnforced then
+      ss.WriteString('ALT');
+    ss.WriteString('BACK07.SCR');
+    FGame.GetMod.GetSurface(ss.DataString).Blit(FBg);
+  finally
+    ss.Free;
+  end;
+
+  FMini.SetTexture(FGame.GetMod.GetSurfaceSet('BASEBITS.PCK'));
+  FMini.SetBases(FGame.GetSavedGame.GetBases);
+  for i := 0 to FGame.GetSavedGame.GetBases.Count - 1 do
+    if FGame.GetSavedGame.GetBases[i] = FBase then
+    begin
+      FMini.SetSelectedBase(i);
+      Break;
+    end;
+  FMini.OnMouseClick := MiniClick;
+  FMini.OnKeyboardPress := HandleKeyPress;
+
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnTransfers.SetText(Translate('STR_TRANSFERS_UC'));
+  FBtnTransfers.OnMouseClick := BtnTransfersClick;
+  FBtnStores.SetText(Translate('STR_STORES_UC'));
+  FBtnStores.OnMouseClick := BtnStoresClick;
+  FBtnMonthlyCosts.SetText(Translate('STR_MONTHLY_COSTS'));
+  FBtnMonthlyCosts.OnMouseClick := BtnMonthlyCostsClick;
+
+  FEdtBase.SetBig;
+  FEdtBase.OnChange := EdtBaseChange;
+
+  FTxtPersonnel.SetText(Translate('STR_PERSONNEL_AVAILABLE_PERSONNEL_TOTAL'));
+  FTxtSoldiers.SetText(Translate('STR_SOLDIERS'));
+  FBarSoldiers.SetScale(1.0);
+  FTxtEngineers.SetText(Translate('STR_ENGINEERS'));
+  FBarEngineers.SetScale(1.0);
+  FTxtScientists.SetText(Translate('STR_SCIENTISTS'));
+  FBarScientists.SetScale(1.0);
+  FTxtSpace.SetText(Translate('STR_SPACE_USED_SPACE_AVAILABLE'));
+  FTxtQuarters.SetText(Translate('STR_LIVING_QUARTERS_PLURAL'));
+  FBarQuarters.SetScale(0.5);
+  FTxtStores.SetText(Translate('STR_STORES'));
+  FBarStores.SetScale(0.5);
+  FTxtLaboratories.SetText(Translate('STR_LABORATORIES'));
+  FBarLaboratories.SetScale(0.5);
+  FTxtWorkshops.SetText(Translate('STR_WORK_SHOPS'));
+  FBarWorkshops.SetScale(0.5);
+  if Options.StorageLimitsEnforced then
+  begin
+    FTxtContainment.SetText(Translate('STR_ALIEN_CONTAINMENT'));
+    FBarContainment.SetScale(0.5);
+  end;
+  FTxtHangars.SetText(Translate('STR_HANGARS'));
+  FBarHangars.SetScale(18.0);
+  FTxtDefense.SetText(Translate('STR_DEFENSE_STRENGTH'));
+  FBarDefense.SetScale(0.125);
+  FTxtShortRange.SetText(Translate('STR_SHORT_RANGE_DETECTION'));
+  FBarShortRange.SetScale(25.0);
+  FTxtLongRange.SetText(Translate('STR_LONG_RANGE_DETECTION'));
+  FBarLongRange.SetScale(25.0);
+end;
+
+destructor TBaseInfoState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TBaseInfoState.Init;
+begin
+  inherited;
+  UpdateStats;
+end;
+
+procedure TBaseInfoState.UpdateStats;
+var
+  ss: TStringStream;
+begin
+  FEdtBase.SetText(FBase.GetName);
+
+  FNumSoldiers.SetText(Format('%d:%d', [FBase.GetAvailableSoldiers, FBase.GetTotalSoldiers]));
+  FBarSoldiers.SetMax(FBase.GetTotalSoldiers);
+  FBarSoldiers.SetValue(FBase.GetAvailableSoldiers);
+
+  FNumEngineers.SetText(Format('%d:%d', [FBase.GetAvailableEngineers, FBase.GetTotalEngineers]));
+  FBarEngineers.SetMax(FBase.GetTotalEngineers);
+  FBarEngineers.SetValue(FBase.GetAvailableEngineers);
+
+  FNumScientists.SetText(Format('%d:%d', [FBase.GetAvailableScientists, FBase.GetTotalScientists]));
+  FBarScientists.SetMax(FBase.GetTotalScientists);
+  FBarScientists.SetValue(FBase.GetAvailableScientists);
+
+  FNumQuarters.SetText(Format('%d:%d', [FBase.GetUsedQuarters, FBase.GetAvailableQuarters]));
+  FBarQuarters.SetMax(FBase.GetAvailableQuarters);
+  FBarQuarters.SetValue(FBase.GetUsedQuarters);
+
+  FNumStores.SetText(Format('%d:%d', [Floor(FBase.GetUsedStores + 0.05), FBase.GetAvailableStores]));
+  FBarStores.SetMax(FBase.GetAvailableStores);
+  FBarStores.SetValue(Floor(FBase.GetUsedStores + 0.05));
+
+  FNumLaboratories.SetText(Format('%d:%d', [FBase.GetUsedLaboratories, FBase.GetAvailableLaboratories]));
+  FBarLaboratories.SetMax(FBase.GetAvailableLaboratories);
+  FBarLaboratories.SetValue(FBase.GetUsedLaboratories);
+
+  FNumWorkshops.SetText(Format('%d:%d', [FBase.GetUsedWorkshops, FBase.GetAvailableWorkshops]));
+  FBarWorkshops.SetMax(FBase.GetAvailableWorkshops);
+  FBarWorkshops.SetValue(FBase.GetUsedWorkshops);
+
+  if Options.StorageLimitsEnforced then
+  begin
+    FNumContainment.SetText(Format('%d:%d', [FBase.GetUsedContainment, FBase.GetAvailableContainment]));
+    FBarContainment.SetMax(FBase.GetAvailableContainment);
+    FBarContainment.SetValue(FBase.GetUsedContainment);
+  end;
+
+  FNumHangars.SetText(Format('%d:%d', [FBase.GetUsedHangars, FBase.GetAvailableHangars]));
+  FBarHangars.SetMax(FBase.GetAvailableHangars);
+  FBarHangars.SetValue(FBase.GetUsedHangars);
+
+  FNumDefense.SetText(IntToStr(FBase.GetDefenseValue));
+  FBarDefense.SetMax(FBase.GetDefenseValue);
+  FBarDefense.SetValue(FBase.GetDefenseValue);
+
+  FNumShortRange.SetText(IntToStr(FBase.GetShortRangeDetection));
+  FBarShortRange.SetMax(FBase.GetShortRangeDetection);
+  FBarShortRange.SetValue(FBase.GetShortRangeDetection);
+
+  FNumLongRange.SetText(IntToStr(FBase.GetLongRangeDetection));
+  FBarLongRange.SetMax(FBase.GetLongRangeDetection);
+  FBarLongRange.SetValue(FBase.GetLongRangeDetection);
+end;
+
+procedure TBaseInfoState.EdtBaseChange(Sender: TObject; Action: TAction);
+begin
+  FBase.SetName(FEdtBase.GetText);
+end;
+
+procedure TBaseInfoState.MiniClick(Sender: TObject; Action: TAction);
+var
+  baseIdx: Integer;
+begin
+  baseIdx := FMini.GetHoveredBase;
+  if baseIdx < FGame.GetSavedGame.GetBases.Count then
+  begin
+    FMini.SetSelectedBase(baseIdx);
+    FBase := FGame.GetSavedGame.GetBases[baseIdx];
+    FState.SetBase(FBase);
+    Init;
+  end;
+end;
+
+procedure TBaseInfoState.HandleKeyPress(Sender: TObject; Action: TAction);
+var
+  key: Integer;
+  i: Integer;
+  baseKeys: array[0..7] of Integer;
+begin
+  if Action.GetDetails.typ = SDL_KEYDOWN then
+  begin
+    baseKeys[0] := Options.KeyBaseSelect1;
+    baseKeys[1] := Options.KeyBaseSelect2;
+    baseKeys[2] := Options.KeyBaseSelect3;
+    baseKeys[3] := Options.KeyBaseSelect4;
+    baseKeys[4] := Options.KeyBaseSelect5;
+    baseKeys[5] := Options.KeyBaseSelect6;
+    baseKeys[6] := Options.KeyBaseSelect7;
+    baseKeys[7] := Options.KeyBaseSelect8;
+    key := Action.GetDetails.key.keysym.sym;
+    for i := 0 to FGame.GetSavedGame.GetBases.Count - 1 do
+    begin
+      if key = baseKeys[i] then
+      begin
+        FMini.SetSelectedBase(i);
+        FBase := FGame.GetSavedGame.GetBases[i];
+        FState.SetBase(FBase);
+        Init;
+        Break;
+      end;
+    end;
+  end;
+end;
+
+procedure TBaseInfoState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TBaseInfoState.BtnTransfersClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TTransfersState.Create(Self, FBase));
+end;
+
+procedure TBaseInfoState.BtnStoresClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TStoresState.Create(Self, FBase));
+end;
+
+procedure TBaseInfoState.BtnMonthlyCostsClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TMonthlyCostsState.Create(Self, FBase));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:BaseView.pas;encoding=utf8;eol=lf⟧
+unit BaseView;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.InteractiveSurface, Engine.SurfaceSet, Engine.Action,
+  Savegame.Base, Savegame.BaseFacility, Savegame.Craft,
+  Mod.RuleBaseFacility, Mod.RuleCraft, Interface.Text,
+  Engine.Timer, Engine.Options, Engine.State, Engine.Font, Engine.Language;
+
+type
+  TBaseView = class(TInteractiveSurface)
+  private const
+    BASE_SIZE = 6;
+    GRID_SIZE = 32;
+  private
+    FBase: TBase;
+    FTexture: TSurfaceSet;
+    FFacilities: array[0..BASE_SIZE-1, 0..BASE_SIZE-1] of TBaseFacility;
+    FSelFacility: TBaseFacility;
+    FBigFont: TFont;
+    FSmallFont: TFont;
+    FLang: TLanguage;
+    FGridX, FGridY, FSelSize: Integer;
+    FSelector: TSurface;
+    FBlink: Boolean;
+    FTimer: TTimer;
+    FCellColor, FSelectorColor: Byte;
+
+    procedure Blink(Sender: TObject);
+    procedure UpdateNeighborFacilityBuildTime(Facility, Neighbor: TBaseFacility);
+  public
+    constructor Create(Width, Height, X, Y: Integer);
+    destructor Destroy; override;
+    procedure InitText(Big, Small: TFont; Lang: TLanguage);
+    procedure SetBase(Base: TBase);
+    procedure SetTexture(Texture: TSurfaceSet);
+    function GetSelectedFacility: TBaseFacility;
+    procedure ResetSelectedFacility;
+    function GetGridX: Integer;
+    function GetGridY: Integer;
+    procedure SetSelectable(Size: Integer);
+    function IsPlaceable(Rule: TRuleBaseFacility): Boolean;
+    function IsQueuedBuilding(Rule: TRuleBaseFacility): Boolean;
+    procedure ReCalcQueuedBuildings;
+    procedure Think; override;
+    procedure Draw; override;
+    procedure Blit(Surface: TSurface); override;
+    procedure MouseOver(Action: TAction; State: TState); override;
+    procedure MouseOut(Action: TAction; State: TState); override;
+    procedure SetColor(Color: Byte);
+    procedure SetSecondaryColor(Color: Byte);
+  end;
+
+implementation
+
+uses Math, Mod.Mod;
+
+constructor TBaseView.Create(Width, Height, X, Y: Integer);
+var
+  i, j: Integer;
+begin
+  inherited Create(Width, Height, X, Y);
+  FBase := nil;
+  FTexture := nil;
+  FSelFacility := nil;
+  FBigFont := nil;
+  FSmallFont := nil;
+  FLang := nil;
+  FGridX := 0;
+  FGridY := 0;
+  FSelSize := 0;
+  FSelector := nil;
+  FBlink := True;
+  FCellColor := 0;
+  FSelectorColor := 0;
+  for i := 0 to BASE_SIZE-1 do
+    for j := 0 to BASE_SIZE-1 do
+      FFacilities[i, j] := nil;
+
+  FTimer := TTimer.Create(100);
+  FTimer.OnTimer := Blink;
+  FTimer.Start;
+end;
+
+destructor TBaseView.Destroy;
+begin
+  FSelector.Free;
+  FTimer.Free;
+  inherited;
+end;
+
+procedure TBaseView.InitText(Big, Small: TFont; Lang: TLanguage);
+begin
+  FBigFont := Big;
+  FSmallFont := Small;
+  FLang := Lang;
+end;
+
+procedure TBaseView.SetBase(Base: TBase);
+var
+  x, y: Integer;
+  Fac: TBaseFacility;
+begin
+  FBase := Base;
+  FSelFacility := nil;
+  for x := 0 to BASE_SIZE-1 do
+    for y := 0 to BASE_SIZE-1 do
+      FFacilities[x, y] := nil;
+
+  for Fac in FBase.GetFacilities do
+    for y := Fac.GetY to Fac.GetY + Fac.GetRules.GetSize - 1 do
+      for x := Fac.GetX to Fac.GetX + Fac.GetRules.GetSize - 1 do
+        FFacilities[x, y] := Fac;
+  Redraw := True;
+end;
+
+procedure TBaseView.SetTexture(Texture: TSurfaceSet);
+begin
+  FTexture := Texture;
+end;
+
+function TBaseView.GetSelectedFacility: TBaseFacility;
+begin
+  Result := FSelFacility;
+end;
+
+procedure TBaseView.ResetSelectedFacility;
+begin
+  if FSelFacility <> nil then
+  begin
+    FFacilities[FSelFacility.GetX, FSelFacility.GetY] := nil;
+    FSelFacility := nil;
+  end;
+end;
+
+function TBaseView.GetGridX: Integer;
+begin
+  Result := FGridX;
+end;
+
+function TBaseView.GetGridY: Integer;
+begin
+  Result := FGridY;
+end;
+
+procedure TBaseView.SetSelectable(Size: Integer);
+var
+  R: TRect;
+begin
+  FSelSize := Size;
+  if FSelSize > 0 then
+  begin
+    FSelector := TSurface.Create(Size * GRID_SIZE, Size * GRID_SIZE, X, Y);
+    FSelector.SetPalette(GetPalette);
+    R := Rect(0, 0, FSelector.Width, FSelector.Height);
+    FSelector.DrawRect(R, FSelectorColor);
+    R := Rect(1, 1, FSelector.Width-2, FSelector.Height-2);
+    FSelector.DrawRect(R, 0);
+    FSelector.Visible := False;
+  end
+  else
+    FreeAndNil(FSelector);
+end;
+
+function TBaseView.IsPlaceable(Rule: TRuleBaseFacility): Boolean;
+var
+  x, y: Integer;
+  i: Integer;
+  bq: Boolean;
+begin
+  Result := False;
+  for y := FGridY to FGridY + Rule.GetSize - 1 do
+    for x := FGridX to FGridX + Rule.GetSize - 1 do
+    begin
+      if (x < 0) or (x >= BASE_SIZE) or (y < 0) or (y >= BASE_SIZE) then
+        Exit(False);
+      if FFacilities[x, y] <> nil then
+        Exit(False);
+    end;
+
+  bq := Options.AllowBuildingQueue;
+  for i := 0 to Rule.GetSize - 1 do
+  begin
+    if (FGridX > 0) and (FFacilities[FGridX-1, FGridY+i] <> nil) and (bq or (FFacilities[FGridX-1, FGridY+i].GetBuildTime = 0)) then
+      Exit(True);
+    if (FGridY > 0) and (FFacilities[FGridX+i, FGridY-1] <> nil) and (bq or (FFacilities[FGridX+i, FGridY-1].GetBuildTime = 0)) then
+      Exit(True);
+    if (FGridX + Rule.GetSize < BASE_SIZE) and (FFacilities[FGridX + Rule.GetSize, FGridY+i] <> nil) and (bq or (FFacilities[FGridX + Rule.GetSize, FGridY+i].GetBuildTime = 0)) then
+      Exit(True);
+    if (FGridY + Rule.GetSize < BASE_SIZE) and (FFacilities[FGridX+i, FGridY + Rule.GetSize] <> nil) and (bq or (FFacilities[FGridX+i, FGridY + Rule.GetSize].GetBuildTime = 0)) then
+      Exit(True);
+  end;
+end;
+
+function TBaseView.IsQueuedBuilding(Rule: TRuleBaseFacility): Boolean;
+var
+  i: Integer;
+begin
+  for i := 0 to Rule.GetSize - 1 do
+  begin
+    if (FGridX > 0) and (FFacilities[FGridX-1, FGridY+i] <> nil) and (FFacilities[FGridX-1, FGridY+i].GetBuildTime = 0) then
+      Exit(False);
+    if (FGridY > 0) and (FFacilities[FGridX+i, FGridY-1] <> nil) and (FFacilities[FGridX+i, FGridY-1].GetBuildTime = 0) then
+      Exit(False);
+    if (FGridX + Rule.GetSize < BASE_SIZE) and (FFacilities[FGridX + Rule.GetSize, FGridY+i] <> nil) and (FFacilities[FGridX + Rule.GetSize, FGridY+i].GetBuildTime = 0) then
+      Exit(False);
+    if (FGridY + Rule.GetSize < BASE_SIZE) and (FFacilities[FGridX+i, FGridY + Rule.GetSize] <> nil) and (FFacilities[FGridX+i, FGridY + Rule.GetSize].GetBuildTime = 0) then
+      Exit(False);
+  end;
+  Result := True;
+end;
+
+procedure TBaseView.UpdateNeighborFacilityBuildTime(Facility, Neighbor: TBaseFacility);
+begin
+  if (Facility <> nil) and (Neighbor <> nil) and
+     (Neighbor.GetBuildTime > Neighbor.GetRules.GetBuildTime) and
+     (Facility.GetBuildTime + Neighbor.GetRules.GetBuildTime < Neighbor.GetBuildTime) then
+    Neighbor.SetBuildTime(Facility.GetBuildTime + Neighbor.GetRules.GetBuildTime);
+end;
+
+procedure TBaseView.ReCalcQueuedBuildings;
+var
+  Facilities: TList<TBaseFacility>;
+  Fac: TBaseFacility;
+  i, x, y: Integer;
+  Rule: TRuleBaseFacility;
+  MinFac: TBaseFacility;
+  MinIdx: Integer;
+begin
+  SetBase(FBase);
+  Facilities := TList<TBaseFacility>.Create;
+  try
+    for Fac in FBase.GetFacilities do
+      if Fac.GetBuildTime > 0 then
+      begin
+        if Fac.GetBuildTime > Fac.GetRules.GetBuildTime then
+          Fac.SetBuildTime(MaxInt);
+        Facilities.Add(Fac);
+      end;
+
+    while Facilities.Count > 0 do
+    begin
+      MinIdx := 0;
+      for i := 1 to Facilities.Count-1 do
+        if Facilities[i].GetBuildTime < Facilities[MinIdx].GetBuildTime then
+          MinIdx := i;
+      Fac := Facilities[MinIdx];
+      Facilities.Delete(MinIdx);
+      Rule := Fac.GetRules;
+      x := Fac.GetX;
+      y := Fac.GetY;
+      for i := 0 to Rule.GetSize - 1 do
+      begin
+        if x > 0 then UpdateNeighborFacilityBuildTime(Fac, FFacilities[x-1, y+i]);
+        if y > 0 then UpdateNeighborFacilityBuildTime(Fac, FFacilities[x+i, y-1]);
+        if x + Rule.GetSize < BASE_SIZE then UpdateNeighborFacilityBuildTime(Fac, FFacilities[x + Rule.GetSize, y+i]);
+        if y + Rule.GetSize < BASE_SIZE then UpdateNeighborFacilityBuildTime(Fac, FFacilities[x+i, y + Rule.GetSize]);
+      end;
+    end;
+  finally
+    Facilities.Free;
+  end;
+end;
+
+procedure TBaseView.Think;
+begin
+  inherited;
+  FTimer.Think(0, Self);
+end;
+
+procedure TBaseView.Blink(Sender: TObject);
+var
+  R: TRect;
+begin
+  FBlink := not FBlink;
+  if FSelSize > 0 then
+  begin
+    R := Rect(0, 0, FSelector.Width, FSelector.Height);
+    if FBlink then
+    begin
+      FSelector.DrawRect(R, FSelectorColor);
+      R := Rect(1, 1, FSelector.Width-2, FSelector.Height-2);
+      FSelector.DrawRect(R, 0);
+    end
+    else
+      FSelector.DrawRect(R, 0);
+  end;
+end;
+
+procedure TBaseView.Draw;
+var
+  x, y, num: Integer;
+  Frame: TSurface;
+  Fac: TBaseFacility;
+  Craft: TCraft;
+  TextObj: TText;
+  ss: TStringStream;
+begin
+  inherited Draw;
+
+  for x := 0 to BASE_SIZE-1 do
+    for y := 0 to BASE_SIZE-1 do
+    begin
+      Frame := FTexture.GetFrame(0);
+      Frame.SetX(x * GRID_SIZE);
+      Frame.SetY(y * GRID_SIZE);
+      Frame.Blit(Self);
+    end;
+
+  // Draw facility shapes
+  for Fac in FBase.GetFacilities do
+  begin
+    num := 0;
+    for y := Fac.GetY to Fac.GetY + Fac.GetRules.GetSize - 1 do
+      for x := Fac.GetX to Fac.GetX + Fac.GetRules.GetSize - 1 do
+      begin
+        if Fac.GetBuildTime = 0 then
+          Frame := FTexture.GetFrame(Fac.GetRules.GetSpriteShape + num)
+        else
+          Frame := FTexture.GetFrame(Fac.GetRules.GetSpriteShape + num + Max(Fac.GetRules.GetSize * Fac.GetRules.GetSize, 3));
+        Frame.SetX(x * GRID_SIZE);
+        Frame.SetY(y * GRID_SIZE);
+        Frame.Blit(Self);
+        Inc(num);
+      end;
+  end;
+
+  // Draw connectors
+  for Fac in FBase.GetFacilities do
+  begin
+    if Fac.GetBuildTime = 0 then
+    begin
+      x := Fac.GetX + Fac.GetRules.GetSize;
+      if x < BASE_SIZE then
+        for y := Fac.GetY to Fac.GetY + Fac.GetRules.GetSize - 1 do
+          if (FFacilities[x, y] <> nil) and (FFacilities[x, y].GetBuildTime = 0) then
+          begin
+            Frame := FTexture.GetFrame(7);
+            Frame.SetX(x * GRID_SIZE - GRID_SIZE div 2);
+            Frame.SetY(y * GRID_SIZE);
+            Frame.Blit(Self);
+          end;
+      y := Fac.GetY + Fac.GetRules.GetSize;
+      if y < BASE_SIZE then
+        for x := Fac.GetX to Fac.GetX + Fac.GetRules.GetSize - 1 do
+          if (FFacilities[x, y] <> nil) and (FFacilities[x, y].GetBuildTime = 0) then
+          begin
+            Frame := FTexture.GetFrame(8);
+            Frame.SetX(x * GRID_SIZE);
+            Frame.SetY(y * GRID_SIZE - GRID_SIZE div 2);
+            Frame.Blit(Self);
+          end;
+    end;
+  end;
+
+  // Draw facility graphics and crafts
+  Craft := nil;
+  for Fac in FBase.GetFacilities do
+  begin
+    num := 0;
+    for y := Fac.GetY to Fac.GetY + Fac.GetRules.GetSize - 1 do
+      for x := Fac.GetX to Fac.GetX + Fac.GetRules.GetSize - 1 do
+      begin
+        if Fac.GetRules.GetSize = 1 then
+        begin
+          Frame := FTexture.GetFrame(Fac.GetRules.GetSpriteFacility + num);
+          Frame.SetX(x * GRID_SIZE);
+          Frame.SetY(y * GRID_SIZE);
+          Frame.Blit(Self);
+        end;
+        Inc(num);
+      end;
+
+    Fac.SetCraft(nil);
+    if (Fac.GetBuildTime = 0) and (Fac.GetRules.GetCrafts > 0) then
+    begin
+      if Craft = nil then
+        Craft := FBase.GetCrafts.First; // simplified
+      if Craft <> nil then
+      begin
+        if Craft.GetStatus <> 'STR_OUT' then
+        begin
+          Frame := FTexture.GetFrame(Craft.GetRules.GetSprite + 33);
+          Frame.SetX(Fac.GetX * GRID_SIZE + ((Fac.GetRules.GetSize - 1) * GRID_SIZE) div 2 + 2);
+          Frame.SetY(Fac.GetY * GRID_SIZE + ((Fac.GetRules.GetSize - 1) * GRID_SIZE) div 2 - 4);
+          Frame.Blit(Self);
+          Fac.SetCraft(Craft);
+        end;
+        Craft := nil; // only one craft per facility? simplify
+      end;
+    end;
+
+    // Draw build time
+    if Fac.GetBuildTime > 0 then
+    begin
+      TextObj := TText.Create(GRID_SIZE * Fac.GetRules.GetSize, 16, 0, 0);
+      TextObj.SetPalette(GetPalette);
+      TextObj.InitText(FBigFont, FSmallFont, FLang);
+      TextObj.SetX(Fac.GetX * GRID_SIZE);
+      TextObj.SetY(Fac.GetY * GRID_SIZE + (GRID_SIZE * Fac.GetRules.GetSize - 16) div 2);
+      TextObj.SetBig;
+      ss := TStringStream.Create;
+      try
+        ss.WriteString(IntToStr(Fac.GetBuildTime));
+        TextObj.SetAlign(ALIGN_CENTER);
+        TextObj.SetColor(FCellColor);
+        TextObj.SetText(ss.DataString);
+        TextObj.Blit(Self);
+      finally
+        ss.Free;
+        TextObj.Free;
+      end;
+    end;
+  end;
+end;
+
+procedure TBaseView.Blit(Surface: TSurface);
+begin
+  inherited Blit(Surface);
+  if FSelector <> nil then
+    FSelector.Blit(Surface);
+end;
+
+procedure TBaseView.MouseOver(Action: TAction; State: TState);
+begin
+  FGridX := Floor(Action.GetRelativeXMouse / (GRID_SIZE * Action.GetXScale));
+  FGridY := Floor(Action.GetRelativeYMouse / (GRID_SIZE * Action.GetYScale));
+  if (FGridX >= 0) and (FGridX < BASE_SIZE) and (FGridY >= 0) and (FGridY < BASE_SIZE) then
+  begin
+    FSelFacility := FFacilities[FGridX, FGridY];
+    if FSelSize > 0 then
+    begin
+      if (FGridX + FSelSize - 1 < BASE_SIZE) and (FGridY + FSelSize - 1 < BASE_SIZE) then
+      begin
+        FSelector.SetX(Self.X + FGridX * GRID_SIZE);
+        FSelector.SetY(Self.Y + FGridY * GRID_SIZE);
+        FSelector.Visible := True;
+      end
+      else
+        FSelector.Visible := False;
+    end;
+  end
+  else
+  begin
+    FSelFacility := nil;
+    if FSelSize > 0 then
+      FSelector.Visible := False;
+  end;
+  inherited MouseOver(Action, State);
+end;
+
+procedure TBaseView.MouseOut(Action: TAction; State: TState);
+begin
+  FSelFacility := nil;
+  if FSelSize > 0 then
+    FSelector.Visible := False;
+  inherited MouseOut(Action, State);
+end;
+
+procedure TBaseView.SetColor(Color: Byte);
+begin
+  FCellColor := Color;
+end;
+
+procedure TBaseView.SetSecondaryColor(Color: Byte);
+begin
+  FSelectorColor := Color;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:BasescapeState.pas;encoding=utf8;eol=lf⟧
+unit BasescapeState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options, Engine.Unicode,
+  Interface.TextButton, Interface.Text, Interface.TextEdit,
+  BaseView, MiniBaseView, Savegame.SavedGame, Savegame.Base,
+  Savegame.BaseFacility, Mod.RuleBaseFacility, Savegame.Region,
+  Mod.RuleRegion, Menu.ErrorMessageState, DismantleFacilityState,
+  Geoscape.BuildNewBaseState, BaseInfoState, SoldiersState,
+  CraftsState, BuildFacilitiesState, ResearchState,
+  ManageAlienContainmentState, ManufactureState, PurchaseState,
+  SellState, TransferBaseState, CraftInfoState,
+  Geoscape.AllocatePsiTrainingState, Mod.RuleInterface,
+  Globe;
+
+type
+  TBasescapeState = class(TState)
+  private
+    FView: TBaseView;
+    FMini: TMiniBaseView;
+    FTxtFacility, FTxtLocation, FTxtFunds: TText;
+    FEdtBase: TTextEdit;
+    FBtnNewBase, FBtnBaseInfo, FBtnSoldiers, FBtnCrafts,
+    FBtnFacilities, FBtnResearch, FBtnManufacture, FBtnTransfer,
+    FBtnPurchase, FBtnSell, FBtnGeoscape: TTextButton;
+    FBase: TBase;
+    FGlobe: TGlobe;
+
+    procedure EdtBaseChange(Sender: TObject; Action: TAction);
+    procedure ViewLeftClick(Sender: TObject; Action: TAction);
+    procedure ViewRightClick(Sender: TObject; Action: TAction);
+    procedure ViewMouseOver(Sender: TObject; Action: TAction);
+    procedure ViewMouseOut(Sender: TObject; Action: TAction);
+    procedure MiniClick(Sender: TObject; Action: TAction);
+    procedure HandleKeyPress(Sender: TObject; Action: TAction);
+    procedure BtnNewBaseClick(Sender: TObject; Action: TAction);
+    procedure BtnBaseInfoClick(Sender: TObject; Action: TAction);
+    procedure BtnSoldiersClick(Sender: TObject; Action: TAction);
+    procedure BtnCraftsClick(Sender: TObject; Action: TAction);
+    procedure BtnFacilitiesClick(Sender: TObject; Action: TAction);
+    procedure BtnResearchClick(Sender: TObject; Action: TAction);
+    procedure BtnManufactureClick(Sender: TObject; Action: TAction);
+    procedure BtnTransferClick(Sender: TObject; Action: TAction);
+    procedure BtnPurchaseClick(Sender: TObject; Action: TAction);
+    procedure BtnSellClick(Sender: TObject; Action: TAction);
+    procedure BtnGeoscapeClick(Sender: TObject; Action: TAction);
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Globe: TGlobe);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure SetBase(Base: TBase);
+  end;
+
+implementation
+
+uses Mod.Mod;
+
+constructor TBasescapeState.Create(AOwner: TComponent; Base: TBase; Globe: TGlobe);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FGlobe := Globe;
+
+  FTxtFacility := TText.Create(192, 9, 0, 0);
+  FView := TBaseView.Create(192, 192, 0, 8);
+  FMini := TMiniBaseView.Create(128, 16, 192, 41);
+  FEdtBase := TTextEdit.Create(Self, 127, 17, 193, 0);
+  FTxtLocation := TText.Create(126, 9, 194, 16);
+  FTxtFunds := TText.Create(126, 9, 194, 24);
+  FBtnNewBase := TTextButton.Create(128, 12, 192, 58);
+  FBtnBaseInfo := TTextButton.Create(128, 12, 192, 71);
+  FBtnSoldiers := TTextButton.Create(128, 12, 192, 84);
+  FBtnCrafts := TTextButton.Create(128, 12, 192, 97);
+  FBtnFacilities := TTextButton.Create(128, 12, 192, 110);
+  FBtnResearch := TTextButton.Create(128, 12, 192, 123);
+  FBtnManufacture := TTextButton.Create(128, 12, 192, 136);
+  FBtnTransfer := TTextButton.Create(128, 12, 192, 149);
+  FBtnPurchase := TTextButton.Create(128, 12, 192, 162);
+  FBtnSell := TTextButton.Create(128, 12, 192, 175);
+  FBtnGeoscape := TTextButton.Create(128, 12, 192, 188);
+
+  SetInterface('basescape');
+  Add(FView, 'baseView', 'basescape');
+  Add(FMini, 'miniBase', 'basescape');
+  Add(FTxtFacility, 'textTooltip', 'basescape');
+  Add(FEdtBase, 'text1', 'basescape');
+  Add(FTxtLocation, 'text2', 'basescape');
+  Add(FTxtFunds, 'text3', 'basescape');
+  Add(FBtnNewBase, 'button', 'basescape');
+  Add(FBtnBaseInfo, 'button', 'basescape');
+  Add(FBtnSoldiers, 'button', 'basescape');
+  Add(FBtnCrafts, 'button', 'basescape');
+  Add(FBtnFacilities, 'button', 'basescape');
+  Add(FBtnResearch, 'button', 'basescape');
+  Add(FBtnManufacture, 'button', 'basescape');
+  Add(FBtnTransfer, 'button', 'basescape');
+  Add(FBtnPurchase, 'button', 'basescape');
+  Add(FBtnSell, 'button', 'basescape');
+  Add(FBtnGeoscape, 'button', 'basescape');
+  CenterAllSurfaces;
+
+  FView.SetTexture(FGame.GetMod.GetSurfaceSet('BASEBITS.PCK'));
+  FView.OnMouseClick := ViewLeftClick;
+  FView.OnMouseRightClick := ViewRightClick;
+  FView.OnMouseOver := ViewMouseOver;
+  FView.OnMouseOut := ViewMouseOut;
+
+  FMini.SetTexture(FGame.GetMod.GetSurfaceSet('BASEBITS.PCK'));
+  FMini.SetBases(FGame.GetSavedGame.GetBases);
+  FMini.OnMouseClick := MiniClick;
+  FMini.OnKeyboardPress := HandleKeyPress;
+
+  FEdtBase.SetBig;
+  FEdtBase.OnChange := EdtBaseChange;
+
+  FBtnNewBase.SetText(Translate('STR_BUILD_NEW_BASE_UC'));
+  FBtnNewBase.OnMouseClick := BtnNewBaseClick;
+  FBtnBaseInfo.SetText(Translate('STR_BASE_INFORMATION'));
+  FBtnBaseInfo.OnMouseClick := BtnBaseInfoClick;
+  FBtnSoldiers.SetText(Translate('STR_SOLDIERS_UC'));
+  FBtnSoldiers.OnMouseClick := BtnSoldiersClick;
+  FBtnCrafts.SetText(Translate('STR_EQUIP_CRAFT'));
+  FBtnCrafts.OnMouseClick := BtnCraftsClick;
+  FBtnFacilities.SetText(Translate('STR_BUILD_FACILITIES'));
+  FBtnFacilities.OnMouseClick := BtnFacilitiesClick;
+  FBtnResearch.SetText(Translate('STR_RESEARCH'));
+  FBtnResearch.OnMouseClick := BtnResearchClick;
+  FBtnManufacture.SetText(Translate('STR_MANUFACTURE'));
+  FBtnManufacture.OnMouseClick := BtnManufactureClick;
+  FBtnTransfer.SetText(Translate('STR_TRANSFER_UC'));
+  FBtnTransfer.OnMouseClick := BtnTransferClick;
+  FBtnPurchase.SetText(Translate('STR_PURCHASE_RECRUIT'));
+  FBtnPurchase.OnMouseClick := BtnPurchaseClick;
+  FBtnSell.SetText(Translate('STR_SELL_SACK_UC'));
+  FBtnSell.OnMouseClick := BtnSellClick;
+  FBtnGeoscape.SetText(Translate('STR_GEOSCAPE_UC'));
+  FBtnGeoscape.OnMouseClick := BtnGeoscapeClick;
+  FBtnGeoscape.OnKeyboardPress := BtnGeoscapeClick;
+end;
+
+destructor TBasescapeState.Destroy;
+var
+  Exists: Boolean;
+  i: Integer;
+begin
+  Exists := False;
+  for i := 0 to FGame.GetSavedGame.GetBases.Count - 1 do
+    if FGame.GetSavedGame.GetBases[i] = FBase then
+    begin
+      Exists := True;
+      Break;
+    end;
+  if not Exists then
+    FBase.Free;
+  inherited;
+end;
+
+procedure TBasescapeState.Init;
+var
+  Region: TRegion;
+begin
+  inherited;
+  SetBase(FBase);
+  FView.SetBase(FBase);
+  FMini.Draw;
+  FEdtBase.SetText(FBase.GetName);
+
+  for Region in FGame.GetSavedGame.GetRegions do
+    if Region.GetRules.InsideRegion(FBase.GetLongitude, FBase.GetLatitude) then
+    begin
+      FTxtLocation.SetText(Translate(Region.GetRules.GetType));
+      Break;
+    end;
+
+  FTxtFunds.SetText(Translate('STR_FUNDS').Arg(Unicode.FormatFunding(FGame.GetSavedGame.GetFunds)));
+
+  FBtnNewBase.Visible := FGame.GetSavedGame.GetBases.Count < TMiniBaseView.MAX_BASES;
+end;
+
+procedure TBasescapeState.SetBase(Base: TBase);
+var
+  i: Integer;
+  Exists: Boolean;
+begin
+  if FGame.GetSavedGame.GetBases.Count > 0 then
+  begin
+    Exists := False;
+    for i := 0 to FGame.GetSavedGame.GetBases.Count - 1 do
+      if FGame.GetSavedGame.GetBases[i] = Base then
+      begin
+        FBase := Base;
+        FMini.SetSelectedBase(i);
+        FGame.GetSavedGame.SetSelectedBase(i);
+        Exists := True;
+        Break;
+      end;
+    if not Exists then
+    begin
+      FBase := FGame.GetSavedGame.GetBases[0];
+      FMini.SetSelectedBase(0);
+      FGame.GetSavedGame.SetSelectedBase(0);
+    end;
+  end
+  else
+  begin
+    FBase := TBase.Create(FGame.GetMod);
+    FMini.SetSelectedBase(0);
+    FGame.GetSavedGame.SetSelectedBase(0);
+  end;
+end;
+
+procedure TBasescapeState.EdtBaseChange(Sender: TObject; Action: TAction);
+begin
+  FBase.SetName(FEdtBase.GetText);
+end;
+
+procedure TBasescapeState.ViewLeftClick(Sender: TObject; Action: TAction);
+var
+  Fac: TBaseFacility;
+begin
+  Fac := FView.GetSelectedFacility;
+  if Fac <> nil then
+  begin
+    if Fac.InUse then
+      FGame.PushState(TErrorMessageState.Create(Self, Translate('STR_FACILITY_IN_USE'), FPalette,
+        FGame.GetMod.GetInterface('basescape').GetElement('errorMessage').Color, 'BACK13.SCR',
+        FGame.GetMod.GetInterface('basescape').GetElement('errorPalette').Color))
+    else if not FBase.GetDisconnectedFacilities(Fac).IsEmpty then
+      FGame.PushState(TErrorMessageState.Create(Self, Translate('STR_CANNOT_DISMANTLE_FACILITY'), FPalette,
+        FGame.GetMod.GetInterface('basescape').GetElement('errorMessage').Color, 'BACK13.SCR',
+        FGame.GetMod.GetInterface('basescape').GetElement('errorPalette').Color))
+    else
+      FGame.PushState(TDismantleFacilityState.Create(Self, FBase, FView, Fac));
+  end;
+end;
+
+procedure TBasescapeState.ViewRightClick(Sender: TObject; Action: TAction);
+var
+  f: TBaseFacility;
+  craft: Integer;
+begin
+  f := FView.GetSelectedFacility;
+  if f = nil then
+    FGame.PushState(TBaseInfoState.Create(Self, FBase, Self))
+  else if f.GetRules.GetCrafts > 0 then
+  begin
+    if f.GetCraft = nil then
+      FGame.PushState(TCraftsState.Create(Self, FBase))
+    else
+      for craft := 0 to FBase.GetCrafts.Count - 1 do
+        if f.GetCraft = FBase.GetCrafts[craft] then
+        begin
+          FGame.PushState(TCraftInfoState.Create(Self, FBase, craft));
+          Break;
+        end;
+  end
+  else if f.GetRules.GetStorage > 0 then
+    FGame.PushState(TSellState.Create(Self, FBase))
+  else if f.GetRules.GetPersonnel > 0 then
+    FGame.PushState(TSoldiersState.Create(Self, FBase))
+  else if f.GetRules.GetPsiLaboratories > 0 and Options.AnytimePsiTraining and (FBase.GetAvailablePsiLabs > 0) then
+    FGame.PushState(TAllocatePsiTrainingState.Create(Self, FBase))
+  else if f.GetRules.GetLaboratories > 0 then
+    FGame.PushState(TResearchState.Create(Self, FBase))
+  else if f.GetRules.GetWorkshops > 0 then
+    FGame.PushState(TManufactureState.Create(Self, FBase))
+  else if f.GetRules.GetAliens > 0 then
+    FGame.PushState(TManageAlienContainmentState.Create(Self, FBase, OPT_GEOSCAPE))
+  else if f.GetRules.IsLift or (f.GetRules.GetRadarRange > 0) then
+    FGame.PopState;
+end;
+
+procedure TBasescapeState.ViewMouseOver(Sender: TObject; Action: TAction);
+var
+  f: TBaseFacility;
+  ss: TStringStream;
+begin
+  f := FView.GetSelectedFacility;
+  ss := TStringStream.Create;
+  try
+    if f <> nil then
+    begin
+      if (f.GetRules.GetCrafts = 0) or (f.GetBuildTime > 0) then
+        ss.WriteString(Translate(f.GetRules.GetType))
+      else
+      begin
+        ss.WriteString(Translate(f.GetRules.GetType));
+        if f.GetCraft <> nil then
+          ss.WriteString(' ' + Translate('STR_CRAFT_').Arg(f.GetCraft.GetName(FGame.GetLanguage)));
+      end;
+    end;
+    FTxtFacility.SetText(ss.DataString);
+  finally
+    ss.Free;
+  end;
+end;
+
+procedure TBasescapeState.ViewMouseOut(Sender: TObject; Action: TAction);
+begin
+  FTxtFacility.SetText('');
+end;
+
+procedure TBasescapeState.MiniClick(Sender: TObject; Action: TAction);
+var
+  base: Integer;
+begin
+  base := FMini.GetHoveredBase;
+  if base < FGame.GetSavedGame.GetBases.Count then
+  begin
+    FBase := FGame.GetSavedGame.GetBases[base];
+    Init;
+  end;
+end;
+
+procedure TBasescapeState.HandleKeyPress(Sender: TObject; Action: TAction);
+var
+  key: Integer;
+  baseKeys: array[0..7] of Integer;
+  i: Integer;
+begin
+  if Action.GetDetails.typ = SDL_KEYDOWN then
+  begin
+    baseKeys[0] := Options.KeyBaseSelect1;
+    baseKeys[1] := Options.KeyBaseSelect2;
+    baseKeys[2] := Options.KeyBaseSelect3;
+    baseKeys[3] := Options.KeyBaseSelect4;
+    baseKeys[4] := Options.KeyBaseSelect5;
+    baseKeys[5] := Options.KeyBaseSelect6;
+    baseKeys[6] := Options.KeyBaseSelect7;
+    baseKeys[7] := Options.KeyBaseSelect8;
+    key := Action.GetDetails.key.keysym.sym;
+    for i := 0 to FGame.GetSavedGame.GetBases.Count - 1 do
+      if key = baseKeys[i] then
+      begin
+        FBase := FGame.GetSavedGame.GetBases[i];
+        Init;
+        Break;
+      end;
+  end;
+end;
+
+procedure TBasescapeState.BtnNewBaseClick(Sender: TObject; Action: TAction);
+var
+  NewBase: TBase;
+begin
+  NewBase := TBase.Create(FGame.GetMod);
+  FGame.PopState;
+  FGame.PushState(TBuildNewBaseState.Create(Self, NewBase, FGlobe, False));
+end;
+
+procedure TBasescapeState.BtnBaseInfoClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TBaseInfoState.Create(Self, FBase, Self));
+end;
+
+procedure TBasescapeState.BtnSoldiersClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSoldiersState.Create(Self, FBase));
+end;
+
+procedure TBasescapeState.BtnCraftsClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TCraftsState.Create(Self, FBase));
+end;
+
+procedure TBasescapeState.BtnFacilitiesClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TBuildFacilitiesState.Create(Self, FBase, Self));
+end;
+
+procedure TBasescapeState.BtnResearchClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TResearchState.Create(Self, FBase));
+end;
+
+procedure TBasescapeState.BtnManufactureClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TManufactureState.Create(Self, FBase));
+end;
+
+procedure TBasescapeState.BtnPurchaseClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TPurchaseState.Create(Self, FBase));
+end;
+
+procedure TBasescapeState.BtnSellClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TSellState.Create(Self, FBase));
+end;
+
+procedure TBasescapeState.BtnTransferClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TTransferBaseState.Create(Self, FBase));
+end;
+
+procedure TBasescapeState.BtnGeoscapeClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:MiniBaseView.pas;encoding=utf8;eol=lf⟧
+unit MiniBaseView;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.InteractiveSurface, Engine.SurfaceSet, Engine.Action,
+  Savegame.Base, Savegame.BaseFacility, Mod.RuleBaseFacility;
+
+type
+  TMiniBaseView = class(TInteractiveSurface)
+  private const
+    MINI_SIZE = 14;
+    MAX_BASES = 8;
+  private
+    FBases: TList<TBase>;
+    FTexture: TSurfaceSet;
+    FBase: Integer;
+    FHoverBase: Integer;
+    FRed, FGreen: Byte;
+  public
+    constructor Create(Width, Height, X, Y: Integer);
+    destructor Destroy; override;
+    procedure SetBases(Bases: TList<TBase>);
+    procedure SetTexture(Texture: TSurfaceSet);
+    function GetHoveredBase: Integer;
+    procedure SetSelectedBase(Base: Integer);
+    procedure Draw; override;
+    procedure MouseOver(Action: TAction; State: TState); override;
+    procedure SetColor(Color: Byte);
+    procedure SetSecondaryColor(Color: Byte);
+  end;
+
+implementation
+
+uses Math;
+
+constructor TMiniBaseView.Create(Width, Height, X, Y: Integer);
+begin
+  inherited Create(Width, Height, X, Y);
+  FBases := nil;
+  FTexture := nil;
+  FBase := 0;
+  FHoverBase := 0;
+  FRed := 0;
+  FGreen := 0;
+end;
+
+destructor TMiniBaseView.Destroy;
+begin
+  inherited;
+end;
+
+procedure TMiniBaseView.SetBases(Bases: TList<TBase>);
+begin
+  FBases := Bases;
+  Redraw := True;
+end;
+
+procedure TMiniBaseView.SetTexture(Texture: TSurfaceSet);
+begin
+  FTexture := Texture;
+end;
+
+function TMiniBaseView.GetHoveredBase: Integer;
+begin
+  Result := FHoverBase;
+end;
+
+procedure TMiniBaseView.SetSelectedBase(Base: Integer);
+begin
+  FBase := Base;
+  Redraw := True;
+end;
+
+procedure TMiniBaseView.Draw;
+var
+  i, x, y: Integer;
+  R: TRect;
+  Fac: TBaseFacility;
+  color: Integer;
+begin
+  inherited Draw;
+  for i := 0 to MAX_BASES-1 do
+  begin
+    if i = FBase then
+    begin
+      R := Rect(i * (MINI_SIZE + 2), 0, i * (MINI_SIZE + 2) + MINI_SIZE + 2, MINI_SIZE + 2);
+      DrawRect(R, 1);
+    end;
+    FTexture.GetFrame(41).SetX(i * (MINI_SIZE + 2));
+    FTexture.GetFrame(41).SetY(0);
+    FTexture.GetFrame(41).Blit(Self);
+
+    if i < FBases.Count then
+    begin
+      Lock;
+      for Fac in FBases[i].GetFacilities do
+      begin
+        if Fac.GetBuildTime = 0 then
+          color := FGreen
+        else
+          color := FRed;
+
+        R := Rect(i * (MINI_SIZE + 2) + 2 + Fac.GetX * 2,
+                  2 + Fac.GetY * 2,
+                  Fac.GetRules.GetSize * 2,
+                  Fac.GetRules.GetSize * 2);
+        DrawRect(R, color + 3);
+        R.Left := R.Left + 1;
+        R.Top := R.Top + 1;
+        R.Right := R.Right - 1;
+        R.Bottom := R.Bottom - 1;
+        DrawRect(R, color + 5);
+        R.Left := R.Left - 1;
+        R.Top := R.Top - 1;
+        R.Right := R.Right + 1;
+        R.Bottom := R.Bottom + 1;
+        DrawRect(R, color + 2);
+        R.Left := R.Left + 1;
+        R.Top := R.Top + 1;
+        R.Right := R.Right - 1;
+        R.Bottom := R.Bottom - 1;
+        DrawRect(R, color + 3);
+        R.Left := R.Left - 1;
+        R.Top := R.Top - 1;
+        SetPixel(R.Left, R.Top, color + 1);
+      end;
+      Unlock;
+    end;
+  end;
+end;
+
+procedure TMiniBaseView.MouseOver(Action: TAction; State: TState);
+begin
+  FHoverBase := Floor(Action.GetRelativeXMouse / ((MINI_SIZE + 2) * Action.GetXScale));
+  if FHoverBase >= MAX_BASES then FHoverBase := MAX_BASES - 1;
+  inherited MouseOver(Action, State);
+end;
+
+procedure TMiniBaseView.SetColor(Color: Byte);
+begin
+  FGreen := Color;
+end;
+
+procedure TMiniBaseView.SetSecondaryColor(Color: Byte);
+begin
+  FRed := Color;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:BuildFacilitiesState.pas;encoding=utf8;eol=lf⟧
+unit BuildFacilitiesState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text,
+  Interface.TextList, Mod.RuleBaseFacility,
+  Savegame.SavedGame, Savegame.Base, PlaceFacilityState;
+
+type
+  TBuildFacilitiesState = class(TState)
+  protected
+    FBase: TBase;
+    FState: TState;
+    FFacilities: TList<TRuleBaseFacility>;
+
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle: TText;
+    FLstFacilities: TTextList;
+
+    procedure PopulateBuildList; virtual;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; State: TState);
+    destructor Destroy; override;
+    procedure Init; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction); virtual;
+    procedure LstFacilitiesClick(Sender: TObject; Action: TAction); virtual;
+  end;
+
+implementation
+
+constructor TBuildFacilitiesState.Create(AOwner: TComponent; Base: TBase; State: TState);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FState := State;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 128, 160, 192, 40, POPUP_VERTICAL);
+  FBtnOk := TTextButton.Create(112, 16, 200, 176);
+  FLstFacilities := TTextList.Create(104, 104, 200, 64);
+  FTxtTitle := TText.Create(118, 17, 197, 48);
+
+  SetInterface('selectFacility');
+  Add(FWindow, 'window', 'selectFacility');
+  Add(FBtnOk, 'button', 'selectFacility');
+  Add(FTxtTitle, 'text', 'selectFacility');
+  Add(FLstFacilities, 'list', 'selectFacility');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK05.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FTxtTitle.SetBig;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_INSTALLATION'));
+  FLstFacilities.SetColumns([1], [104]);
+  FLstFacilities.SetSelectable(True);
+  FLstFacilities.SetBackground(FWindow);
+  FLstFacilities.SetMargin(2);
+  FLstFacilities.SetWordWrap(True);
+  FLstFacilities.SetScrolling(True, 0);
+  FLstFacilities.OnMouseClick := LstFacilitiesClick;
+
+  PopulateBuildList;
+end;
+
+destructor TBuildFacilitiesState.Destroy;
+begin
+  FFacilities.Free;
+  inherited;
+end;
+
+procedure TBuildFacilitiesState.PopulateBuildList;
+var
+  Facilities: TStringList;
+  i: Integer;
+  Rule: TRuleBaseFacility;
+begin
+  FFacilities := TList<TRuleBaseFacility>.Create;
+  Facilities := FGame.GetMod.GetBaseFacilitiesList;
+  try
+    for i := 0 to Facilities.Count - 1 do
+    begin
+      Rule := FGame.GetMod.GetBaseFacility(Facilities[i]);
+      if FGame.GetSavedGame.IsResearched(Rule.GetRequirements) and (not Rule.IsLift) then
+        FFacilities.Add(Rule);
+    end;
+  finally
+    Facilities.Free;
+  end;
+
+  FLstFacilities.ClearList;
+  for Rule in FFacilities do
+    FLstFacilities.AddRow([Translate(Rule.GetType)]);
+end;
+
+procedure TBuildFacilitiesState.Init;
+begin
+  FState.Init;
+  inherited;
+end;
+
+procedure TBuildFacilitiesState.BtnOkClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TBuildFacilitiesState.LstFacilitiesClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TPlaceFacilityState.Create(Self, FBase, FFacilities[FLstFacilities.GetSelectedRow]));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:PlaceFacilityState.pas;encoding=utf8;eol=lf⟧
+unit PlaceFacilityState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText,
+  Interface.TextButton, Interface.Window, Interface.Text,
+  BaseView, Savegame.Base, Savegame.BaseFacility,
+  Mod.RuleBaseFacility, Savegame.SavedGame,
+  Menu.ErrorMessageState, Engine.Options, Engine.Unicode,
+  Mod.RuleInterface;
+
+type
+  TPlaceFacilityState = class(TState)
+  protected
+    FBase: TBase;
+    FRule: TRuleBaseFacility;
+    FView: TBaseView;
+    FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtFacility, FTxtCost, FNumCost, FTxtTime, FNumTime, FTxtMaintenance, FNumMaintenance: TText;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Rule: TRuleBaseFacility);
+    destructor Destroy; override;
+    procedure BtnCancelClick(Sender: TObject; Action: TAction); virtual;
+    procedure ViewClick(Sender: TObject; Action: TAction); virtual;
+  end;
+
+implementation
+
+constructor TPlaceFacilityState.Create(AOwner: TComponent; Base: TBase; Rule: TRuleBaseFacility);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FRule := Rule;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 128, 160, 192, 40);
+  FView := TBaseView.Create(192, 192, 0, 8);
+  FBtnCancel := TTextButton.Create(112, 16, 200, 176);
+  FTxtFacility := TText.Create(110, 9, 202, 50);
+  FTxtCost := TText.Create(110, 9, 202, 62);
+  FNumCost := TText.Create(110, 17, 202, 70);
+  FTxtTime := TText.Create(110, 9, 202, 90);
+  FNumTime := TText.Create(110, 17, 202, 98);
+  FTxtMaintenance := TText.Create(110, 9, 202, 118);
+  FNumMaintenance := TText.Create(110, 17, 202, 126);
+
+  SetInterface('placeFacility');
+  Add(FWindow, 'window', 'placeFacility');
+  Add(FView, 'baseView', 'basescape');
+  Add(FBtnCancel, 'button', 'placeFacility');
+  Add(FTxtFacility, 'text', 'placeFacility');
+  Add(FTxtCost, 'text', 'placeFacility');
+  Add(FNumCost, 'numbers', 'placeFacility');
+  Add(FTxtTime, 'text', 'placeFacility');
+  Add(FNumTime, 'numbers', 'placeFacility');
+  Add(FTxtMaintenance, 'text', 'placeFacility');
+  Add(FNumMaintenance, 'numbers', 'placeFacility');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK01.SCR'));
+  FView.SetTexture(FGame.GetMod.GetSurfaceSet('BASEBITS.PCK'));
+  FView.SetBase(FBase);
+  FView.SetSelectable(FRule.GetSize);
+  FView.OnMouseClick := ViewClick;
+  FBtnCancel.SetText(Translate('STR_CANCEL'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+  FTxtFacility.SetText(Translate(FRule.GetType));
+  FTxtCost.SetText(Translate('STR_COST_UC'));
+  FNumCost.SetBig;
+  FNumCost.SetText(Unicode.FormatFunding(FRule.GetBuildCost));
+  FTxtTime.SetText(Translate('STR_CONSTRUCTION_TIME_UC'));
+  FNumTime.SetBig;
+  FNumTime.SetText(Translate('STR_DAY', FRule.GetBuildTime));
+  FTxtMaintenance.SetText(Translate('STR_MAINTENANCE_UC'));
+  FNumMaintenance.SetBig;
+  FNumMaintenance.SetText(Unicode.FormatFunding(FRule.GetMonthlyCost));
+end;
+
+destructor TPlaceFacilityState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TPlaceFacilityState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+procedure TPlaceFacilityState.ViewClick(Sender: TObject; Action: TAction);
+var
+  Fac: TBaseFacility;
+begin
+  if not FView.IsPlaceable(FRule) then
+    FGame.PushState(TErrorMessageState.Create(Self, Translate('STR_CANNOT_BUILD_HERE'), FPalette,
+      FGame.GetMod.GetInterface('placeFacility').GetElement('errorMessage').Color, 'BACK01.SCR',
+      FGame.GetMod.GetInterface('placeFacility').GetElement('errorPalette').Color))
+  else if FGame.GetSavedGame.GetFunds < FRule.GetBuildCost then
+  begin
+    FGame.PopState;
+    FGame.PushState(TErrorMessageState.Create(Self, Translate('STR_NOT_ENOUGH_MONEY'), FPalette,
+      FGame.GetMod.GetInterface('placeFacility').GetElement('errorMessage').Color, 'BACK01.SCR',
+      FGame.GetMod.GetInterface('placeFacility').GetElement('errorPalette').Color));
+  end
+  else
+  begin
+    Fac := TBaseFacility.Create(FRule, FBase);
+    Fac.SetX(FView.GetGridX);
+    Fac.SetY(FView.GetGridY);
+    Fac.SetBuildTime(FRule.GetBuildTime);
+    FBase.GetFacilities.Add(Fac);
+    if Options.AllowBuildingQueue then
+    begin
+      if FView.IsQueuedBuilding(FRule) then Fac.SetBuildTime(MaxInt);
+      FView.ReCalcQueuedBuildings;
+    end;
+    FGame.GetSavedGame.SetFunds(FGame.GetSavedGame.GetFunds - FRule.GetBuildCost);
+    FGame.PopState;
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:DismantleFacilityState.pas;encoding=utf8;eol=lf⟧
+unit DismantleFacilityState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text,
+  Savegame.Base, Savegame.BaseFacility, BaseView,
+  Mod.RuleBaseFacility, Savegame.SavedGame;
+
+type
+  TDismantleFacilityState = class(TState)
+  private
+    FBase: TBase;
+    FView: TBaseView;
+    FFac: TBaseFacility;
+
+    FBtnOk, FBtnCancel: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle, FTxtFacility: TText;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; View: TBaseView; Fac: TBaseFacility);
+    destructor Destroy; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction);
+    procedure BtnCancelClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TDismantleFacilityState.Create(AOwner: TComponent; Base: TBase; View: TBaseView; Fac: TBaseFacility);
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FView := View;
+  FFac := Fac;
+  Screen := False;
+
+  FWindow := TWindow.Create(Self, 152, 80, 20, 60);
+  FBtnOk := TTextButton.Create(44, 16, 36, 115);
+  FBtnCancel := TTextButton.Create(44, 16, 112, 115);
+  FTxtTitle := TText.Create(142, 9, 25, 75);
+  FTxtFacility := TText.Create(142, 9, 25, 85);
+
+  SetInterface('dismantleFacility');
+  Add(FWindow, 'window', 'dismantleFacility');
+  Add(FBtnOk, 'button', 'dismantleFacility');
+  Add(FBtnCancel, 'button', 'dismantleFacility');
+  Add(FTxtTitle, 'text', 'dismantleFacility');
+  Add(FTxtFacility, 'text', 'dismantleFacility');
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(FGame.GetMod.GetSurface('BACK13.SCR'));
+  FBtnOk.SetText(Translate('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := BtnOkClick;
+  FBtnCancel.SetText(Translate('STR_CANCEL_UC'));
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress := BtnCancelClick;
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetText(Translate('STR_DISMANTLE'));
+  FTxtFacility.SetAlign(ALIGN_CENTER);
+  FTxtFacility.SetText(Translate(FFac.GetRules.GetType));
+end;
+
+destructor TDismantleFacilityState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TDismantleFacilityState.BtnOkClick(Sender: TObject; Action: TAction);
+var
+  i: Integer;
+begin
+  if not FFac.GetRules.IsLift then
+  begin
+    if FFac.GetBuildTime > FFac.GetRules.GetBuildTime then
+      FGame.GetSavedGame.SetFunds(FGame.GetSavedGame.GetFunds + FFac.GetRules.GetBuildCost);
+
+    for i := 0 to FBase.GetFacilities.Count - 1 do
+      if FBase.GetFacilities[i] = FFac then
+      begin
+        FBase.GetFacilities.Delete(i);
+        FView.ResetSelectedFacility;
+        FFac.Free;
+        if Options.AllowBuildingQueue then FView.ReCalcQueuedBuildings;
+        Break;
+      end;
+  end
+  else
+  begin
+    for i := 0 to FGame.GetSavedGame.GetBases.Count - 1 do
+      if FGame.GetSavedGame.GetBases[i] = FBase then
+      begin
+        FGame.GetSavedGame.GetBases.Delete(i);
+        FBase.Free;
+        Break;
+      end;
+  end;
+  FGame.PopState;
+end;
+
+procedure TDismantleFacilityState.BtnCancelClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:PlaceLiftState.pas;encoding=utf8;eol=lf⟧
+unit PlaceLiftState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.State, Engine.Game, Engine.Action,
+  Mod.Mod, Engine.LocalizedText,
+  Interface.Text,
+  BaseView, Savegame.Base, Savegame.BaseFacility,
+  Mod.RuleBaseFacility, BasescapeState,
+  SelectStartFacilityState, Savegame.SavedGame,
+  Globe;
+
+type
+  TPlaceLiftState = class(TState)
+  private
+    FBase: TBase;
+    FGlobe: TGlobe;
+    FView: TBaseView;
+    FTxtTitle: TText;
+    FFirst: Boolean;
+    FLift: TRuleBaseFacility;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Globe: TGlobe; First: Boolean);
+    destructor Destroy; override;
+    procedure ViewClick(Sender: TObject; Action: TAction);
+  end;
+
+implementation
+
+constructor TPlaceLiftState.Create(AOwner: TComponent; Base: TBase; Globe: TGlobe; First: Boolean);
+var
+  i: Integer;
+begin
+  inherited Create(AOwner);
+  FBase := Base;
+  FGlobe := Globe;
+  FFirst := First;
+
+  FView := TBaseView.Create(192, 192, 0, 8);
+  FTxtTitle := TText.Create(320, 9, 0, 0);
+
+  SetInterface('placeFacility');
+  Add(FView, 'baseView', 'basescape');
+  Add(FTxtTitle, 'text', 'placeFacility');
+  CenterAllSurfaces;
+
+  FView.SetTexture(FGame.GetMod.GetSurfaceSet('BASEBITS.PCK'));
+  FView.SetBase(FBase);
+  for i := 0 to FGame.GetMod.GetBaseFacilitiesList.Count - 1 do
+  begin
+    if FGame.GetMod.GetBaseFacility(FGame.GetMod.GetBaseFacilitiesList[i]).IsLift then
+    begin
+      FLift := FGame.GetMod.GetBaseFacility(FGame.GetMod.GetBaseFacilitiesList[i]);
+      Break;
+    end;
+  end;
+  FView.SetSelectable(FLift.GetSize);
+  FView.OnMouseClick := ViewClick;
+  FTxtTitle.SetText(Translate('STR_SELECT_POSITION_FOR_ACCESS_LIFT'));
+end;
+
+destructor TPlaceLiftState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TPlaceLiftState.ViewClick(Sender: TObject; Action: TAction);
+var
+  Fac: TBaseFacility;
+  bState: TBasescapeState;
+begin
+  Fac := TBaseFacility.Create(FLift, FBase);
+  Fac.SetX(FView.GetGridX);
+  Fac.SetY(FView.GetGridY);
+  FBase.GetFacilities.Add(Fac);
+  FGame.PopState;
+  bState := TBasescapeState.Create(Self, FBase, FGlobe);
+  FGame.GetSavedGame.SetSelectedBase(FGame.GetSavedGame.GetBases.Count - 1);
+  FGame.PushState(bState);
+  if FFirst then
+    FGame.PushState(TSelectStartFacilityState.Create(Self, FBase, bState, FGlobe));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:SelectStartFacilityState.pas;encoding=utf8;eol=lf⟧
+unit SelectStartFacilityState;
+
+interface
+
+uses
+  Classes, SysUtils, Generics.Collections,
+  Engine.Game, Engine.Action,
+  Engine.LocalizedText, Engine.Options,
+  Interface.TextButton, Interface.TextList,
+  Mod.Mod, Mod.RuleBaseFacility,
+  Savegame.Base, Savegame.BaseFacility,
+  BuildFacilitiesState, PlaceStartFacilityState,
+  PlaceLiftState, Globe;
+
+type
+  TSelectStartFacilityState = class(TBuildFacilitiesState)
+  private
+    FGlobe: TGlobe;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; State: TState; Globe: TGlobe);
+    destructor Destroy; override;
+    procedure PopulateBuildList; override;
+    procedure BtnOkClick(Sender: TObject; Action: TAction); override;
+    procedure LstFacilitiesClick(Sender: TObject; Action: TAction); override;
+    procedure FacilityBuilt;
+  end;
+
+implementation
+
+constructor TSelectStartFacilityState.Create(AOwner: TComponent; Base: TBase; State: TState; Globe: TGlobe);
+begin
+  inherited Create(AOwner, Base, State);
+  FGlobe := Globe;
+  FFacilities := FGame.GetMod.GetCustomBaseFacilities; // assumed to return TList<TRuleBaseFacility>
+  FBtnOk.SetText(Translate('STR_RESET'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress := nil;
+  FLstFacilities.OnMouseClick := LstFacilitiesClick;
+  PopulateBuildList;
+end;
+
+destructor TSelectStartFacilityState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TSelectStartFacilityState.PopulateBuildList;
+var
+  Rule: TRuleBaseFacility;
+begin
+  FLstFacilities.ClearList;
+  for Rule in FFacilities do
+    FLstFacilities.AddRow([Translate(Rule.GetType)]);
+end;
+
+procedure TSelectStartFacilityState.BtnOkClick(Sender: TObject; Action: TAction);
+var
+  Fac: TBaseFacility;
+begin
+  for Fac in FBase.GetFacilities do
+    Fac.Free;
+  FBase.GetFacilities.Clear;
+  FGame.PopState;
+  FGame.PopState;
+  FGame.PushState(TPlaceLiftState.Create(Self, FBase, FGlobe, True));
+end;
+
+procedure TSelectStartFacilityState.LstFacilitiesClick(Sender: TObject; Action: TAction);
+begin
+  FGame.PushState(TPlaceStartFacilityState.Create(Self, FBase, Self, FFacilities[FLstFacilities.GetSelectedRow]));
+end;
+
+procedure TSelectStartFacilityState.FacilityBuilt;
+begin
+  FFacilities.Delete(FLstFacilities.GetSelectedRow);
+  if FFacilities.Count = 0 then
+  begin
+    FGame.PopState;
+    FGame.PopState;
+  end
+  else
+    PopulateBuildList;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:PlaceStartFacilityState.pas;encoding=utf8;eol=lf⟧
+unit PlaceStartFacilityState;
+
+interface
+
+uses
+  Classes, SysUtils,
+  Engine.Game, Engine.Action,
+  Engine.LocalizedText,
+  Interface.Text,
+  BaseView, Savegame.Base, Savegame.BaseFacility,
+  Mod.RuleBaseFacility, Menu.ErrorMessageState,
+  SelectStartFacilityState, Mod.Mod, Mod.RuleInterface;
+
+type
+  TPlaceStartFacilityState = class(TPlaceFacilityState)
+  private
+    FSelect: TSelectStartFacilityState;
+  public
+    constructor Create(AOwner: TComponent; Base: TBase; Select: TSelectStartFacilityState; Rule: TRuleBaseFacility);
+    destructor Destroy; override;
+    procedure ViewClick(Sender: TObject; Action: TAction); override;
+  end;
+
+implementation
+
+constructor TPlaceStartFacilityState.Create(AOwner: TComponent; Base: TBase; Select: TSelectStartFacilityState; Rule: TRuleBaseFacility);
+begin
+  inherited Create(AOwner, Base, Rule);
+  FSelect := Select;
+  FView.OnMouseClick := ViewClick;
+  FNumCost.SetText(Translate('STR_NONE'));
+  FNumTime.SetText(Translate('STR_NONE'));
+end;
+
+destructor TPlaceStartFacilityState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TPlaceStartFacilityState.ViewClick(Sender: TObject; Action: TAction);
+var
+  Fac: TBaseFacility;
+begin
+  if not FView.IsPlaceable(FRule) then
+  begin
+    FGame.PopState;
+    FGame.PushState(TErrorMessageState.Create(Self, Translate('STR_CANNOT_BUILD_HERE'), FPalette,
+      FGame.GetMod.GetInterface('basescape').GetElement('errorMessage').Color, 'BACK01.SCR',
+      FGame.GetMod.GetInterface('basescape').GetElement('errorPalette').Color));
+  end
+  else
+  begin
+    Fac := TBaseFacility.Create(FRule, FBase);
+    Fac.SetX(FView.GetGridX);
+    Fac.SetY(FView.GetGridY);
+    FBase.GetFacilities.Add(Fac);
+    FGame.PopState;
+    FSelect.FacilityBuilt;
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

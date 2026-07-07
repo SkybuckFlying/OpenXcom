@@ -1,0 +1,2464 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦INDEX⟧
+{
+  "project": "OpenXcom Delphi Port – Bundle 2",
+  "description": "State, Action, Game, Timer, RNG, CrossPlatform, Options, ModInfo, FileMap, CatFile, GMCat, Language, LocalizedText, Plurality, Font, InteractiveSurface"
+}
+⟦/INDEX⟧
+⟦FILE:UAction.pas;encoding=utf8;sha256=⟧
+unit UAction;
+
+interface
+
+uses
+  SDL;
+
+type
+  TAction = class
+  private
+    FEvent: PSDL_Event;
+    FScaleX, FScaleY: Double;
+    FTopBlackBand, FLeftBlackBand: Integer;
+    FMouseX, FMouseY, FSurfaceX, FSurfaceY: Integer;
+    FSender: Pointer; // InteractiveSurface reference
+  public
+    constructor Create(Event: PSDL_Event; ScaleX, ScaleY: Double; TopBlackBand, LeftBlackBand: Integer);
+    destructor Destroy; override;
+    function GetXScale: Double;
+    function GetYScale: Double;
+    procedure SetMouseAction(MouseX, MouseY, SurfaceX, SurfaceY: Integer);
+    function IsMouseAction: Boolean;
+    function GetTopBlackBand: Integer;
+    function GetLeftBlackBand: Integer;
+    function GetXMouse: Integer;
+    function GetYMouse: Integer;
+    function GetAbsoluteXMouse: Double;
+    function GetAbsoluteYMouse: Double;
+    function GetRelativeXMouse: Double;
+    function GetRelativeYMouse: Double;
+    function GetSender: Pointer;
+    procedure SetSender(Sender: Pointer);
+    function GetDetails: PSDL_Event;
+  end;
+
+implementation
+
+constructor TAction.Create(Event: PSDL_Event; ScaleX, ScaleY: Double; TopBlackBand, LeftBlackBand: Integer);
+begin
+  FEvent := Event;
+  FScaleX := ScaleX;
+  FScaleY := ScaleY;
+  FTopBlackBand := TopBlackBand;
+  FLeftBlackBand := LeftBlackBand;
+  FMouseX := -1;
+  FMouseY := -1;
+  FSurfaceX := -1;
+  FSurfaceY := -1;
+  FSender := nil;
+end;
+
+destructor TAction.Destroy;
+begin
+  inherited;
+end;
+
+function TAction.GetXScale: Double;
+begin
+  Result := FScaleX;
+end;
+
+function TAction.GetYScale: Double;
+begin
+  Result := FScaleY;
+end;
+
+procedure TAction.SetMouseAction(MouseX, MouseY, SurfaceX, SurfaceY: Integer);
+begin
+  FMouseX := MouseX - FLeftBlackBand;
+  FMouseY := MouseY - FTopBlackBand;
+  FSurfaceX := SurfaceX;
+  FSurfaceY := SurfaceY;
+end;
+
+function TAction.IsMouseAction: Boolean;
+begin
+  Result := FMouseX <> -1;
+end;
+
+function TAction.GetTopBlackBand: Integer;
+begin
+  Result := FTopBlackBand;
+end;
+
+function TAction.GetLeftBlackBand: Integer;
+begin
+  Result := FLeftBlackBand;
+end;
+
+function TAction.GetXMouse: Integer;
+begin
+  Result := FMouseX;
+end;
+
+function TAction.GetYMouse: Integer;
+begin
+  Result := FMouseY;
+end;
+
+function TAction.GetAbsoluteXMouse: Double;
+begin
+  if FMouseX = -1 then Result := -1
+  else Result := FMouseX / FScaleX;
+end;
+
+function TAction.GetAbsoluteYMouse: Double;
+begin
+  if FMouseY = -1 then Result := -1
+  else Result := FMouseY / FScaleY;
+end;
+
+function TAction.GetRelativeXMouse: Double;
+begin
+  if FMouseX = -1 then Result := -1
+  else Result := FMouseX - FSurfaceX * FScaleX;
+end;
+
+function TAction.GetRelativeYMouse: Double;
+begin
+  if FMouseY = -1 then Result := -1
+  else Result := FMouseY - FSurfaceY * FScaleY;
+end;
+
+function TAction.GetSender: Pointer;
+begin
+  Result := FSender;
+end;
+
+procedure TAction.SetSender(Sender: Pointer);
+begin
+  FSender := Sender;
+end;
+
+function TAction.GetDetails: PSDL_Event;
+begin
+  Result := FEvent;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UState.pas;encoding=utf8;sha256=⟧
+unit UState;
+
+interface
+
+uses
+  Classes, SysUtils, SDL, UAction, USurface, UInteractiveSurface, ULanguage,
+  ULocalizedText, UPalette, UGame, UMod, USavedBattleGame, URuleInterface;
+
+type
+  TState = class
+  private
+    FScreen: Boolean;
+    FModal: TInteractiveSurface;
+    FRuleInterface: TRuleInterface;
+    FRuleInterfaceParent: TRuleInterface;
+    FPalette: array[0..255] of TSDL_Color;
+    FCursorColor: Byte;
+    FSurfaces: TList<TSurface>;
+    class var FGame: TGame;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure SetInterface(const Category: string; AlterPal: Boolean = False; BattleGame: TSavedBattleGame = nil);
+    procedure Add(Surface: TSurface); overload;
+    procedure Add(Surface: TSurface; const ID, Category: string; Parent: TSurface = nil); overload;
+    function IsScreen: Boolean;
+    procedure ToggleScreen;
+    procedure Init; virtual;
+    procedure Handle(Action: TAction); virtual;
+    procedure Think; virtual;
+    procedure Blit; virtual;
+    procedure HideAll;
+    procedure ShowAll;
+    procedure ResetAll;
+    function Tr(const ID: string): TLocalizedText; overload;
+    function Tr(const ID: string; N: Cardinal): TLocalizedText; overload;
+    function Tr(const ID: string; Gender: TSoldierGender): TLocalizedText; overload;
+    procedure RedrawText;
+    procedure CenterAllSurfaces;
+    procedure LowerAllSurfaces;
+    procedure ApplyBattlescapeTheme;
+    class procedure SetGamePtr(Game: TGame);
+    procedure SetModal(Surface: TInteractiveSurface);
+    procedure SetPalette(Colors: PSDL_Color; FirstColor, NColors: Integer; Immediate: Boolean = True); overload;
+    procedure SetPalette(const PaletteID: string; BackPals: Integer = -1); overload;
+    function GetPalette: PSDL_Color;
+    procedure Resize(var DX, DY: Integer); virtual;
+    procedure Recenter(DX, DY: Integer); virtual;
+  end;
+
+implementation
+
+uses
+  ULogger, UOptions;
+
+constructor TState.Create;
+begin
+  FScreen := True;
+  FModal := nil;
+  FRuleInterface := nil;
+  FRuleInterfaceParent := nil;
+  FillChar(FPalette, SizeOf(FPalette), 0);
+  FCursorColor := 0;
+  FSurfaces := TList<TSurface>.Create;
+end;
+
+destructor TState.Destroy;
+begin
+  for var S in FSurfaces do
+    S.Free;
+  FSurfaces.Free;
+  inherited;
+end;
+
+procedure TState.SetInterface(const Category: string; AlterPal: Boolean; BattleGame: TSavedBattleGame);
+begin
+  // Implementation: look up interface from mod, set palette, etc.
+  // Simplified for brevity.
+end;
+
+procedure TState.Add(Surface: TSurface);
+begin
+  Surface.SetPalette(@FPalette[0], 0, 256);
+  if (FGame <> nil) and (FGame.GetLanguage <> nil) and (FGame.GetMod <> nil) then
+    Surface.InitText(FGame.GetMod.GetFont('FONT_BIG'), FGame.GetMod.GetFont('FONT_SMALL'), FGame.GetLanguage);
+  FSurfaces.Add(Surface);
+end;
+
+procedure TState.Add(Surface: TSurface; const ID, Category: string; Parent: TSurface);
+begin
+  // Simplified: look up element in ruleset, adjust position/size.
+  Add(Surface);
+end;
+
+function TState.IsScreen: Boolean;
+begin
+  Result := FScreen;
+end;
+
+procedure TState.ToggleScreen;
+begin
+  FScreen := not FScreen;
+end;
+
+procedure TState.Init;
+begin
+  // Set screen palette, cursor, etc.
+  FGame.GetScreen.SetPalette(@FPalette[0]);
+  FGame.GetCursor.SetPalette(@FPalette[0]);
+  FGame.GetCursor.SetColor(FCursorColor);
+  FGame.GetCursor.Draw;
+  FGame.GetFpsCounter.SetPalette(@FPalette[0]);
+  FGame.GetFpsCounter.SetColor(FCursorColor);
+  FGame.GetFpsCounter.Draw;
+  if FGame.GetMod <> nil then
+    FGame.GetMod.SetPalette(@FPalette[0]);
+  for var S in FSurfaces do
+    if S is TWindow then
+      TWindow(S).Invalidate;
+  // Play music if defined
+end;
+
+procedure TState.Handle(Action: TAction);
+begin
+  if FModal = nil then
+  begin
+    for var I := FSurfaces.Count-1 downto 0 do
+      if FSurfaces[I] is TInteractiveSurface then
+        TInteractiveSurface(FSurfaces[I]).Handle(Action, Self);
+  end
+  else
+    FModal.Handle(Action, Self);
+end;
+
+procedure TState.Think;
+begin
+  for var S in FSurfaces do
+    S.Think;
+end;
+
+procedure TState.Blit;
+begin
+  for var S in FSurfaces do
+    S.Blit(FGame.GetScreen.GetSurface);
+end;
+
+procedure TState.HideAll;
+begin
+  for var S in FSurfaces do
+    S.SetHidden(True);
+end;
+
+procedure TState.ShowAll;
+begin
+  for var S in FSurfaces do
+    S.SetHidden(False);
+end;
+
+procedure TState.ResetAll;
+begin
+  for var S in FSurfaces do
+    if S is TInteractiveSurface then
+    begin
+      TInteractiveSurface(S).Unpress(Self);
+      TInteractiveSurface(S).SetFocus(False);
+    end;
+end;
+
+function TState.Tr(const ID: string): TLocalizedText;
+begin
+  Result := FGame.GetLanguage.GetString(ID);
+end;
+
+function TState.Tr(const ID: string; N: Cardinal): TLocalizedText;
+begin
+  Result := FGame.GetLanguage.GetString(ID, N);
+end;
+
+function TState.Tr(const ID: string; Gender: TSoldierGender): TLocalizedText;
+begin
+  Result := FGame.GetLanguage.GetString(ID, Gender);
+end;
+
+procedure TState.RedrawText;
+begin
+  for var S in FSurfaces do
+    if (S is TText) or (S is TTextButton) or (S is TTextEdit) or (S is TTextList) then
+      S.Draw;
+end;
+
+procedure TState.CenterAllSurfaces;
+begin
+  for var S in FSurfaces do
+  begin
+    S.SetX(S.GetX + FGame.GetScreen.GetDX);
+    S.SetY(S.GetY + FGame.GetScreen.GetDY);
+  end;
+end;
+
+procedure TState.LowerAllSurfaces;
+begin
+  for var S in FSurfaces do
+    S.SetY(S.GetY + FGame.GetScreen.GetDY div 2);
+end;
+
+procedure TState.ApplyBattlescapeTheme;
+begin
+  // Simplified
+end;
+
+class procedure TState.SetGamePtr(Game: TGame);
+begin
+  FGame := Game;
+end;
+
+procedure TState.SetModal(Surface: TInteractiveSurface);
+begin
+  FModal := Surface;
+end;
+
+procedure TState.SetPalette(Colors: PSDL_Color; FirstColor, NColors: Integer; Immediate: Boolean);
+begin
+  if Colors <> nil then
+    Move(Colors^, FPalette[FirstColor], NColors * SizeOf(TSDL_Color));
+  if Immediate then
+  begin
+    FGame.GetCursor.SetPalette(@FPalette[0]);
+    FGame.GetCursor.Draw;
+    FGame.GetFpsCounter.SetPalette(@FPalette[0]);
+    FGame.GetFpsCounter.Draw;
+    if FGame.GetMod <> nil then
+      FGame.GetMod.SetPalette(@FPalette[0]);
+  end;
+end;
+
+procedure TState.SetPalette(const PaletteID: string; BackPals: Integer);
+begin
+  // Load palette from Mod and set cursor color
+end;
+
+function TState.GetPalette: PSDL_Color;
+begin
+  Result := @FPalette[0];
+end;
+
+procedure TState.Resize(var DX, DY: Integer);
+begin
+  Recenter(DX, DY);
+end;
+
+procedure TState.Recenter(DX, DY: Integer);
+begin
+  for var S in FSurfaces do
+  begin
+    S.SetX(S.GetX + DX div 2);
+    S.SetY(S.GetY + DY div 2);
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UGame.pas;encoding=utf8;sha256=⟧
+unit UGame;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, UScreen, UCursor, ULanguage, USavedGame, UMod,
+  UState, UAction, UOptions, UFileMap, UCrossPlatform, UFpsCounter;
+
+type
+  TGame = class
+  private
+    FScreen: TScreen;
+    FCursor: TCursor;
+    FLang: TLanguage;
+    FSave: TSavedGame;
+    FMod: TMod;
+    FStates: TList<TState>;
+    FDeleted: TList<TState>;
+    FQuit: Boolean;
+    FInit: Boolean;
+    FMouseActive: Boolean;
+    FTimeOfLastFrame: Cardinal;
+    FTimeUntilNextFrame: Integer;
+    FEvent: TSDL_Event;
+    FFpsCounter: TFpsCounter;
+    class var FVolumeGradient: Double;
+    procedure ProcessEvents;
+  public
+    constructor Create(const Title: string);
+    destructor Destroy; override;
+    procedure Run;
+    procedure Quit;
+    procedure SetVolume(Sound, Music, UI: Integer);
+    class function VolumeExponent(Volume: Integer): Double;
+    function GetScreen: TScreen;
+    function GetCursor: TCursor;
+    function GetFpsCounter: TFpsCounter;
+    procedure SetState(State: TState);
+    procedure PushState(State: TState);
+    procedure PopState;
+    function GetLanguage: TLanguage;
+    function GetSavedGame: TSavedGame;
+    procedure SetSavedGame(Save: TSavedGame);
+    function GetMod: TMod;
+    procedure LoadMods;
+    procedure SetMouseActive(Active: Boolean);
+    function IsState(State: TState): Boolean;
+    function IsQuitting: Boolean;
+    procedure LoadLanguages;
+    procedure InitAudio;
+  end;
+
+const
+  VOLUME_GRADIENT = 10.0;
+
+implementation
+
+uses
+  UException, ULogger, USound, UMusic, UCrossPlatform;
+
+constructor TGame.Create(const Title: string);
+begin
+  // Initialize SDL, create screen, cursor, fps counter, language, etc.
+  if SDL_Init(SDL_INIT_VIDEO) < 0 then
+    raise EOpenXcom.Create(SDL_GetError);
+  // Initialize other subsystems...
+  FScreen := TScreen.Create;
+  FCursor := TCursor.Create(9, 13);
+  FFpsCounter := TFpsCounter.Create(15, 5, 0, 0);
+  FLang := TLanguage.Create;
+  FStates := TList<TState>.Create;
+  FDeleted := TList<TState>.Create;
+  FQuit := False;
+  FInit := False;
+  FMouseActive := True;
+  FTimeOfLastFrame := SDL_GetTicks;
+end;
+
+destructor TGame.Destroy;
+begin
+  // Cleanup
+  for var S in FStates do S.Free;
+  for var S in FDeleted do S.Free;
+  FStates.Free;
+  FDeleted.Free;
+  FCursor.Free;
+  FScreen.Free;
+  FFpsCounter.Free;
+  FLang.Free;
+  FSave.Free;
+  FMod.Free;
+  SDL_Quit;
+  inherited;
+end;
+
+procedure TGame.Run;
+var
+  RunningState: (RUNNING, SLOWED, PAUSED);
+begin
+  RunningState := RUNNING;
+  while not FQuit do
+  begin
+    // Clean deleted states
+    while FDeleted.Count > 0 do
+    begin
+      FDeleted.Last.Free;
+      FDeleted.Delete(FDeleted.Count-1);
+    end;
+    // Initialize state if needed
+    if not FInit then
+    begin
+      FInit := True;
+      FStates.Last.Init;
+      FStates.Last.ResetAll;
+      // Send mouse event to refresh
+    end;
+    // Process events
+    while SDL_PollEvent(@FEvent) <> 0 do
+    begin
+      // Handle quit, resize, etc.
+      if FEvent.type_ = SDL_QUIT then Quit;
+      // Create action and send to state
+      var Action := TAction.Create(@FEvent, FScreen.GetXScale, FScreen.GetYScale,
+        FScreen.GetCursorTopBlackBand, FScreen.GetCursorLeftBlackBand);
+      try
+        FScreen.Handle(Action);
+        FCursor.Handle(Action);
+        FFpsCounter.Handle(Action);
+        FStates.Last.Handle(Action);
+      finally
+        Action.Free;
+      end;
+    end;
+    // Think
+    if RunningState <> PAUSED then
+    begin
+      FStates.Last.Think;
+      FFpsCounter.Think;
+      // Delay handling
+      // Render
+      if FInit then
+      begin
+        FScreen.Clear;
+        // Blit states from bottom to top
+        for var I := 0 to FStates.Count-1 do
+          FStates[I].Blit;
+        FFpsCounter.Blit(FScreen.GetSurface);
+        FCursor.Blit(FScreen.GetSurface);
+        FScreen.Flip;
+      end;
+    end;
+    SDL_Delay(1);
+  end;
+end;
+
+procedure TGame.Quit;
+begin
+  // Save ironman if needed
+  FQuit := True;
+end;
+
+procedure TGame.SetVolume(Sound, Music, UI: Integer);
+begin
+  // Implement using Mix_Volume etc.
+end;
+
+class function TGame.VolumeExponent(Volume: Integer): Double;
+begin
+  Result := (Exp(Ln(VOLUME_GRADIENT + 1.0) * Volume / 128.0) - 1.0) / VOLUME_GRADIENT;
+end;
+
+function TGame.GetScreen: TScreen;
+begin
+  Result := FScreen;
+end;
+
+function TGame.GetCursor: TCursor;
+begin
+  Result := FCursor;
+end;
+
+function TGame.GetFpsCounter: TFpsCounter;
+begin
+  Result := FFpsCounter;
+end;
+
+procedure TGame.SetState(State: TState);
+begin
+  while FStates.Count > 0 do PopState;
+  PushState(State);
+end;
+
+procedure TGame.PushState(State: TState);
+begin
+  FStates.Add(State);
+  FInit := False;
+end;
+
+procedure TGame.PopState;
+begin
+  if FStates.Count > 0 then
+  begin
+    FDeleted.Add(FStates.Last);
+    FStates.Delete(FStates.Count-1);
+    FInit := False;
+  end;
+end;
+
+function TGame.GetLanguage: TLanguage;
+begin
+  Result := FLang;
+end;
+
+function TGame.GetSavedGame: TSavedGame;
+begin
+  Result := FSave;
+end;
+
+procedure TGame.SetSavedGame(Save: TSavedGame);
+begin
+  FSave.Free;
+  FSave := Save;
+end;
+
+function TGame.GetMod: TMod;
+begin
+  Result := FMod;
+end;
+
+procedure TGame.LoadMods;
+begin
+  FMod.Free;
+  FMod := TMod.Create;
+  FMod.LoadAll(UFileMap.GetRulesets);
+end;
+
+procedure TGame.SetMouseActive(Active: Boolean);
+begin
+  FMouseActive := Active;
+  FCursor.SetVisible(Active);
+end;
+
+function TGame.IsState(State: TState): Boolean;
+begin
+  Result := (FStates.Count > 0) and (FStates.Last = State);
+end;
+
+function TGame.IsQuitting: Boolean;
+begin
+  Result := FQuit;
+end;
+
+procedure TGame.LoadLanguages;
+begin
+  // Load language files
+end;
+
+procedure TGame.InitAudio;
+begin
+  // Initialize SDL_mixer
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UTimer.pas;encoding=utf8;sha256=⟧
+unit UTimer;
+
+interface
+
+uses
+  SDL, UState, USurface;
+
+type
+  TStateHandler = procedure of object;
+  TSurfaceHandler = procedure of object;
+
+  TTimer = class
+  private
+    FStart: UInt32;
+    FFrameSkipStart: UInt32;
+    FInterval: Integer;
+    FRunning: Boolean;
+    FFrameSkipping: Boolean;
+    FStateHandler: TStateHandler;
+    FSurfaceHandler: TSurfaceHandler;
+  public
+    class var MaxFrameSkip: Integer;
+    class var GameSlowSpeed: UInt32;
+    constructor Create(Interval: UInt32; FrameSkipping: Boolean = False);
+    destructor Destroy; override;
+    procedure Start;
+    procedure Stop;
+    function GetTime: UInt32;
+    function IsRunning: Boolean;
+    procedure Think(State: TState; Surface: TSurface);
+    procedure SetInterval(Interval: UInt32);
+    procedure OnTimer(Handler: TStateHandler); overload;
+    procedure OnTimer(Handler: TSurfaceHandler); overload;
+  end;
+
+implementation
+
+uses
+  SysUtils, UOptions, UGame;
+
+class var TTimer.MaxFrameSkip := 8;
+class var TTimer.GameSlowSpeed := 1;
+
+constructor TTimer.Create(Interval: UInt32; FrameSkipping: Boolean);
+begin
+  FStart := 0;
+  FFrameSkipStart := 0;
+  FInterval := Interval;
+  FRunning := False;
+  FFrameSkipping := FrameSkipping;
+  FStateHandler := nil;
+  FSurfaceHandler := nil;
+end;
+
+destructor TTimer.Destroy;
+begin
+  inherited;
+end;
+
+procedure TTimer.Start;
+begin
+  FStart := SDL_GetTicks;
+  FFrameSkipStart := FStart;
+  FRunning := True;
+end;
+
+procedure TTimer.Stop;
+begin
+  FRunning := False;
+end;
+
+function TTimer.GetTime: UInt32;
+begin
+  if FRunning then
+    Result := SDL_GetTicks - FStart
+  else
+    Result := 0;
+end;
+
+function TTimer.IsRunning: Boolean;
+begin
+  Result := FRunning;
+end;
+
+procedure TTimer.Think(State: TState; Surface: TSurface);
+var
+  Now, Elapsed: Int64;
+  Game: TGame;
+begin
+  if not FRunning then Exit;
+  Now := SDL_GetTicks;
+  Elapsed := Now - FFrameSkipStart;
+  if Elapsed >= FInterval then
+  begin
+    var Skipped := 0;
+    while (Skipped <= MaxFrameSkip) and (Elapsed >= FInterval) do
+    begin
+      if Assigned(FStateHandler) and (State <> nil) then
+        FStateHandler();
+      FFrameSkipStart := FFrameSkipStart + FInterval;
+      Elapsed := Now - FFrameSkipStart;
+      Inc(Skipped);
+      if not FFrameSkipping then Break;
+      Game := TState.FGame;
+      if (Game <> nil) and not Game.IsState(State) then Break;
+    end;
+    if Assigned(FSurfaceHandler) and (Surface <> nil) then
+      FSurfaceHandler();
+    FStart := SDL_GetTicks;
+    if FStart > FFrameSkipStart then
+      FFrameSkipStart := FStart;
+  end;
+end;
+
+procedure TTimer.SetInterval(Interval: UInt32);
+begin
+  FInterval := Interval;
+end;
+
+procedure TTimer.OnTimer(Handler: TStateHandler);
+begin
+  FStateHandler := Handler;
+end;
+
+procedure TTimer.OnTimer(Handler: TSurfaceHandler);
+begin
+  FSurfaceHandler := Handler;
+end;
+
+initialization
+  TTimer.MaxFrameSkip := UOptions.maxFrameSkip;
+end.
+⟦/FILE⟧
+⟦FILE:URNG.pas;encoding=utf8;sha256=⟧
+unit URNG;
+
+interface
+
+uses
+  SysUtils, Math;
+
+type
+  TRNG = class
+  private
+    class var FSeed: UInt64;
+    class function Next: UInt64;
+  public
+    class function GetSeed: UInt64;
+    class procedure SetSeed(Seed: UInt64);
+    class function Generate(Min, Max: Integer): Integer; overload;
+    class function Generate(Min, Max: Double): Double; overload;
+    class function Seedless(Min, Max: Integer): Integer;
+    class function Percent(Value: Integer): Boolean;
+    class procedure Shuffle<T>(var List: TArray<T>);
+  end;
+
+implementation
+
+uses
+  DateUtils;
+
+class function TRNG.Next: UInt64;
+begin
+  FSeed := FSeed xor (FSeed shr 12);
+  FSeed := FSeed xor (FSeed shl 25);
+  FSeed := FSeed xor (FSeed shr 27);
+  Result := FSeed * 2685821657736338717;
+end;
+
+class function TRNG.GetSeed: UInt64;
+begin
+  Result := FSeed;
+end;
+
+class procedure TRNG.SetSeed(Seed: UInt64);
+begin
+  FSeed := Seed;
+end;
+
+class function TRNG.Generate(Min, Max: Integer): Integer;
+begin
+  Result := Min + (Next mod (Max - Min + 1));
+end;
+
+class function TRNG.Generate(Min, Max: Double): Double;
+begin
+  Result := Min + (Next / $FFFFFFFFFFFFFFFF) * (Max - Min);
+end;
+
+class function TRNG.Seedless(Min, Max: Integer): Integer;
+begin
+  Result := Min + Random(Max - Min + 1);
+end;
+
+class function TRNG.Percent(Value: Integer): Boolean;
+begin
+  Result := Generate(0, 99) < Value;
+end;
+
+class procedure TRNG.Shuffle<T>(var List: TArray<T>);
+var
+  I, J: Integer;
+begin
+  for I := High(List) downto 1 do
+  begin
+    J := Generate(0, I);
+    var Temp := List[I];
+    List[I] := List[J];
+    List[J] := Temp;
+  end;
+end;
+
+initialization
+  TRNG.FSeed := DateTimeToUnix(Now) * 1000 + MillisecondsOf(Now);
+end.
+⟦/FILE⟧
+⟦FILE:UCrossPlatform.pas;encoding=utf8;sha256=⟧
+unit UCrossPlatform;
+
+interface
+
+uses
+  SysUtils, Classes, SDL;
+
+type
+  TCrossPlatform = class
+  public
+    class function Now: string;
+    class function FindDataFolders: TArray<string>;
+    class function FindUserFolders: TArray<string>;
+    class function FindConfigFolder: string;
+    class function SearchDataFile(const Filename: string): string;
+    class function SearchDataFolder(const Foldername: string; Size: Integer = 0): string;
+    class function CreateFolder(const Path: string): Boolean;
+    class function EndPath(const Path: string): string;
+    class function GetFolderContents(const Path, Ext: string): TArray<string>;
+    class function FolderMinSize(const Path: string; Size: Integer): Boolean;
+    class function FolderExists(const Path: string): Boolean;
+    class function FileExists(const Path: string): Boolean;
+    class function DeleteFile(const Path: string): Boolean;
+    class function BaseFilename(const Path: string): string;
+    class function SanitizeFilename(const Filename: string): string;
+    class function NoExt(const Filename: string): string;
+    class function GetExt(const Filename: string): string;
+    class function CompareExt(const Filename, Extension: string): Boolean;
+    class function GetLocale: string;
+    class function IsQuitShortcut(const Event: TSDL_Event): Boolean;
+    class function GetDateModified(const Path: string): TDateTime;
+    class function TimeToString(ATime: TDateTime): TArray<string>;
+    class function MoveFile(const Src, Dest: string): Boolean;
+    class procedure FlashWindow;
+    class function GetDosPath: string;
+    class procedure SetWindowIcon(WinResource: Integer; const UnixPath: string);
+    class procedure StackTrace(Context: Pointer);
+    class procedure CrashDump(ExceptionData: Pointer; const ErrorMsg: string);
+    class function OpenExplorer(const URL: string): Boolean;
+    class function GetExeFolder: string;
+  end;
+
+implementation
+
+uses
+  UUnicode, ULogger, SysUtils, DateUtils, IOUtils;
+
+class function TCrossPlatform.Now: string;
+begin
+  Result := FormatDateTime('dd-mm-yyyy_hh-nn-ss', SysUtils.Now);
+end;
+
+class function TCrossPlatform.FindDataFolders: TArray<string>;
+begin
+  // Return a list of candidate data folders (platform-specific)
+  SetLength(Result, 1);
+  Result[0] := ExtractFilePath(ParamStr(0)) + 'data' + PathDelim;
+end;
+
+class function TCrossPlatform.FindUserFolders: TArray<string>;
+begin
+  SetLength(Result, 1);
+  Result[0] := ExtractFilePath(ParamStr(0)) + 'user' + PathDelim;
+end;
+
+class function TCrossPlatform.FindConfigFolder: string;
+begin
+  Result := ExtractFilePath(ParamStr(0)) + 'config' + PathDelim;
+end;
+
+class function TCrossPlatform.SearchDataFile(const Filename: string): string;
+begin
+  // Simplified: just return Filename
+  Result := Filename;
+end;
+
+class function TCrossPlatform.SearchDataFolder(const Foldername: string; Size: Integer): string;
+begin
+  Result := Foldername;
+end;
+
+class function TCrossPlatform.CreateFolder(const Path: string): Boolean;
+begin
+  Result := ForceDirectories(Path);
+end;
+
+class function TCrossPlatform.EndPath(const Path: string): string;
+begin
+  if (Path <> '') and (Path[Length(Path)] <> PathDelim) then
+    Result := Path + PathDelim
+  else
+    Result := Path;
+end;
+
+class function TCrossPlatform.GetFolderContents(const Path, Ext: string): TArray<string>;
+var
+  Files: TArray<string>;
+  S: string;
+begin
+  Result := [];
+  if not FolderExists(Path) then Exit;
+  Files := TDirectory.GetFiles(Path);
+  for S in Files do
+    if (Ext = '') or (CompareText(ExtractFileExt(S), Ext) = 0) then
+    begin
+      SetLength(Result, Length(Result)+1);
+      Result[High(Result)] := ExtractFileName(S);
+    end;
+end;
+
+class function TCrossPlatform.FolderMinSize(const Path: string; Size: Integer): Boolean;
+var
+  Files: TArray<string>;
+begin
+  Result := False;
+  if not FolderExists(Path) then Exit;
+  Files := TDirectory.GetFiles(Path);
+  Result := Length(Files) >= Size;
+end;
+
+class function TCrossPlatform.FolderExists(const Path: string): Boolean;
+begin
+  Result := DirectoryExists(Path);
+end;
+
+class function TCrossPlatform.FileExists(const Path: string): Boolean;
+begin
+  Result := SysUtils.FileExists(Path);
+end;
+
+class function TCrossPlatform.DeleteFile(const Path: string): Boolean;
+begin
+  Result := SysUtils.DeleteFile(Path);
+end;
+
+class function TCrossPlatform.BaseFilename(const Path: string): string;
+begin
+  Result := ExtractFileName(Path);
+end;
+
+class function TCrossPlatform.SanitizeFilename(const Filename: string): string;
+var
+  I: Integer;
+begin
+  Result := Filename;
+  for I := 1 to Length(Result) do
+    if CharInSet(Result[I], ['<','>',':','"','/','?','\']) then
+      Result[I] := '_';
+end;
+
+class function TCrossPlatform.NoExt(const Filename: string): string;
+begin
+  Result := ChangeFileExt(Filename, '');
+end;
+
+class function TCrossPlatform.GetExt(const Filename: string): string;
+begin
+  Result := ExtractFileExt(Filename);
+end;
+
+class function TCrossPlatform.CompareExt(const Filename, Extension: string): Boolean;
+begin
+  Result := CompareText(ExtractFileExt(Filename), Extension) = 0;
+end;
+
+class function TCrossPlatform.GetLocale: string;
+begin
+  Result := 'en-US'; // fallback
+end;
+
+class function TCrossPlatform.IsQuitShortcut(const Event: TSDL_Event): Boolean;
+begin
+  Result := False; // simplified
+end;
+
+class function TCrossPlatform.GetDateModified(const Path: string): TDateTime;
+begin
+  if FileExists(Path) then
+    Result := FileAge(Path)
+  else
+    Result := 0;
+end;
+
+class function TCrossPlatform.TimeToString(ATime: TDateTime): TArray<string>;
+begin
+  SetLength(Result, 2);
+  Result[0] := FormatDateTime('yyyy-mm-dd', ATime);
+  Result[1] := FormatDateTime('hh:nn', ATime);
+end;
+
+class function TCrossPlatform.MoveFile(const Src, Dest: string): Boolean;
+begin
+  Result := SysUtils.RenameFile(Src, Dest);
+end;
+
+class procedure TCrossPlatform.FlashWindow;
+begin
+  // Platform-specific
+end;
+
+class function TCrossPlatform.GetDosPath: string;
+begin
+  Result := 'C:\GAMES\OPENXCOM';
+end;
+
+class procedure TCrossPlatform.SetWindowIcon(WinResource: Integer; const UnixPath: string);
+begin
+  // Not implemented for Delphi
+end;
+
+class procedure TCrossPlatform.StackTrace(Context: Pointer);
+begin
+  // Not implemented
+end;
+
+class procedure TCrossPlatform.CrashDump(ExceptionData: Pointer; const ErrorMsg: string);
+begin
+  Log(LOG_FATAL) << 'Crash: ' + ErrorMsg;
+end;
+
+class function TCrossPlatform.OpenExplorer(const URL: string): Boolean;
+begin
+  Result := ShellExecute(0, 'open', PChar(URL), '', '', SW_SHOWNORMAL) > 32;
+end;
+
+class function TCrossPlatform.GetExeFolder: string;
+begin
+  Result := ExtractFilePath(ParamStr(0));
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UOptions.pas;encoding=utf8;sha256=⟧
+unit UOptions;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, UOptionInfo, UModInfo;
+
+type
+  TOptions = class
+  public
+    // General
+    class var displayWidth, displayHeight, maxFrameSkip: Integer;
+    class var baseXResolution, baseYResolution: Integer;
+    class var baseXGeoscape, baseYGeoscape: Integer;
+    class var baseXBattlescape, baseYBattlescape: Integer;
+    class var soundVolume, musicVolume, uiVolume: Integer;
+    class var audioSampleRate, audioBitDepth, audioChunkSize: Integer;
+    class var pauseMode: Integer;
+    class var windowedModePositionX, windowedModePositionY: Integer;
+    class var FPS, FPSInactive: Integer;
+    class var changeValueByMouseWheel: Integer;
+    class var dragScrollTimeTolerance, dragScrollPixelTolerance: Integer;
+    class var mousewheelSpeed: Integer;
+    class var autosaveFrequency: Integer;
+    class var fullscreen, asyncBlit, playIntro: Boolean;
+    class var useScaleFilter, useHQXFilter, useXBRZFilter: Boolean;
+    class var useOpenGL, checkOpenGLErrors, vSyncForOpenGL: Boolean;
+    class var useOpenGLSmoothing: Boolean;
+    class var autosave, allowResize, borderless: Boolean;
+    class var debug, debugUi, fpsCounter: Boolean;
+    class var newSeedOnLoad: Boolean;
+    class var keepAspectRatio, nonSquarePixelRatio: Boolean;
+    class var cursorInBlackBandsInFullscreen, cursorInBlackBandsInWindow: Boolean;
+    class var cursorInBlackBandsInBorderlessWindow: Boolean;
+    class var maximizeInfoScreens: Boolean;
+    class var musicAlwaysLoop, StereoSound: Boolean;
+    class var verboseLogging: Boolean;
+    class var soldierDiaries: Boolean;
+    class var touchEnabled, rootWindowedMode: Boolean;
+    class var lazyLoadResources, backgroundMute: Boolean;
+    class var language, useOpenGLShader: string;
+    class var keyboardMode: TKeyboardType;
+    class var saveOrder: TSaveSort;
+    class var preferredMusic: TMusicFormat;
+    class var preferredSound: TSoundFormat;
+    class var preferredVideo: TVideoFormat;
+    class var captureMouse: SDL_GrabMode;
+    class var wordwrap: TTextWrapping;
+    class var keyOk, keyCancel, keyScreenshot, keyFps, keyQuickLoad, keyQuickSave: TSDL_Key;
+    // Geoscape
+    class var geoClockSpeed, dogfightSpeed, geoScrollSpeed: Integer;
+    class var geoDragScrollButton: Integer;
+    class var geoscapeScale: Integer;
+    class var includePrimeStateInSavedLayout: Boolean;
+    class var anytimePsiTraining, weaponSelfDestruction: Boolean;
+    class var retainCorpses, craftLaunchAlways: Boolean;
+    class var globeSurfaceCache, globeSeasons, globeDetail: Boolean;
+    class var globeRadarLines, globeFlightPaths: Boolean;
+    class var globeAllRadarsOnBaseBuild: Boolean;
+    class var storageLimitsEnforced, canSellLiveAliens: Boolean;
+    class var canTransferCraftsWhileAirborne: Boolean;
+    class var customInitialBase, aggressiveRetaliation: Boolean;
+    class var geoDragScrollInvert: Boolean;
+    class var allowBuildingQueue, showFundsOnGeoscape: Boolean;
+    class var psiStrengthEval, allowPsiStrengthImprovement: Boolean;
+    class var fieldPromotions, meetingPoint: Boolean;
+    class var keyGeoLeft, keyGeoRight, keyGeoUp, keyGeoDown: TSDL_Key;
+    class var keyGeoZoomIn, keyGeoZoomOut: TSDL_Key;
+    class var keyGeoSpeed1, keyGeoSpeed2, keyGeoSpeed3, keyGeoSpeed4, keyGeoSpeed5, keyGeoSpeed6: TSDL_Key;
+    class var keyGeoIntercept, keyGeoBases, keyGeoGraphs, keyGeoUfopedia, keyGeoOptions, keyGeoFunding: TSDL_Key;
+    class var keyGeoToggleDetail, keyGeoToggleRadar: TSDL_Key;
+    class var keyBaseSelect1..keyBaseSelect8: TSDL_Key;
+    // Battlescape
+    class var battleEdgeScroll: TScrollType;
+    class var battleNewPreviewPath: TPathPreview;
+    class var battleScrollSpeed, battleDragScrollButton: Integer;
+    class var battleFireSpeed, battleXcomSpeed, battleAlienSpeed: Integer;
+    class var battleExplosionHeight, battlescapeScale: Integer;
+    class var traceAI, sneakyAI, battleInstantGrenade: Boolean;
+    class var battleNotifyDeath, battleTooltips: Boolean;
+    class var battleHairBleach, battleAutoEnd: Boolean;
+    class var strafe, forceFire, showMoreStatsInInventoryView: Boolean;
+    class var allowPsionicCapture, skipNextTurnScreen: Boolean;
+    class var disableAutoEquip, battleDragScrollInvert: Boolean;
+    class var battleUFOExtenderAccuracy, battleConfirmFireMode: Boolean;
+    class var battleSmoothCamera, noAlienPanicMessages: Boolean;
+    class var alienBleeding: Boolean;
+    class var keyBattleLeft..keyBattleRight, keyBattleUp, keyBattleDown, keyBattleLevelUp, keyBattleLevelDown: TSDL_Key;
+    class var keyBattleCenterUnit, keyBattlePrevUnit, keyBattleNextUnit: TSDL_Key;
+    class var keyBattleDeselectUnit, keyBattleUseLeftHand, keyBattleUseRightHand: TSDL_Key;
+    class var keyBattleInventory, keyBattleMap, keyBattleOptions, keyBattleEndTurn: TSDL_Key;
+    class var keyBattleAbort, keyBattleStats, keyBattleKneel, keyBattleReload: TSDL_Key;
+    class var keyBattlePersonalLighting, keyBattleReserveNone, keyBattleReserveSnap, keyBattleReserveAimed: TSDL_Key;
+    class var keyBattleReserveAuto, keyBattleReserveKneel, keyBattleZeroTUs: TSDL_Key;
+    class var keyBattleCenterEnemy1..keyBattleCenterEnemy10: TSDL_Key;
+    class var keyBattleVoxelView, keyInvCreateTemplate, keyInvApplyTemplate, keyInvClear, keyInvAutoEquip: TSDL_Key;
+
+    // Flags
+    class var mute, reload, newOpenGL, newScaleFilter, newHQXFilter, newXBRZFilter: Boolean;
+    class var newRootWindowedMode, newFullscreen, newAllowResize, newBorderless: Boolean;
+    class var newDisplayWidth, newDisplayHeight, newBattlescapeScale, newGeoscapeScale: Integer;
+    class var newWindowedModePositionX, newWindowedModePositionY: Integer;
+    class var newOpenGLShader: string;
+    class var mods: TArray<TPair<string, Boolean>>;
+    class var currentSound: TSoundFormat;
+
+    class procedure Create;
+    class procedure ResetDefault(IncludeMods: Boolean);
+    class function LoadArgs(Argc: Integer; Argv: array of string): Boolean;
+    class procedure SetFolders;
+    class procedure UpdateOptions;
+    class procedure BackupDisplay;
+    class procedure SwitchDisplay;
+    class function GetActiveMaster: string;
+    class procedure MapResources;
+    class procedure RefreshMods;
+    class procedure UpdateMods;
+    class function GetActiveMods: TArray<TModInfo>;
+    class function GetModInfo(const ID: string): TModInfo;
+  end;
+
+implementation
+
+class procedure TOptions.Create;
+begin
+  // Initialize default values
+  displayWidth := 640; displayHeight := 400; maxFrameSkip := 0;
+  // ... etc
+end;
+
+class procedure TOptions.ResetDefault(IncludeMods: Boolean);
+begin
+  // Reset all to default
+end;
+
+class function TOptions.LoadArgs(Argc: Integer; Argv: array of string): Boolean;
+begin
+  Result := True;
+  // Parse command line
+end;
+
+class procedure TOptions.SetFolders;
+begin
+  // Set data/user/config folders
+end;
+
+class procedure TOptions.UpdateOptions;
+begin
+  // Load from config, apply command line
+end;
+
+class procedure TOptions.BackupDisplay;
+begin
+  // Store current display settings
+end;
+
+class procedure TOptions.SwitchDisplay;
+begin
+  // Swap display settings
+end;
+
+class function TOptions.GetActiveMaster: string;
+begin
+  Result := 'xcom1';
+end;
+
+class procedure TOptions.MapResources;
+begin
+  // Map virtual resources
+end;
+
+class procedure TOptions.RefreshMods;
+begin
+  // Scan mods
+end;
+
+class procedure TOptions.UpdateMods;
+begin
+  // Refresh and map
+end;
+
+class function TOptions.GetActiveMods: TArray<TModInfo>;
+begin
+  SetLength(Result, 0);
+end;
+
+class function TOptions.GetModInfo(const ID: string): TModInfo;
+begin
+  // Return info
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UModInfo.pas;encoding=utf8;sha256=⟧
+unit UModInfo;
+
+interface
+
+uses
+  SysUtils, Classes;
+
+type
+  TModInfo = class
+  private
+    FPath: string;
+    FName, FDesc, FVersion, FAuthor, FId, FMaster: string;
+    FIsMaster: Boolean;
+    FReservedSpace: Integer;
+    FEngineOk: Boolean;
+    FRequiredExtendedEngine: string;
+    FRequiredExtendedVersion: string;
+    FResourceConfigFile: string;
+    FExternalResourceDirs: TArray<string>;
+  public
+    constructor Create(const APath: string);
+    procedure Load(const Filename: string);
+    function GetPath: string;
+    function GetName: string;
+    function GetDescription: string;
+    function GetVersion: string;
+    function GetAuthor: string;
+    function GetId: string;
+    function GetMaster: string;
+    function IsMaster: Boolean;
+    function IsEngineOk: Boolean;
+    function GetRequiredExtendedEngine: string;
+    function GetRequiredExtendedVersion: string;
+    function GetResourceConfigFile: string;
+    function GetReservedSpace: Integer;
+    function CanActivate(const CurMaster: string): Boolean;
+    function GetExternalResourceDirs: TArray<string>;
+  end;
+
+implementation
+
+constructor TModInfo.Create(const APath: string);
+begin
+  FPath := APath;
+  FName := ExtractFileName(APath);
+  FDesc := 'No description.';
+  FVersion := '1.0';
+  FAuthor := 'unknown';
+  FId := FName;
+  FMaster := 'xcom1';
+  FIsMaster := False;
+  FReservedSpace := 1;
+  FEngineOk := True;
+end;
+
+procedure TModInfo.Load(const Filename: string);
+begin
+  // Parse YAML (simplified for stub)
+end;
+
+function TModInfo.GetPath: string; begin Result := FPath; end;
+function TModInfo.GetName: string; begin Result := FName; end;
+function TModInfo.GetDescription: string; begin Result := FDesc; end;
+function TModInfo.GetVersion: string; begin Result := FVersion; end;
+function TModInfo.GetAuthor: string; begin Result := FAuthor; end;
+function TModInfo.GetId: string; begin Result := FId; end;
+function TModInfo.GetMaster: string; begin Result := FMaster; end;
+function TModInfo.IsMaster: Boolean; begin Result := FIsMaster; end;
+function TModInfo.IsEngineOk: Boolean; begin Result := FEngineOk; end;
+function TModInfo.GetRequiredExtendedEngine: string; begin Result := FRequiredExtendedEngine; end;
+function TModInfo.GetRequiredExtendedVersion: string; begin Result := FRequiredExtendedVersion; end;
+function TModInfo.GetResourceConfigFile: string; begin Result := FResourceConfigFile; end;
+function TModInfo.GetReservedSpace: Integer; begin Result := FReservedSpace; end;
+function TModInfo.CanActivate(const CurMaster: string): Boolean;
+begin
+  Result := FIsMaster or (FMaster = '') or (FMaster = CurMaster);
+end;
+function TModInfo.GetExternalResourceDirs: TArray<string>; begin Result := FExternalResourceDirs; end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UFileMap.pas;encoding=utf8;sha256=⟧
+unit UFileMap;
+
+interface
+
+uses
+  SysUtils, Classes, Generics.Collections;
+
+type
+  TFileMap = class
+  private
+    class var FResources: TDictionary<string, string>;
+    class var FVDirs: TDictionary<string, TArray<string>>;
+    class var FRulesets: TArray<TPair<string, TArray<string>>>;
+    class function Canonicalize(const S: string): string;
+  public
+    class function GetFilePath(const RelativeFilePath: string): string;
+    class function GetVFolderContents(const RelativePath: string): TArray<string>;
+    class function FilterFiles(const Files: TArray<string>; const Ext: string): TArray<string>;
+    class function GetRulesets: TArray<TPair<string, TArray<string>>>;
+    class procedure Clear;
+    class procedure Load(const ModId, Path: string; IgnoreMods: Boolean);
+    class function IsResourcesEmpty: Boolean;
+  end;
+
+implementation
+
+uses
+  UCrossPlatform, ULogger;
+
+class function TFileMap.Canonicalize(const S: string): string;
+begin
+  Result := AnsiLowerCase(S);
+end;
+
+class function TFileMap.GetFilePath(const RelativeFilePath: string): string;
+begin
+  Result := RelativeFilePath; // simplified stub
+end;
+
+class function TFileMap.GetVFolderContents(const RelativePath: string): TArray<string>;
+begin
+  SetLength(Result, 0); // stub
+end;
+
+class function TFileMap.FilterFiles(const Files: TArray<string>; const Ext: string): TArray<string>;
+var
+  S: string;
+begin
+  Result := [];
+  for S in Files do
+    if (Ext <> '') and (Copy(AnsiLowerCase(S), Length(S)-Length(Ext), Length(Ext)) = AnsiLowerCase(Ext)) then
+    begin
+      SetLength(Result, Length(Result)+1);
+      Result[High(Result)] := S;
+    end;
+end;
+
+class function TFileMap.GetRulesets: TArray<TPair<string, TArray<string>>>;
+begin
+  SetLength(Result, 0); // stub
+end;
+
+class procedure TFileMap.Clear;
+begin
+  FResources.Free;
+  FResources := TDictionary<string,string>.Create;
+  FVDirs.Free;
+  FVDirs := TDictionary<string, TArray<string>>.Create;
+  SetLength(FRulesets, 0);
+end;
+
+class procedure TFileMap.Load(const ModId, Path: string; IgnoreMods: Boolean);
+begin
+  // Scan directory and populate maps
+end;
+
+class function TFileMap.IsResourcesEmpty: Boolean;
+begin
+  Result := (FResources = nil) or (FResources.Count = 0);
+end;
+
+initialization
+  TFileMap.Clear;
+end.
+⟦/FILE⟧
+⟦FILE:UCatFile.pas;encoding=utf8;sha256=⟧
+unit UCatFile;
+
+interface
+
+uses
+  Classes, SysUtils;
+
+type
+  TCatFile = class
+  private
+    FStream: TFileStream;
+    FAmount: Cardinal;
+    FOffsets: TArray<Cardinal>;
+    FSizes: TArray<Cardinal>;
+    function SwapEndian32(Value: Cardinal): Cardinal;
+  public
+    constructor Create(const Path: string);
+    destructor Destroy; override;
+    function GetAmount: Integer;
+    function GetObjectSize(Index: Integer): Cardinal;
+    function Load(Index: Integer; IncludeName: Boolean = False): TBytes;
+  end;
+
+implementation
+
+constructor TCatFile.Create(const Path: string);
+var
+  I: Integer;
+  Buf: array[0..3] of Byte;
+begin
+  FStream := TFileStream.Create(Path, fmOpenRead or fmShareDenyWrite);
+  FStream.Read(Buf, 4);
+  FAmount := SwapEndian32(PCardinal(@Buf)^);
+  FAmount := FAmount div 8; // because each entry has offset and size
+  SetLength(FOffsets, FAmount);
+  SetLength(FSizes, FAmount);
+  FStream.Seek(0, soBeginning);
+  for I := 0 to FAmount-1 do
+  begin
+    FStream.Read(Buf, 4);
+    FOffsets[I] := SwapEndian32(PCardinal(@Buf)^);
+    FStream.Read(Buf, 4);
+    FSizes[I] := SwapEndian32(PCardinal(@Buf)^);
+  end;
+end;
+
+destructor TCatFile.Destroy;
+begin
+  FStream.Free;
+  inherited;
+end;
+
+function TCatFile.SwapEndian32(Value: Cardinal): Cardinal;
+begin
+  Result := (Value shr 24) or ((Value shr 8) and $FF00) or ((Value shl 8) and $FF0000) or (Value shl 24);
+end;
+
+function TCatFile.GetAmount: Integer;
+begin
+  Result := FAmount;
+end;
+
+function TCatFile.GetObjectSize(Index: Integer): Cardinal;
+begin
+  if (Index >= 0) and (Index < FAmount) then
+    Result := FSizes[Index]
+  else
+    Result := 0;
+end;
+
+function TCatFile.Load(Index: Integer; IncludeName: Boolean): TBytes;
+var
+  Offset, Size: Cardinal;
+  NameSize: Byte;
+begin
+  if (Index < 0) or (Index >= FAmount) then Exit(nil);
+  Offset := FOffsets[Index];
+  Size := FSizes[Index];
+  FStream.Seek(Offset, soBeginning);
+  FStream.Read(NameSize, 1);
+  if not IncludeName then
+  begin
+    FStream.Seek(NameSize, soCurrent);
+    Size := Size - NameSize - 1;
+    SetLength(Result, Size);
+    FStream.Read(Result[0], Size);
+  end
+  else
+  begin
+    SetLength(Result, Size + NameSize + 1);
+    Result[0] := NameSize;
+    FStream.Read(Result[1], NameSize);
+    FStream.Read(Result[1+NameSize], Size);
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UGMCat.pas;encoding=utf8;sha256=⟧
+unit UGMCat;
+
+interface
+
+uses
+  UCatFile, UMusic;
+
+type
+  TGMCatFile = class(TCatFile)
+  public
+    function LoadMIDI(Index: Integer): TMusic;
+  end;
+
+implementation
+
+function TGMCatFile.LoadMIDI(Index: Integer): TMusic;
+var
+  Data: TBytes;
+begin
+  Result := TMusic.Create;
+  try
+    Data := Load(Index, False);
+    if Data <> nil then
+      Result.Load(@Data[0], Length(Data));
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:ULanguage.pas;encoding=utf8;sha256=⟧
+unit ULanguage;
+
+interface
+
+uses
+  SysUtils, Classes, Generics.Collections, ULocalizedText, UExtraStrings, USoldier;
+
+type
+  TTextDirection = (DIRECTION_LTR, DIRECTION_RTL);
+  TTextWrapping = (WRAP_AUTO, WRAP_WORDS, WRAP_LETTERS);
+
+  TLanguage = class
+  private
+    FStrings: TDictionary<string, string>;
+    FHandler: TLanguagePlurality;
+    FDirection: TTextDirection;
+    FWrap: TTextWrapping;
+    class var FNames: TDictionary<string, string>;
+    class var FRTL, FCJK: TArray<string>;
+    function LoadString(const S: string): string;
+    procedure Load(const Filename: string);
+  public
+    constructor Create;
+    destructor Destroy; override;
+    class procedure GetList(var Files, Names: TArray<string>);
+    class function IsSupported(const Lang: string): Boolean;
+    procedure LoadFile(const Filename: string);
+    procedure LoadRule(const ExtraStrings: TDictionary<string, TExtraStrings>; const ID: string);
+    procedure ToHtml(const Filename: string);
+    function GetString(const ID: string): TLocalizedText; overload;
+    function GetString(const ID: string; N: Cardinal): TLocalizedText; overload;
+    function GetString(const ID: string; Gender: TSoldierGender): TLocalizedText; overload;
+    function GetTextDirection: TTextDirection;
+    function GetTextWrapping: TTextWrapping;
+  end;
+
+implementation
+
+uses
+  UUnicode, ULogger, UOptions, ULanguagePlurality;
+
+constructor TLanguage.Create;
+begin
+  FStrings := TDictionary<string,string>.Create;
+  // Initialize statics if empty
+  if FNames = nil then
+  begin
+    FNames := TDictionary<string,string>.Create;
+    FNames.Add('en-US', 'English (US)');
+    // ... add others
+  end;
+  if FRTL = nil then
+    FRTL := [];
+  if FCJK = nil then
+    FCJK := ['ja', 'ko', 'zh-CN', 'zh-TW'];
+  FHandler := TLanguagePlurality.Create(UOptions.language);
+  if (UOptions.language in FRTL) then
+    FDirection := DIRECTION_RTL
+  else
+    FDirection := DIRECTION_LTR;
+  if UOptions.wordwrap = WRAP_AUTO then
+  begin
+    if (UOptions.language in FCJK) then
+      FWrap := WRAP_LETTERS
+    else
+      FWrap := WRAP_WORDS;
+  end
+  else
+    FWrap := UOptions.wordwrap;
+end;
+
+destructor TLanguage.Destroy;
+begin
+  FStrings.Free;
+  FHandler.Free;
+  inherited;
+end;
+
+class procedure TLanguage.GetList(var Files, Names: TArray<string>);
+begin
+  // Stub
+end;
+
+class function TLanguage.IsSupported(const Lang: string): Boolean;
+begin
+  Result := FNames.ContainsKey(Lang);
+end;
+
+procedure TLanguage.LoadFile(const Filename: string);
+begin
+  // Load YAML
+end;
+
+procedure TLanguage.LoadRule(const ExtraStrings: TDictionary<string, TExtraStrings>; const ID: string);
+begin
+  // Load from extra strings
+end;
+
+function TLanguage.GetString(const ID: string): TLocalizedText;
+begin
+  if FStrings.ContainsKey(ID) then
+    Result := TLocalizedText.Create(FStrings[ID])
+  else
+    Result := TLocalizedText.Create(ID);
+end;
+
+function TLanguage.GetString(const ID: string; N: Cardinal): TLocalizedText;
+var
+  Key: string;
+  S: string;
+begin
+  Key := ID + FHandler.GetSuffix(N);
+  if FStrings.ContainsKey(Key) then
+    S := FStrings[Key]
+  else if FStrings.ContainsKey(ID + '_other') then
+    S := FStrings[ID + '_other']
+  else
+    S := ID;
+  S := StringReplace(S, '{N}', IntToStr(N), [rfReplaceAll]);
+  Result := TLocalizedText.Create(S);
+end;
+
+function TLanguage.GetString(const ID: string; Gender: TSoldierGender): TLocalizedText;
+begin
+  if Gender = GENDER_MALE then
+    Result := GetString(ID + '_MALE')
+  else
+    Result := GetString(ID + '_FEMALE');
+end;
+
+function TLanguage.GetTextDirection: TTextDirection;
+begin
+  Result := FDirection;
+end;
+
+function TLanguage.GetTextWrapping: TTextWrapping;
+begin
+  Result := FWrap;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:ULocalizedText.pas;encoding=utf8;sha256=⟧
+unit ULocalizedText;
+
+interface
+
+uses
+  SysUtils;
+
+type
+  TLocalizedText = record
+  private
+    FText: string;
+    FNextArg: Integer;
+    function ReplaceMarker(const Val: string): TLocalizedText;
+  public
+    constructor Create(const AText: string); overload;
+    constructor Create(const AText: string; AReplaced: Integer); overload;
+    function Arg(const Val: string): TLocalizedText; overload;
+    function Arg(const Val: Integer): TLocalizedText; overload;
+    function Arg(const Val: Double): TLocalizedText; overload;
+    function ToString: string;
+    class operator Implicit(const S: string): TLocalizedText;
+    class operator Implicit(const LT: TLocalizedText): string;
+  end;
+
+implementation
+
+uses
+  UUnicode;
+
+constructor TLocalizedText.Create(const AText: string);
+begin
+  FText := AText;
+  FNextArg := 0;
+end;
+
+constructor TLocalizedText.Create(const AText: string; AReplaced: Integer);
+begin
+  FText := AText;
+  FNextArg := AReplaced + 1;
+end;
+
+function TLocalizedText.ReplaceMarker(const Val: string): TLocalizedText;
+var
+  Marker: string;
+  P: Integer;
+begin
+  Marker := '{' + IntToStr(FNextArg) + '}';
+  P := Pos(Marker, FText);
+  if P = 0 then
+    Result := Self
+  else
+  begin
+    var NewText := FText;
+    while P > 0 do
+    begin
+      Delete(NewText, P, Length(Marker));
+      Insert(Val, NewText, P);
+      P := Pos(Marker, NewText, P + Length(Val));
+    end;
+    Result := TLocalizedText.Create(NewText, FNextArg);
+  end;
+end;
+
+function TLocalizedText.Arg(const Val: string): TLocalizedText;
+begin
+  Result := ReplaceMarker(Val);
+end;
+
+function TLocalizedText.Arg(const Val: Integer): TLocalizedText;
+begin
+  Result := Arg(IntToStr(Val));
+end;
+
+function TLocalizedText.Arg(const Val: Double): TLocalizedText;
+begin
+  Result := Arg(FloatToStr(Val));
+end;
+
+function TLocalizedText.ToString: string;
+begin
+  Result := FText;
+end;
+
+class operator TLocalizedText.Implicit(const S: string): TLocalizedText;
+begin
+  Result := TLocalizedText.Create(S);
+end;
+
+class operator TLocalizedText.Implicit(const LT: TLocalizedText): string;
+begin
+  Result := LT.FText;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:ULanguagePlurality.pas;encoding=utf8;sha256=⟧
+unit ULanguagePlurality;
+
+interface
+
+uses
+  SysUtils;
+
+type
+  TLanguagePlurality = class
+  public
+    function GetSuffix(N: Cardinal): string; virtual; abstract;
+    class function Create(const Language: string): TLanguagePlurality;
+  end;
+
+implementation
+
+type
+  TOneSingular = class(TLanguagePlurality)
+    function GetSuffix(N: Cardinal): string; override;
+  end;
+  TZeroOneSingular = class(TLanguagePlurality)
+    function GetSuffix(N: Cardinal): string; override;
+  end;
+  TNoSingular = class(TLanguagePlurality)
+    function GetSuffix(N: Cardinal): string; override;
+  end;
+  TCyrillicPlurality = class(TLanguagePlurality)
+    function GetSuffix(N: Cardinal): string; override;
+  end;
+  TCzechPlurality = class(TLanguagePlurality)
+    function GetSuffix(N: Cardinal): string; override;
+  end;
+  TPolishPlurality = class(TLanguagePlurality)
+    function GetSuffix(N: Cardinal): string; override;
+  end;
+  TRomanianPlurality = class(TLanguagePlurality)
+    function GetSuffix(N: Cardinal): string; override;
+  end;
+  TCroatianPlurality = class(TLanguagePlurality)
+    function GetSuffix(N: Cardinal): string; override;
+  end;
+
+function TOneSingular.GetSuffix(N: Cardinal): string;
+begin
+  if N = 1 then Result := '_one' else Result := '_other';
+end;
+
+function TZeroOneSingular.GetSuffix(N: Cardinal): string;
+begin
+  if (N = 0) or (N = 1) then Result := '_one' else Result := '_other';
+end;
+
+function TNoSingular.GetSuffix(N: Cardinal): string;
+begin
+  Result := '_other';
+end;
+
+function TCyrillicPlurality.GetSuffix(N: Cardinal): string;
+var
+  Mod10, Mod100: Integer;
+begin
+  Mod10 := N mod 10;
+  Mod100 := N mod 100;
+  if (Mod10 = 1) and (Mod100 <> 11) then Result := '_one'
+  else if (Mod10 >= 2) and (Mod10 <= 4) and not (Mod100 in [12..14]) then Result := '_few'
+  else if (Mod10 = 0) or ((Mod10 >= 5) and (Mod10 <= 9)) or (Mod100 in [11..14]) then Result := '_many'
+  else Result := '_other';
+end;
+
+function TCzechPlurality.GetSuffix(N: Cardinal): string;
+begin
+  if N = 1 then Result := '_one'
+  else if (N >= 2) and (N <= 4) then Result := '_few'
+  else Result := '_other';
+end;
+
+function TPolishPlurality.GetSuffix(N: Cardinal): string;
+var
+  Mod10, Mod100: Integer;
+begin
+  Mod10 := N mod 10;
+  Mod100 := N mod 100;
+  if N = 1 then Result := '_one'
+  else if (Mod10 >= 2) and (Mod10 <= 4) and not (Mod100 in [12..14]) then Result := '_few'
+  else if (Mod10 <= 1) or ((Mod10 >= 5) and (Mod10 <= 9)) or (Mod100 in [12..14]) then Result := '_many'
+  else Result := '_other';
+end;
+
+function TRomanianPlurality.GetSuffix(N: Cardinal): string;
+begin
+  if N = 1 then Result := '_one'
+  else if (N = 0) or ((N mod 100) in [1..19]) then Result := '_few'
+  else Result := '_other';
+end;
+
+function TCroatianPlurality.GetSuffix(N: Cardinal): string;
+var
+  Mod10, Mod100: Integer;
+begin
+  Mod10 := N mod 10;
+  Mod100 := N mod 100;
+  if (Mod10 = 1) and (Mod100 <> 11) then Result := '_one'
+  else if (Mod10 >= 2) and (Mod10 <= 4) and not (Mod100 in [12..14]) then Result := '_few'
+  else Result := '_other';
+end;
+
+class function TLanguagePlurality.Create(const Language: string): TLanguagePlurality;
+var
+  Lang: string;
+begin
+  Lang := Copy(Language, 1, 2);
+  // Map language to class
+  if (Lang = 'fr') or (Lang = 'hu') or (Lang = 'tr') then
+    Result := TZeroOneSingular.Create
+  else if (Lang = 'cs') or (Lang = 'sk') then
+    Result := TCzechPlurality.Create
+  else if (Lang = 'pl') then
+    Result := TPolishPlurality.Create
+  else if (Lang = 'ro') then
+    Result := TRomanianPlurality.Create
+  else if (Lang = 'ru') or (Lang = 'uk') then
+    Result := TCyrillicPlurality.Create
+  else if (Lang = 'ja') or (Lang = 'ko') or (Language = 'zh-CN') or (Language = 'zh-TW') then
+    Result := TNoSingular.Create
+  else if (Lang = 'hr') then
+    Result := TCroatianPlurality.Create
+  else
+    Result := TOneSingular.Create;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UFont.pas;encoding=utf8;sha256=⟧
+unit UFont;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, USurface, UUnicode;
+
+type
+  TFontImage = record
+    Width, Height, Spacing: Integer;
+    Surface: TSurface;
+  end;
+
+  TFont = class
+  private
+    FImages: TArray<TFontImage>;
+    FChars: TDictionary<UCode, TPair<Integer, TSDL_Rect>>;
+    FMonospace: Boolean;
+    procedure Init(Index: Integer; const Chars: UString);
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Load(const Node: TYamlNode); // YAML stub
+    procedure LoadTerminal;
+    function GetChar(C: UCode): TSurface;
+    function GetWidth: Integer;
+    function GetHeight: Integer;
+    function GetSpacing: Integer;
+    function GetCharSize(C: UCode): TSDL_Rect;
+    function GetPalette: PSDL_Color;
+    procedure SetPalette(Colors: PSDL_Color; FirstColor, NColors: Integer);
+  end;
+
+implementation
+
+uses
+  UFileMap, UUnicode;
+
+constructor TFont.Create;
+begin
+  FChars := TDictionary<UCode, TPair<Integer, TSDL_Rect>>.Create;
+  FMonospace := False;
+end;
+
+destructor TFont.Destroy;
+begin
+  for var Img in FImages do
+    Img.Surface.Free;
+  FChars.Free;
+  inherited;
+end;
+
+procedure TFont.Load(const Node: TYamlNode);
+begin
+  // Stub for YAML parsing
+end;
+
+procedure TFont.LoadTerminal;
+begin
+  // Load DOS font
+end;
+
+procedure TFont.Init(Index: Integer; const Chars: UString);
+begin
+  // Calculate character rects
+end;
+
+function TFont.GetChar(C: UCode): TSurface;
+begin
+  // Return surface with crop set
+end;
+
+function TFont.GetWidth: Integer;
+begin
+  if Length(FImages) > 0 then
+    Result := FImages[0].Width
+  else
+    Result := 0;
+end;
+
+function TFont.GetHeight: Integer;
+begin
+  if Length(FImages) > 0 then
+    Result := FImages[0].Height
+  else
+    Result := 0;
+end;
+
+function TFont.GetSpacing: Integer;
+begin
+  if Length(FImages) > 0 then
+    Result := FImages[0].Spacing
+  else
+    Result := 0;
+end;
+
+function TFont.GetCharSize(C: UCode): TSDL_Rect;
+begin
+  // Compute size
+end;
+
+function TFont.GetPalette: PSDL_Color;
+begin
+  if Length(FImages) > 0 then
+    Result := FImages[0].Surface.GetPalette
+  else
+    Result := nil;
+end;
+
+procedure TFont.SetPalette(Colors: PSDL_Color; FirstColor, NColors: Integer);
+begin
+  for var Img in FImages do
+    Img.Surface.SetPalette(Colors, FirstColor, NColors);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:UInteractiveSurface.pas;encoding=utf8;sha256=⟧
+unit UInteractiveSurface;
+
+interface
+
+uses
+  SysUtils, Classes, SDL, USurface, UAction, UState;
+
+type
+  TActionHandler = procedure(Sender: TObject; Action: TAction) of object;
+
+  TInteractiveSurface = class(TSurface)
+  private
+    FButtonsPressed: Byte;
+    FClickHandlers: TDictionary<Byte, TActionHandler>;
+    FPressHandlers: TDictionary<Byte, TActionHandler>;
+    FReleaseHandlers: TDictionary<Byte, TActionHandler>;
+    FInHandler, FOverHandler, FOutHandler: TActionHandler;
+    FKeyPressHandlers, FKeyReleaseHandlers: TDictionary<Integer, TActionHandler>;
+    FIsHovered: Boolean;
+    FIsFocused: Boolean;
+    FListButton: Boolean;
+    function IsButtonHandled(Button: Byte): Boolean;
+    function IsButtonPressed(Button: Byte): Boolean;
+    procedure SetButtonPressed(Button: Byte; Pressed: Boolean);
+  public
+    constructor Create(Width, Height, X, Y: Integer);
+    destructor Destroy; override;
+    procedure SetVisible(Visible: Boolean); override;
+    procedure Handle(Action: TAction; State: TState);
+    procedure SetFocus(Focus: Boolean);
+    function IsFocused: Boolean;
+    procedure Unpress(State: TState);
+    procedure MousePress(Action: TAction; State: TState); virtual;
+    procedure MouseRelease(Action: TAction; State: TState); virtual;
+    procedure MouseClick(Action: TAction; State: TState); virtual;
+    procedure MouseIn(Action: TAction; State: TState); virtual;
+    procedure MouseOver(Action: TAction; State: TState); virtual;
+    procedure MouseOut(Action: TAction; State: TState); virtual;
+    procedure KeyboardPress(Action: TAction; State: TState); virtual;
+    procedure KeyboardRelease(Action: TAction; State: TState); virtual;
+    procedure OnMouseClick(Handler: TActionHandler; Button: Byte = SDL_BUTTON_LEFT);
+    procedure OnMousePress(Handler: TActionHandler; Button: Byte = 0);
+    procedure OnMouseRelease(Handler: TActionHandler; Button: Byte = 0);
+    procedure OnMouseIn(Handler: TActionHandler);
+    procedure OnMouseOver(Handler: TActionHandler);
+    procedure OnMouseOut(Handler: TActionHandler);
+    procedure OnKeyboardPress(Handler: TActionHandler; Key: Integer = -1);
+    procedure OnKeyboardRelease(Handler: TActionHandler; Key: Integer = -1);
+    procedure SetListButton;
+  end;
+
+implementation
+
+const
+  NUM_BUTTONS = 7;
+
+constructor TInteractiveSurface.Create(Width, Height, X, Y: Integer);
+begin
+  inherited Create(Width, Height, X, Y);
+  FButtonsPressed := 0;
+  FClickHandlers := TDictionary<Byte, TActionHandler>.Create;
+  FPressHandlers := TDictionary<Byte, TActionHandler>.Create;
+  FReleaseHandlers := TDictionary<Byte, TActionHandler>.Create;
+  FKeyPressHandlers := TDictionary<Integer, TActionHandler>.Create;
+  FKeyReleaseHandlers := TDictionary<Integer, TActionHandler>.Create;
+  FIsHovered := False;
+  FIsFocused := True;
+  FListButton := False;
+end;
+
+destructor TInteractiveSurface.Destroy;
+begin
+  FClickHandlers.Free;
+  FPressHandlers.Free;
+  FReleaseHandlers.Free;
+  FKeyPressHandlers.Free;
+  FKeyReleaseHandlers.Free;
+  inherited;
+end;
+
+procedure TInteractiveSurface.SetVisible(Visible: Boolean);
+begin
+  inherited;
+  if not Visible then
+    Unpress(nil);
+end;
+
+function TInteractiveSurface.IsButtonHandled(Button: Byte): Boolean;
+begin
+  Result := FClickHandlers.ContainsKey(0) or FClickHandlers.ContainsKey(Button) or
+            FPressHandlers.ContainsKey(0) or FPressHandlers.ContainsKey(Button) or
+            FReleaseHandlers.ContainsKey(0) or FReleaseHandlers.ContainsKey(Button);
+end;
+
+function TInteractiveSurface.IsButtonPressed(Button: Byte): Boolean;
+begin
+  if Button = 0 then
+    Result := FButtonsPressed <> 0
+  else
+    Result := (FButtonsPressed and SDL_BUTTON(Button)) <> 0;
+end;
+
+procedure TInteractiveSurface.SetButtonPressed(Button: Byte; Pressed: Boolean);
+begin
+  if Pressed then
+    FButtonsPressed := FButtonsPressed or SDL_BUTTON(Button)
+  else
+    FButtonsPressed := FButtonsPressed and not SDL_BUTTON(Button);
+end;
+
+procedure TInteractiveSurface.Handle(Action: TAction; State: TState);
+var
+  X, Y: Double;
+  Button: Byte;
+  Handler: TActionHandler;
+begin
+  if not FVisible or FHidden then Exit;
+  Action.SetSender(Self);
+  // Handle mouse events
+  if Action.GetDetails.type_ in [SDL_MOUSEBUTTONUP, SDL_MOUSEBUTTONDOWN, SDL_MOUSEMOTION] then
+  begin
+    // Compute absolute coordinates
+    X := Action.GetAbsoluteXMouse;
+    Y := Action.GetAbsoluteYMouse;
+    if (X >= FX) and (X < FX + GetWidth) and (Y >= FY) and (Y < FY + GetHeight) then
+    begin
+      if not FIsHovered then
+      begin
+        FIsHovered := True;
+        MouseIn(Action, State);
+      end;
+      if FListButton and (Action.GetDetails.type_ = SDL_MOUSEMOTION) then
+      begin
+        // Simulate press for list buttons
+        FButtonsPressed := SDL_GetMouseState(nil, nil);
+        for Button := 1 to NUM_BUTTONS do
+          if IsButtonPressed(Button) then
+          begin
+            Action.GetDetails.button.button := Button;
+            MousePress(Action, State);
+          end;
+      end;
+      MouseOver(Action, State);
+    end
+    else
+    begin
+      if FIsHovered then
+      begin
+        FIsHovered := False;
+        MouseOut(Action, State);
+        if FListButton and (Action.GetDetails.type_ = SDL_MOUSEMOTION) then
+        begin
+          for Button := 1 to NUM_BUTTONS do
+            if IsButtonPressed(Button) then
+              SetButtonPressed(Button, False);
+          // Call release? Simplified
+        end;
+      end;
+    end;
+  end;
+  // Mouse button down/up
+  if Action.GetDetails.type_ = SDL_MOUSEBUTTONDOWN then
+  begin
+    if FIsHovered and not IsButtonPressed(Action.GetDetails.button.button) then
+    begin
+      SetButtonPressed(Action.GetDetails.button.button, True);
+      MousePress(Action, State);
+    end;
+  end
+  else if Action.GetDetails.type_ = SDL_MOUSEBUTTONUP then
+  begin
+    if IsButtonPressed(Action.GetDetails.button.button) then
+    begin
+      SetButtonPressed(Action.GetDetails.button.button, False);
+      MouseRelease(Action, State);
+      if FIsHovered then
+        MouseClick(Action, State);
+    end;
+  end;
+  // Keyboard events
+  if FIsFocused then
+  begin
+    if Action.GetDetails.type_ = SDL_KEYDOWN then
+      KeyboardPress(Action, State)
+    else if Action.GetDetails.type_ = SDL_KEYUP then
+      KeyboardRelease(Action, State);
+  end;
+end;
+
+procedure TInteractiveSurface.SetFocus(Focus: Boolean);
+begin
+  FIsFocused := Focus;
+end;
+
+function TInteractiveSurface.IsFocused: Boolean;
+begin
+  Result := FIsFocused;
+end;
+
+procedure TInteractiveSurface.Unpress(State: TState);
+var
+  Action: TAction;
+  Event: TSDL_Event;
+begin
+  if IsButtonPressed(0) then
+  begin
+    FButtonsPressed := 0;
+    Event.type_ := SDL_MOUSEBUTTONUP;
+    Event.button.button := SDL_BUTTON_LEFT;
+    Action := TAction.Create(@Event, 0, 0, 0, 0);
+    try
+      MouseRelease(Action, State);
+    finally
+      Action.Free;
+    end;
+  end;
+end;
+
+procedure TInteractiveSurface.MousePress(Action: TAction; State: TState);
+var
+  Btn: Byte;
+begin
+  Btn := Action.GetDetails.button.button;
+  if FPressHandlers.ContainsKey(0) then
+    FPressHandlers[0](Self, Action);
+  if FPressHandlers.ContainsKey(Btn) then
+    FPressHandlers[Btn](Self, Action);
+end;
+
+procedure TInteractiveSurface.MouseRelease(Action: TAction; State: TState);
+var
+  Btn: Byte;
+begin
+  Btn := Action.GetDetails.button.button;
+  if FReleaseHandlers.ContainsKey(0) then
+    FReleaseHandlers[0](Self, Action);
+  if FReleaseHandlers.ContainsKey(Btn) then
+    FReleaseHandlers[Btn](Self, Action);
+end;
+
+procedure TInteractiveSurface.MouseClick(Action: TAction; State: TState);
+var
+  Btn: Byte;
+begin
+  Btn := Action.GetDetails.button.button;
+  if FClickHandlers.ContainsKey(0) then
+    FClickHandlers[0](Self, Action);
+  if FClickHandlers.ContainsKey(Btn) then
+    FClickHandlers[Btn](Self, Action);
+end;
+
+procedure TInteractiveSurface.MouseIn(Action: TAction; State: TState);
+begin
+  if Assigned(FInHandler) then
+    FInHandler(Self, Action);
+end;
+
+procedure TInteractiveSurface.MouseOver(Action: TAction; State: TState);
+begin
+  if Assigned(FOverHandler) then
+    FOverHandler(Self, Action);
+end;
+
+procedure TInteractiveSurface.MouseOut(Action: TAction; State: TState);
+begin
+  if Assigned(FOutHandler) then
+    FOutHandler(Self, Action);
+end;
+
+procedure TInteractiveSurface.KeyboardPress(Action: TAction; State: TState);
+var
+  Key: Integer;
+begin
+  Key := Action.GetDetails.key.keysym.sym;
+  if FKeyPressHandlers.ContainsKey(-1) then
+    FKeyPressHandlers[-1](Self, Action);
+  if FKeyPressHandlers.ContainsKey(Key) then
+    FKeyPressHandlers[Key](Self, Action);
+end;
+
+procedure TInteractiveSurface.KeyboardRelease(Action: TAction; State: TState);
+var
+  Key: Integer;
+begin
+  Key := Action.GetDetails.key.keysym.sym;
+  if FKeyReleaseHandlers.ContainsKey(-1) then
+    FKeyReleaseHandlers[-1](Self, Action);
+  if FKeyReleaseHandlers.ContainsKey(Key) then
+    FKeyReleaseHandlers[Key](Self, Action);
+end;
+
+procedure TInteractiveSurface.OnMouseClick(Handler: TActionHandler; Button: Byte);
+begin
+  if Assigned(Handler) then
+    FClickHandlers.AddOrSetValue(Button, Handler)
+  else
+    FClickHandlers.Remove(Button);
+end;
+
+procedure TInteractiveSurface.OnMousePress(Handler: TActionHandler; Button: Byte);
+begin
+  if Assigned(Handler) then
+    FPressHandlers.AddOrSetValue(Button, Handler)
+  else
+    FPressHandlers.Remove(Button);
+end;
+
+procedure TInteractiveSurface.OnMouseRelease(Handler: TActionHandler; Button: Byte);
+begin
+  if Assigned(Handler) then
+    FReleaseHandlers.AddOrSetValue(Button, Handler)
+  else
+    FReleaseHandlers.Remove(Button);
+end;
+
+procedure TInteractiveSurface.OnMouseIn(Handler: TActionHandler);
+begin
+  FInHandler := Handler;
+end;
+
+procedure TInteractiveSurface.OnMouseOver(Handler: TActionHandler);
+begin
+  FOverHandler := Handler;
+end;
+
+procedure TInteractiveSurface.OnMouseOut(Handler: TActionHandler);
+begin
+  FOutHandler := Handler;
+end;
+
+procedure TInteractiveSurface.OnKeyboardPress(Handler: TActionHandler; Key: Integer);
+begin
+  if Assigned(Handler) then
+    FKeyPressHandlers.AddOrSetValue(Key, Handler)
+  else
+    FKeyPressHandlers.Remove(Key);
+end;
+
+procedure TInteractiveSurface.OnKeyboardRelease(Handler: TActionHandler; Key: Integer);
+begin
+  if Assigned(Handler) then
+    FKeyReleaseHandlers.AddOrSetValue(Key, Handler)
+  else
+    FKeyReleaseHandlers.Remove(Key);
+end;
+
+procedure TInteractiveSurface.SetListButton;
+begin
+  FListButton := True;
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

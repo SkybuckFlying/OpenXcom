@@ -1,0 +1,209 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦INDEX⟧
+{"batch":6,"files":["ConfirmNewBaseState.pas","CraftErrorState.pas"],"total_batches":18}
+⟦/INDEX⟧
+⟦FILE:ConfirmNewBaseState.pas;encoding=utf8;eol=lf;sha256=⟧
+unit ConfirmNewBaseState;
+
+interface
+
+uses
+  Engine.State, Engine.Game, Mod.Mod, Engine.LocalizedText,
+  Interface.Window, Interface.Text, Interface.TextButton,
+  Savegame.SavedGame, Savegame.Region, Mod.RuleRegion,
+  Savegame.Base, Basescape.BaseNameState, Menu.ErrorMessageState,
+  Engine.Options, Engine.Unicode, Mod.RuleInterface;
+
+type
+  TConfirmNewBaseState = class(TState)
+  private
+    FBase: TBase;
+    FGlobe: TGlobe;
+    FWindow: TWindow;
+    FTxtCost, FTxtArea: TText;
+    FBtnOk, FBtnCancel: TTextButton;
+    FCost: Integer;
+    procedure BtnOkClick(AAction: TAction);
+    procedure BtnCancelClick(AAction: TAction);
+  public
+    constructor Create(ABase: TBase; AGlobe: TGlobe);
+    destructor Destroy; override;
+  end;
+
+implementation
+
+uses
+  System.SysUtils, System.Classes;
+
+{ TConfirmNewBaseState }
+
+constructor TConfirmNewBaseState.Create(ABase: TBase; AGlobe: TGlobe);
+var
+  i: Integer;
+  area: string;
+begin
+  inherited Create(nil);
+  FBase := ABase;
+  FGlobe := AGlobe;
+  FCost := 0;
+
+  FScreen := False;
+
+  FWindow := TWindow.Create(Self, 224, 72, 16, 64);
+  FBtnOk := TTextButton.Create(54, 12, 68, 104);
+  FBtnCancel := TTextButton.Create(54, 12, 138, 104);
+  FTxtCost := TText.Create(120, 9, 68, 80);
+  FTxtArea := TText.Create(120, 9, 68, 90);
+
+  SetInterface('geoscape');
+
+  Add(FWindow, 'genericWindow', 'geoscape');
+  Add(FBtnOk, 'genericButton2', 'geoscape');
+  Add(FBtnCancel, 'genericButton2', 'geoscape');
+  Add(FTxtCost, 'genericText', 'geoscape');
+  Add(FTxtArea, 'genericText', 'geoscape');
+
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(Game.Mod.GetSurface('BACK01.SCR'));
+
+  FBtnOk.Text := Tr('STR_OK');
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress(Options.keyOk, BtnOkClick);
+
+  FBtnCancel.Text := Tr('STR_CANCEL_UC');
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress(Options.keyCancel, BtnCancelClick);
+
+  area := '';
+  for i := 0 to Game.SavedGame.Regions.Count - 1 do
+  begin
+    if Game.SavedGame.Regions[i].Rules.InsideRegion(FBase.Longitude, FBase.Latitude) then
+    begin
+      FCost := Game.SavedGame.Regions[i].Rules.BaseCost;
+      area := Tr(Game.SavedGame.Regions[i].Rules.TypeName);
+      Break;
+    end;
+  end;
+
+  FTxtCost.Text := Tr('STR_COST_').Arg(Unicode.FormatFunding(FCost));
+  FTxtArea.Text := Tr('STR_AREA_').Arg(area);
+end;
+
+destructor TConfirmNewBaseState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TConfirmNewBaseState.BtnOkClick(AAction: TAction);
+begin
+  if Game.SavedGame.Funds >= FCost then
+  begin
+    Game.SavedGame.Funds := Game.SavedGame.Funds - FCost;
+    Game.SavedGame.Bases.Add(FBase);
+    Game.PushState(TBaseNameState.Create(FBase, FGlobe, False));
+  end
+  else
+  begin
+    Game.PushState(TErrorMessageState.Create(
+      Tr('STR_NOT_ENOUGH_MONEY'),
+      Palette,
+      Game.Mod.Interface('geoscape').GetElement('genericWindow').Color,
+      'BACK01.SCR',
+      Game.Mod.Interface('geoscape').GetElement('palette').Color
+    ));
+  end;
+end;
+
+procedure TConfirmNewBaseState.BtnCancelClick(AAction: TAction);
+begin
+  FGlobe.OnMouseOver(nil);
+  Game.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:CraftErrorState.pas;encoding=utf8;eol=lf;sha256=⟧
+unit CraftErrorState;
+
+interface
+
+uses
+  System.SysUtils, Engine.State, Engine.Game, Mod.Mod,
+  Engine.LocalizedText, Interface.TextButton, Interface.Window,
+  Interface.Text, Geoscape.GeoscapeState, Engine.Options;
+
+type
+  TCraftErrorState = class(TState)
+  private
+    FState: TGeoscapeState;
+    FBtnOk, FBtnOk5Secs: TTextButton;
+    FWindow: TWindow;
+    FTxtMessage: TText;
+    procedure BtnOkClick(AAction: TAction);
+    procedure BtnOk5SecsClick(AAction: TAction);
+  public
+    constructor Create(AState: TGeoscapeState; const AMsg: string);
+    destructor Destroy; override;
+  end;
+
+implementation
+
+{ TCraftErrorState }
+
+constructor TCraftErrorState.Create(AState: TGeoscapeState; const AMsg: string);
+begin
+  inherited Create(nil);
+  FState := AState;
+  FScreen := False;
+
+  FWindow := TWindow.Create(Self, 256, 160, 32, 20, POPUP_BOTH);
+  FBtnOk := TTextButton.Create(100, 18, 48, 150);
+  FBtnOk5Secs := TTextButton.Create(100, 18, 172, 150);
+  FTxtMessage := TText.Create(246, 96, 37, 42);
+
+  SetInterface('craftError');
+
+  Add(FWindow, 'window', 'craftError');
+  Add(FBtnOk, 'button', 'craftError');
+  Add(FBtnOk5Secs, 'button', 'craftError');
+  Add(FTxtMessage, 'text1', 'craftError');
+
+  CenterAllSurfaces;
+
+  FWindow.SetBackground(Game.Mod.GetSurface('BACK12.SCR'));
+
+  FBtnOk.Text := Tr('STR_OK');
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress(Options.keyCancel, BtnOkClick);
+
+  FBtnOk5Secs.Text := Tr('STR_OK_5_SECONDS');
+  FBtnOk5Secs.OnMouseClick := BtnOk5SecsClick;
+  FBtnOk5Secs.OnKeyboardPress(Options.keyOk, BtnOk5SecsClick);
+
+  FTxtMessage.Align := ALIGN_CENTER;
+  FTxtMessage.VerticalAlign := ALIGN_MIDDLE;
+  FTxtMessage.Big := True;
+  FTxtMessage.WordWrap := True;
+  FTxtMessage.Text := AMsg;
+end;
+
+destructor TCraftErrorState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TCraftErrorState.BtnOkClick(AAction: TAction);
+begin
+  Game.PopState;
+end;
+
+procedure TCraftErrorState.BtnOk5SecsClick(AAction: TAction);
+begin
+  FState.TimerReset;
+  Game.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

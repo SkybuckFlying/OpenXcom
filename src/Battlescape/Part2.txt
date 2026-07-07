@@ -1,0 +1,771 @@
+⟦BUNDLE:v=0.18;sha256=⟧
+⟦INDEX⟧
+{"batch":2,"files":["AbortMissionState.pas","ActionMenuItem.pas","ActionMenuState.pas","AliensCrashState.pas","BattleState.pas"]}
+⟦/INDEX⟧
+⟦FILE:AbortMissionState.pas;encoding=utf8;sha256=⟧
+unit AbortMissionState;
+
+interface
+
+uses
+  System.SysUtils, System.Generics.Collections,
+  Engine.State, Engine.Game, Engine.Action, Engine.Options,
+  Interface.Window, Interface.Text, Interface.TextButton,
+  Savegame.SavedBattleGame, Battlescape.BattlescapeState, Mod.Mod,
+  Savegame.Tile, Engine.LocalizedText;
+
+type
+  TAbortMissionState = class(TState)
+  private
+    FWindow: TWindow;
+    FTxtInEntrance: TText;
+    FTxtInExit: TText;
+    FTxtOutside: TText;
+    FTxtAbort: TText;
+    FBtnOk: TTextButton;
+    FBtnCancel: TTextButton;
+    FBattleGame: TSavedBattleGame;
+    FBattlescapeState: TBattlescapeState;
+    FInEntrance: Integer;
+    FInExit: Integer;
+    FOutside: Integer;
+    procedure BtnOkClick(Sender: TObject);
+    procedure BtnCancelClick(Sender: TObject);
+  public
+    constructor Create(ABattleGame: TSavedBattleGame; AState: TBattlescapeState);
+    destructor Destroy; override;
+  end;
+
+implementation
+
+uses
+  Mod.AlienDeployment, Mod.MapScript;
+
+constructor TAbortMissionState.Create(ABattleGame: TSavedBattleGame; AState: TBattlescapeState);
+var
+  Deployment: TAlienDeployment;
+  Scripts: TList<TMapScript>;
+  ExitExists, CraftExists: Boolean;
+  I: Integer;
+  Tile: TTile;
+  Unit: TBattleUnit;
+begin
+  inherited Create;
+  FBattleGame := ABattleGame;
+  FBattlescapeState := AState;
+  FInEntrance := 0;
+  FInExit := 0;
+  FOutside := 0;
+  _screen := False;
+
+  FWindow := TWindow.Create(Self, 320, 144, 0, 0);
+  FTxtInEntrance := TText.Create(304, 17, 16, 20);
+  FTxtInExit := TText.Create(304, 17, 16, 40);
+  FTxtOutside := TText.Create(304, 17, 16, 60);
+  FTxtAbort := TText.Create(320, 17, 0, 80);
+  FBtnOk := TTextButton.Create(120, 16, 16, 110);
+  FBtnCancel := TTextButton.Create(120, 16, 184, 110);
+
+  FBattleGame.SetPaletteByDepth(Self);
+
+  Add(FWindow, 'messageWindowBorder', 'battlescape');
+  Add(FTxtInEntrance, 'messageWindows', 'battlescape');
+  Add(FTxtInExit, 'messageWindows', 'battlescape');
+  Add(FTxtOutside, 'messageWindows', 'battlescape');
+  Add(FTxtAbort, 'messageWindows', 'battlescape');
+  Add(FBtnOk, 'messageWindowButtons', 'battlescape');
+  Add(FBtnCancel, 'messageWindowButtons', 'battlescape');
+
+  ExitExists := False;
+  CraftExists := True;
+  Deployment := Game.GetMod.GetDeployment(FBattleGame.GetMissionType);
+  if Deployment <> nil then
+  begin
+    ExitExists := (Deployment.GetNextStage <> '') or
+                  (Deployment.GetEscapeType = ESCAPE_EXIT) or
+                  (Deployment.GetEscapeType = ESCAPE_EITHER);
+    Scripts := Game.GetMod.GetMapScript(Deployment.GetScript);
+    if Scripts <> nil then
+    begin
+      CraftExists := False;
+      for I := 0 to Scripts.Count - 1 do
+        if Scripts[I].GetType = MSC_ADDCRAFT then
+        begin
+          CraftExists := True;
+          Break;
+        end;
+    end;
+  end;
+
+  if ExitExists then
+  begin
+    ExitExists := False;
+    for I := 0 to FBattleGame.GetMapSizeXYZ - 1 do
+    begin
+      Tile := FBattleGame.GetTiles[I];
+      if (Tile <> nil) and (Tile.GetMapData(O_FLOOR) <> nil) and
+         (Tile.GetMapData(O_FLOOR).GetSpecialType = END_POINT) then
+      begin
+        ExitExists := True;
+        Break;
+      end;
+    end;
+  end;
+
+  for Unit in FBattleGame.GetUnits do
+  begin
+    if Unit.GetOriginalFaction = FACTION_PLAYER then
+    begin
+      if (Unit.GetStatus <> STATUS_DEAD) and (Unit.GetStatus <> STATUS_IGNORE_ME) then
+      begin
+        Tile := FBattleGame.GetTile(Unit.GetPosition);
+        if Tile <> nil then
+        begin
+          if (Tile.GetMapData(O_FLOOR) <> nil) and
+             (Tile.GetMapData(O_FLOOR).GetSpecialType = START_POINT) then
+            Inc(FInEntrance)
+          else if (Tile.GetMapData(O_FLOOR) <> nil) and
+                  (Tile.GetMapData(O_FLOOR).GetSpecialType = END_POINT) then
+            Inc(FInExit)
+          else
+            Inc(FOutside);
+        end;
+      end;
+    end;
+  end;
+
+  FWindow.SetHighContrast(True);
+  FWindow.SetBackground(Game.GetMod.GetSurface('TAC00.SCR'));
+
+  FTxtInEntrance.SetBig;
+  FTxtInEntrance.SetHighContrast(True);
+  if CraftExists then
+    FTxtInEntrance.SetText(Tr('STR_UNITS_IN_CRAFT', FInEntrance))
+  else
+    FTxtInEntrance.SetText(Tr('STR_UNITS_IN_ENTRANCE', FInEntrance));
+
+  FTxtInExit.SetBig;
+  FTxtInExit.SetHighContrast(True);
+  FTxtInExit.SetText(Tr('STR_UNITS_IN_EXIT', FInExit));
+
+  FTxtOutside.SetBig;
+  FTxtOutside.SetHighContrast(True);
+  FTxtOutside.SetText(Tr('STR_UNITS_OUTSIDE', FOutside));
+
+  if FBattleGame.GetMissionType = 'STR_BASE_DEFENSE' then
+  begin
+    FTxtInEntrance.SetVisible(False);
+    FTxtInExit.SetVisible(False);
+    FTxtOutside.SetVisible(False);
+  end
+  else if not ExitExists then
+  begin
+    FTxtInEntrance.SetY(26);
+    FTxtOutside.SetY(54);
+    FTxtInExit.SetVisible(False);
+  end;
+
+  FTxtAbort.SetBig;
+  FTxtAbort.SetAlign(ALIGN_CENTER);
+  FTxtAbort.SetHighContrast(True);
+  FTxtAbort.SetText(Tr('STR_ABORT_MISSION_QUESTION'));
+
+  FBtnOk.SetText(Tr('STR_OK'));
+  FBtnOk.SetHighContrast(True);
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress(Options.keyOk, BtnOkClick);
+
+  FBtnCancel.SetText(Tr('STR_CANCEL_UC'));
+  FBtnCancel.SetHighContrast(True);
+  FBtnCancel.OnMouseClick := BtnCancelClick;
+  FBtnCancel.OnKeyboardPress(Options.keyCancel, BtnCancelClick);
+  FBtnCancel.OnKeyboardPress(Options.keyBattleAbort, BtnCancelClick);
+
+  CenterAllSurfaces;
+end;
+
+destructor TAbortMissionState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TAbortMissionState.BtnOkClick(Sender: TObject);
+begin
+  Game.PopState;
+  FBattleGame.SetAborted(True);
+  FBattlescapeState.FinishBattle(True, FInExit);
+end;
+
+procedure TAbortMissionState.BtnCancelClick(Sender: TObject);
+begin
+  Game.PopState;
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:ActionMenuItem.pas;encoding=utf8;sha256=⟧
+unit ActionMenuItem;
+
+interface
+
+uses
+  System.SysUtils,
+  Engine.InteractiveSurface, Engine.Game, Engine.Action, Engine.State,
+  Battlescape.BattlescapeGame, Interface.Text, Interface.Frame,
+  Mod.RuleInterface, Mod.Mod, Engine.Font, Engine.Language;
+
+type
+  TActionMenuItem = class(TInteractiveSurface)
+  private
+    FHighlighted: Boolean;
+    FAction: TBattleActionType;
+    FTU: Integer;
+    FHighlightModifier: Integer;
+    FFrame: TFrame;
+    FTxtDescription: TText;
+    FTxtAcc: TText;
+    FTxtTU: TText;
+  public
+    constructor Create(AID: Integer; AGame: TGame; AX, AY: Integer);
+    destructor Destroy; override;
+    procedure SetAction(AAction: TBattleActionType; const ADesc, AAcc, ATUStr: string; ATU: Integer);
+    function GetAction: TBattleActionType;
+    function GetTUs: Integer;
+    procedure SetPalette(AColors: PSDL_Color; AFirstColor, ANColors: Integer); override;
+    procedure Draw; override;
+    procedure MouseIn(AAction: TAction; AState: TState); override;
+    procedure MouseOut(AAction: TAction; AState: TState); override;
+  end;
+
+implementation
+
+constructor TActionMenuItem.Create(AID: Integer; AGame: TGame; AX, AY: Integer);
+var
+  ActionMenu: TElement;
+  BigFont, SmallFont: TFont;
+begin
+  inherited Create(272, 40, AX + 24, AY - (AID * 40));
+  FHighlighted := False;
+  FAction := BA_NONE;
+  FTU := 0;
+
+  BigFont := AGame.GetMod.GetFont('FONT_BIG');
+  SmallFont := AGame.GetMod.GetFont('FONT_SMALL');
+
+  ActionMenu := AGame.GetMod.GetInterface('battlescape').GetElement('actionMenu');
+  FHighlightModifier := IfThen(ActionMenu.TFTDMode, 12, 3);
+
+  FFrame := TFrame.Create(GetWidth, GetHeight, 0, 0);
+  FFrame.SetHighContrast(True);
+  FFrame.SetColor(ActionMenu.Border);
+  FFrame.SetSecondaryColor(ActionMenu.Color2);
+  FFrame.SetThickness(8);
+
+  FTxtDescription := TText.Create(200, 20, 10, 13);
+  FTxtDescription.InitText(BigFont, SmallFont, AGame.GetLanguage);
+  FTxtDescription.SetBig;
+  FTxtDescription.SetHighContrast(True);
+  FTxtDescription.SetColor(ActionMenu.Color);
+  FTxtDescription.SetVisible(True);
+
+  FTxtAcc := TText.Create(100, 20, 140, 13);
+  FTxtAcc.InitText(BigFont, SmallFont, AGame.GetLanguage);
+  FTxtAcc.SetBig;
+  FTxtAcc.SetHighContrast(True);
+  FTxtAcc.SetColor(ActionMenu.Color);
+
+  FTxtTU := TText.Create(80, 20, 210, 13);
+  FTxtTU.InitText(BigFont, SmallFont, AGame.GetLanguage);
+  FTxtTU.SetBig;
+  FTxtTU.SetHighContrast(True);
+  FTxtTU.SetColor(ActionMenu.Color);
+end;
+
+destructor TActionMenuItem.Destroy;
+begin
+  FFrame.Free;
+  FTxtDescription.Free;
+  FTxtAcc.Free;
+  FTxtTU.Free;
+  inherited;
+end;
+
+procedure TActionMenuItem.SetAction(AAction: TBattleActionType; const ADesc, AAcc, ATUStr: string; ATU: Integer);
+begin
+  FAction := AAction;
+  FTxtDescription.SetText(ADesc);
+  FTxtAcc.SetText(AAcc);
+  FTxtTU.SetText(ATUStr);
+  FTU := ATU;
+  _redraw := True;
+end;
+
+function TActionMenuItem.GetAction: TBattleActionType;
+begin
+  Result := FAction;
+end;
+
+function TActionMenuItem.GetTUs: Integer;
+begin
+  Result := FTU;
+end;
+
+procedure TActionMenuItem.SetPalette(AColors: PSDL_Color; AFirstColor, ANColors: Integer);
+begin
+  inherited SetPalette(AColors, AFirstColor, ANColors);
+  FFrame.SetPalette(AColors, AFirstColor, ANColors);
+  FTxtDescription.SetPalette(AColors, AFirstColor, ANColors);
+  FTxtAcc.SetPalette(AColors, AFirstColor, ANColors);
+  FTxtTU.SetPalette(AColors, AFirstColor, ANColors);
+end;
+
+procedure TActionMenuItem.Draw;
+begin
+  FFrame.Blit(Self);
+  FTxtDescription.Blit(Self);
+  FTxtAcc.Blit(Self);
+  FTxtTU.Blit(Self);
+end;
+
+procedure TActionMenuItem.MouseIn(AAction: TAction; AState: TState);
+begin
+  FHighlighted := True;
+  FFrame.SetSecondaryColor(FFrame.GetSecondaryColor - FHighlightModifier);
+  Draw;
+  inherited MouseIn(AAction, AState);
+end;
+
+procedure TActionMenuItem.MouseOut(AAction: TAction; AState: TState);
+begin
+  FHighlighted := False;
+  FFrame.SetSecondaryColor(FFrame.GetSecondaryColor + FHighlightModifier);
+  Draw;
+  inherited MouseOut(AAction, AState);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:ActionMenuState.pas;encoding=utf8;sha256=⟧
+unit ActionMenuState;
+
+interface
+
+uses
+  System.SysUtils,
+  Engine.State, Engine.Game, Engine.Action, Engine.Options,
+  Battlescape.BattlescapeGame, Battlescape.ActionMenuItem,
+  Savegame.BattleUnit, Savegame.BattleItem, Mod.RuleItem,
+  Engine.LocalizedText, Engine.Unicode;
+
+type
+  TActionMenuState = class(TState)
+  private
+    FAction: TBattleAction;
+    FActionMenu: array[0..5] of TActionMenuItem;
+    procedure AddItem(BA: TBattleActionType; const AName: string; var ID: Integer);
+    procedure BtnActionMenuItemClick(Sender: TObject);
+  public
+    constructor Create(var AAction: TBattleAction; AX, AY: Integer);
+    destructor Destroy; override;
+    procedure Handle(AAction: TAction); override;
+    procedure Resize(var dX, dY: Integer); override;
+  end;
+
+implementation
+
+uses
+  Battlescape.PrimeGrenadeState, Battlescape.MedikitState, Battlescape.ScannerState,
+  Savegame.SavedGame, Savegame.SavedBattleGame, Savegame.Tile,
+  Pathfinding, TileEngine, Interface.Text;
+
+constructor TActionMenuState.Create(var AAction: TBattleAction; AX, AY: Integer);
+var
+  I: Integer;
+  Weapon: TRuleItem;
+  ID: Integer;
+begin
+  inherited Create;
+  FAction := AAction;
+  _screen := False;
+
+  Game.GetSavedGame.GetSavedBattle.SetPaletteByDepth(Self);
+
+  for I := 0 to 5 do
+  begin
+    FActionMenu[I] := TActionMenuItem.Create(I, Game, AX, AY);
+    Add(FActionMenu[I]);
+    FActionMenu[I].SetVisible(False);
+    FActionMenu[I].OnMouseClick := BtnActionMenuItemClick;
+  end;
+
+  ID := 0;
+  Weapon := FAction.Weapon.GetRules;
+
+  if not Weapon.IsFixed then
+    AddItem(BA_THROW, 'STR_THROW', ID);
+
+  if ((Weapon.GetBattleType = BT_GRENADE) or (Weapon.GetBattleType = BT_PROXIMITYGRENADE)) and
+     (FAction.Weapon.GetFuseTimer = -1) then
+    AddItem(BA_PRIME, 'STR_PRIME_GRENADE', ID);
+
+  if Weapon.GetBattleType = BT_FIREARM then
+  begin
+    if (Weapon.GetWaypoints <> 0) or
+       ((FAction.Weapon.GetAmmoItem <> nil) and (FAction.Weapon.GetAmmoItem.GetRules.GetWaypoints <> 0)) then
+      AddItem(BA_LAUNCH, 'STR_LAUNCH_MISSILE', ID)
+    else
+    begin
+      if Weapon.GetAccuracyAuto <> 0 then
+        AddItem(BA_AUTOSHOT, 'STR_AUTO_SHOT', ID);
+      if Weapon.GetAccuracySnap <> 0 then
+        AddItem(BA_SNAPSHOT, 'STR_SNAP_SHOT', ID);
+      if Weapon.GetAccuracyAimed <> 0 then
+        AddItem(BA_AIMEDSHOT, 'STR_AIMED_SHOT', ID);
+    end;
+  end;
+
+  if Weapon.GetTUMelee <> 0 then
+  begin
+    if (Weapon.GetBattleType = BT_MELEE) and (Weapon.GetDamageType = DT_STUN) then
+      AddItem(BA_HIT, 'STR_STUN', ID)
+    else
+      AddItem(BA_HIT, 'STR_HIT_MELEE', ID);
+  end
+  else if Weapon.GetBattleType = BT_MEDIKIT then
+    AddItem(BA_USE, 'STR_USE_MEDI_KIT', ID)
+  else if Weapon.GetBattleType = BT_SCANNER then
+    AddItem(BA_USE, 'STR_USE_SCANNER', ID)
+  else if (Weapon.GetBattleType = BT_PSIAMP) and (FAction.Actor.GetBaseStats.PsiSkill > 0) then
+  begin
+    AddItem(BA_MINDCONTROL, 'STR_MIND_CONTROL', ID);
+    AddItem(BA_PANIC, 'STR_PANIC_UNIT', ID);
+  end
+  else if Weapon.GetBattleType = BT_MINDPROBE then
+    AddItem(BA_USE, 'STR_USE_MIND_PROBE', ID);
+end;
+
+destructor TActionMenuState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TActionMenuState.AddItem(BA: TBattleActionType; const AName: string; var ID: Integer);
+var
+  S1, S2: string;
+  Acc, TU: Integer;
+begin
+  Acc := FAction.Actor.GetFiringAccuracy(BA, FAction.Weapon);
+  if BA = BA_THROW then
+    Acc := Round(FAction.Actor.GetThrowingAccuracy);
+  TU := FAction.Actor.GetActionTUs(BA, FAction.Weapon);
+
+  if BA in [BA_THROW, BA_AIMEDSHOT, BA_SNAPSHOT, BA_AUTOSHOT, BA_LAUNCH, BA_HIT] then
+    S1 := Tr('STR_ACCURACY_SHORT').Arg(Unicode.FormatPercentage(Acc));
+  S2 := Tr('STR_TIME_UNITS_SHORT').Arg(TU);
+
+  FActionMenu[ID].SetAction(BA, Tr(AName), S1, S2, TU);
+  FActionMenu[ID].SetVisible(True);
+  Inc(ID);
+end;
+
+procedure TActionMenuState.Handle(AAction: TAction);
+begin
+  inherited;
+  if (AAction.GetDetails.typ = SDL_MOUSEBUTTONDOWN) and
+     (AAction.GetDetails.button.button = SDL_BUTTON_RIGHT) then
+    Game.PopState
+  else if (AAction.GetDetails.typ = SDL_KEYDOWN) and
+          ((AAction.GetDetails.key.keysym.sym = Options.keyCancel) or
+           (AAction.GetDetails.key.keysym.sym = Options.keyBattleUseLeftHand) or
+           (AAction.GetDetails.key.keysym.sym = Options.keyBattleUseRightHand)) then
+    Game.PopState;
+end;
+
+procedure TActionMenuState.BtnActionMenuItemClick(Sender: TObject);
+var
+  BtnID, I: Integer;
+  Weapon: TRuleItem;
+  WeaponUsable: string;
+  TargetUnit: TBattleUnit;
+  Units: TList<TBattleUnit>;
+  Tile: TTile;
+begin
+  Game.GetSavedGame.GetSavedBattle.GetPathfinding.RemovePreview;
+
+  BtnID := -1;
+  for I := 0 to 5 do
+    if Sender = FActionMenu[I] then
+    begin
+      BtnID := I;
+      Break;
+    end;
+
+  if BtnID = -1 then Exit;
+
+  FAction.aType := FActionMenu[BtnID].GetAction;
+  FAction.TU := FActionMenu[BtnID].GetTUs;
+
+  Weapon := FAction.Weapon.GetRules;
+
+  if (FAction.aType <> BA_THROW) and
+     (FAction.Actor.GetOriginalFaction = FACTION_PLAYER) and
+     (not Game.GetSavedGame.IsResearched(Weapon.GetRequirements)) then
+  begin
+    FAction.Result := 'STR_UNABLE_TO_USE_ALIEN_ARTIFACT_UNTIL_RESEARCHED';
+    Game.PopState;
+    Exit;
+  end;
+
+  WeaponUsable := Game.GetSavedGame.GetSavedBattle.GetItemUsable(FAction.Weapon);
+  if (FAction.aType <> BA_THROW) and (WeaponUsable <> '') then
+  begin
+    FAction.Result := WeaponUsable;
+    Game.PopState;
+    Exit;
+  end;
+
+  if FAction.aType = BA_PRIME then
+  begin
+    if Weapon.GetBattleType = BT_PROXIMITYGRENADE then
+    begin
+      FAction.Value := 0;
+      Game.PopState;
+    end
+    else
+      Game.PushState(TPrimeGrenadeState.Create(FAction, False, 0));
+    Exit;
+  end;
+
+  if (FAction.aType = BA_USE) and (Weapon.GetBattleType = BT_MEDIKIT) then
+  begin
+    TargetUnit := nil;
+    Units := Game.GetSavedGame.GetSavedBattle.GetUnits;
+    for I := 0 to Units.Count - 1 do
+    begin
+      if (Units[I].GetPosition = FAction.Actor.GetPosition) and
+         (Units[I] <> FAction.Actor) and
+         (Units[I].GetStatus = STATUS_UNCONSCIOUS) and
+         (Units[I].IsWoundable) then
+      begin
+        TargetUnit := Units[I];
+        Break;
+      end;
+    end;
+    if TargetUnit = nil then
+    begin
+      if Game.GetSavedGame.GetSavedBattle.GetTileEngine.ValidMeleeRange(
+           FAction.Actor.GetPosition, FAction.Actor.GetDirection,
+           FAction.Actor, nil, FAction.Target, False) then
+      begin
+        Tile := Game.GetSavedGame.GetSavedBattle.GetTile(FAction.Target);
+        if (Tile <> nil) and (Tile.GetUnit <> nil) and (Tile.GetUnit.IsWoundable) then
+          TargetUnit := Tile.GetUnit;
+      end;
+    end;
+    if TargetUnit <> nil then
+    begin
+      Game.PopState;
+      Game.PushState(TMedikitState.Create(TargetUnit, FAction));
+    end
+    else
+    begin
+      FAction.Result := 'STR_THERE_IS_NO_ONE_THERE';
+      Game.PopState;
+    end;
+    Exit;
+  end;
+
+  if (FAction.aType = BA_USE) and (Weapon.GetBattleType = BT_SCANNER) then
+  begin
+    if FAction.Actor.SpendTimeUnits(FAction.TU) then
+    begin
+      Game.PopState;
+      Game.PushState(TScannerState.Create(FAction));
+    end
+    else
+    begin
+      FAction.Result := 'STR_NOT_ENOUGH_TIME_UNITS';
+      Game.PopState;
+    end;
+    Exit;
+  end;
+
+  if FAction.aType = BA_LAUNCH then
+  begin
+    if FAction.TU > FAction.Actor.GetTimeUnits then
+      FAction.Result := 'STR_NOT_ENOUGH_TIME_UNITS'
+    else if (FAction.Weapon.GetAmmoItem = nil) or
+            (FAction.Weapon.GetAmmoItem.GetAmmoQuantity = 0) then
+      FAction.Result := 'STR_NO_AMMUNITION_LOADED'
+    else
+      FAction.Targeting := True;
+    Game.PopState;
+    Exit;
+  end;
+
+  if FAction.aType = BA_HIT then
+  begin
+    if FAction.TU > FAction.Actor.GetTimeUnits then
+      FAction.Result := 'STR_NOT_ENOUGH_TIME_UNITS'
+    else if not Game.GetSavedGame.GetSavedBattle.GetTileEngine.ValidMeleeRange(
+              FAction.Actor.GetPosition, FAction.Actor.GetDirection,
+              FAction.Actor, nil, FAction.Target) then
+      FAction.Result := 'STR_THERE_IS_NO_ONE_THERE';
+    Game.PopState;
+    if FAction.Result <> '' then
+      FAction.aType := BA_NONE;
+    Exit;
+  end;
+
+  FAction.Targeting := True;
+  Game.PopState;
+end;
+
+procedure TActionMenuState.Resize(var dX, dY: Integer);
+begin
+  inherited;
+  // reposition if needed
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:AliensCrashState.pas;encoding=utf8;sha256=⟧
+unit AliensCrashState;
+
+interface
+
+uses
+  System.SysUtils,
+  Engine.State, Engine.Game, Engine.Action, Engine.Options,
+  Interface.TextButton, Interface.Window, Interface.Text,
+  Mod.Mod, Engine.LocalizedText;
+
+type
+  TAliensCrashState = class(TState)
+  private
+    FBtnOk: TTextButton;
+    FWindow: TWindow;
+    FTxtTitle: TText;
+    procedure BtnOkClick(Sender: TObject);
+  public
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
+implementation
+
+uses
+  Battlescape.DebriefingState;
+
+constructor TAliensCrashState.Create;
+begin
+  inherited Create;
+  FWindow := TWindow.Create(Self, 256, 160, 32, 20);
+  FBtnOk := TTextButton.Create(120, 18, 100, 154);
+  FTxtTitle := TText.Create(246, 80, 37, 50);
+
+  SetPalette('PAL_BATTLESCAPE');
+
+  Add(FWindow, 'messageWindowBorder', 'battlescape');
+  Add(FBtnOk, 'messageWindowButtons', 'battlescape');
+  Add(FTxtTitle, 'messageWindows', 'battlescape');
+
+  CenterAllSurfaces;
+
+  FWindow.SetHighContrast(True);
+  FWindow.SetBackground(Game.GetMod.GetSurface('TAC00.SCR'));
+
+  FBtnOk.SetHighContrast(True);
+  FBtnOk.SetText(Tr('STR_OK'));
+  FBtnOk.OnMouseClick := BtnOkClick;
+  FBtnOk.OnKeyboardPress(Options.keyOk, BtnOkClick);
+  FBtnOk.OnKeyboardPress(Options.keyCancel, BtnOkClick);
+
+  FTxtTitle.SetHighContrast(True);
+  FTxtTitle.SetText(Tr('STR_ALL_ALIENS_KILLED_IN_CRASH'));
+  FTxtTitle.SetAlign(ALIGN_CENTER);
+  FTxtTitle.SetVerticalAlign(ALIGN_MIDDLE);
+  FTxtTitle.SetBig;
+  FTxtTitle.SetWordWrap(True);
+end;
+
+destructor TAliensCrashState.Destroy;
+begin
+  inherited;
+end;
+
+procedure TAliensCrashState.BtnOkClick(Sender: TObject);
+begin
+  Game.PopState;
+  Game.PushState(TDebriefingState.Create);
+end;
+
+end.
+⟦/FILE⟧
+⟦FILE:BattleState.pas;encoding=utf8;sha256=⟧
+unit BattleState;
+
+interface
+
+uses
+  System.SysUtils,
+  Battlescape.BattlescapeGame;
+
+type
+  TBattleState = class
+  protected
+    FParent: TBattlescapeGame;
+    FAction: TBattleAction;
+  public
+    constructor Create(AParent: TBattlescapeGame; AAction: TBattleAction); overload;
+    constructor Create(AParent: TBattlescapeGame); overload;
+    destructor Destroy; override;
+    procedure Init; virtual;
+    procedure Cancel; virtual;
+    procedure Think; virtual;
+    function GetAction: TBattleAction;
+  end;
+
+implementation
+
+constructor TBattleState.Create(AParent: TBattlescapeGame; AAction: TBattleAction);
+begin
+  inherited Create;
+  FParent := AParent;
+  FAction := AAction;
+end;
+
+constructor TBattleState.Create(AParent: TBattlescapeGame);
+begin
+  Create(AParent, TBattleAction.Create);
+end;
+
+destructor TBattleState.Destroy;
+begin
+  FAction.Free;
+  inherited;
+end;
+
+procedure TBattleState.Init;
+begin
+  // empty
+end;
+
+procedure TBattleState.Cancel;
+begin
+  // empty
+end;
+
+procedure TBattleState.Think;
+begin
+  // empty
+end;
+
+function TBattleState.GetAction: TBattleAction;
+begin
+  Result := FAction;
+end;
+
+end.
+⟦/FILE⟧
+⟦/BUNDLE⟧

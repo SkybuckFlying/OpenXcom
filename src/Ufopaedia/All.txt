@@ -1,0 +1,3836 @@
+⟦BUNDLE:v=0.18;sha256=266a7eae851d84ffaced18f9dd181817b1ff162103742124859f41a2aead9957⟧
+⟦INDEX⟧
+{
+  "version": "0.18",
+  "roots": ['.']
+  "files": {
+  }
+}
+⟦/INDEX⟧
+⟦FILE:ArticleState.cpp;encoding=utf8;sha256=5f8cb97dd5a8bf25021916953790b1fcb42200b26d3d3dcafb99f30e7d65e889;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "Ufopaedia.h"
+#include "ArticleState.h"
+#include "../Engine/Game.h"
+#include "../Engine/Options.h"
+#include "../Engine/Surface.h"
+#include "../Engine/LocalizedText.h"
+#include "../Interface/TextButton.h"
+#include "../Mod/RuleItem.h"
+
+namespace OpenXcom
+{
+
+	/**
+	 * Constructor
+	 * @param game Pointer to current game.
+	 * @param article_id The article id of this article state instance.
+	 */
+	ArticleState::ArticleState(const std::string &article_id) : _id(article_id)
+	{
+		// init background and navigation elements
+		_bg = new Surface(320, 200, 0, 0);
+		_btnOk = new TextButton(30, 14, 5, 5);
+		_btnPrev = new TextButton(30, 14, 40, 5);
+		_btnNext = new TextButton(30, 14, 75, 5);
+	}
+
+	/**
+	 * Destructor
+	 */
+	ArticleState::~ArticleState()
+	{}
+
+	std::string ArticleState::getDamageTypeText(ItemDamageType dt) const
+	{
+		std::string type;
+		switch (dt)
+		{
+		case DT_AP:
+			type = "STR_DAMAGE_ARMOR_PIERCING";
+			break;
+		case DT_IN:
+			type = "STR_DAMAGE_INCENDIARY";
+			break;
+		case DT_HE:
+			type = "STR_DAMAGE_HIGH_EXPLOSIVE";
+			break;
+		case DT_LASER:
+			type = "STR_DAMAGE_LASER_BEAM";
+			break;
+		case DT_PLASMA:
+			type = "STR_DAMAGE_PLASMA_BEAM";
+			break;
+		case DT_STUN:
+			type = "STR_DAMAGE_STUN";
+			break;
+		case DT_MELEE:
+			type = "STR_DAMAGE_MELEE";
+			break;
+		case DT_ACID:
+			type = "STR_DAMAGE_ACID";
+			break;
+		case DT_SMOKE:
+			type = "STR_DAMAGE_SMOKE";
+			break;
+		default:
+			type = "STR_UNKNOWN";
+			break;
+		}
+		return type;
+	}
+
+	/**
+	 * Set captions and click handlers for the common control elements.
+	 */
+	void ArticleState::initLayout()
+	{
+		add(_bg);
+		add(_btnOk);
+		add(_btnPrev);
+		add(_btnNext);
+
+		_btnOk->setText(tr("STR_OK"));
+		_btnOk->onMouseClick((ActionHandler)&ArticleState::btnOkClick);
+		_btnOk->onKeyboardPress((ActionHandler)&ArticleState::btnOkClick,Options::keyOk);
+		_btnOk->onKeyboardPress((ActionHandler)&ArticleState::btnOkClick,Options::keyCancel);
+		_btnPrev->setText("<<");
+		_btnPrev->onMouseClick((ActionHandler)&ArticleState::btnPrevClick);
+		_btnPrev->onKeyboardPress((ActionHandler)&ArticleState::btnPrevClick, Options::keyGeoLeft);
+		_btnNext->setText(">>");
+		_btnNext->onMouseClick((ActionHandler)&ArticleState::btnNextClick);
+		_btnNext->onKeyboardPress((ActionHandler)&ArticleState::btnNextClick, Options::keyGeoRight);
+	}
+
+	/**
+	 * Returns to the previous screen.
+	 * @param action Pointer to an action.
+	 */
+	void ArticleState::btnOkClick(Action *)
+	{
+		_game->popState();
+	}
+
+	/**
+	 * Shows the previous available article.
+	 * @param action Pointer to an action.
+	 */
+	void ArticleState::btnPrevClick(Action *)
+	{
+		Ufopaedia::prev(_game);
+	}
+
+	/**
+	 * Shows the next available article. Loops to the first.
+	 * @param action Pointer to an action.
+	 */
+	void ArticleState::btnNextClick(Action *)
+	{
+		Ufopaedia::next(_game);
+	}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleState.h;encoding=utf8;sha256=3b9348bf0dfafc055d759d077191951bc18adb17931341f871830cbce5dd94db;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/State.h"
+#include "../Mod/RuleItem.h"
+#include <string>
+
+namespace OpenXcom
+{
+	class Game;
+	class Action;
+	class Surface;
+	class TextButton;
+
+	/**
+	 * UfopaediaArticle is the base class for all articles of various types.
+	 *
+	 * It encapsulates the basic characteristics.
+	 */
+
+	class ArticleState : public State
+	{
+	protected:
+		/// constructor (protected, so it can only be instantiated by derived classes)
+		ArticleState(const std::string &article_id);
+		/// destructor
+		virtual ~ArticleState();
+
+	public:
+		/// return the article id
+		std::string getId() const { return _id; }
+
+	protected:
+
+		/// converts damage type to string
+		std::string getDamageTypeText(ItemDamageType dt) const;
+
+		/// screen layout helpers
+		void initLayout();
+
+		/// callback for OK button
+		void btnOkClick(Action *action);
+
+		/// callback for PREV button
+		void btnPrevClick(Action *action);
+
+		/// callback for NEXT button
+		void btnNextClick(Action *action);
+		/// the article id
+		std::string _id;
+
+		/// screen elements common to all articles!
+		Surface *_bg;
+		TextButton *_btnOk;
+		TextButton *_btnPrev;
+		TextButton *_btnNext;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateArmor.cpp;encoding=utf8;sha256=18ba11a27878e1d48a7255500c931d406282a943f8b05ada80ded6c8363ff100;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <sstream>
+#include "../fmath.h"
+#include "ArticleStateArmor.h"
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/Mod.h"
+#include "../Mod/Armor.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Surface.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/CrossPlatform.h"
+#include "../Engine/FileMap.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+#include "../Interface/TextList.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateArmor::ArticleStateArmor(ArticleDefinitionArmor *defs) : ArticleState(defs->id), _row(0)
+	{
+		Armor *armor = _game->getMod()->getArmor(defs->id, true);
+
+		// add screen elements
+		_txtTitle = new Text(300, 17, 5, 24);
+
+		// Set palette
+		setPalette("PAL_BATTLEPEDIA");
+
+		ArticleState::initLayout();
+
+		// add other elements
+		add(_txtTitle);
+
+		// Set up objects
+		_btnOk->setColor(Palette::blockOffset(0)+15);
+		_btnPrev->setColor(Palette::blockOffset(0)+15);
+		_btnNext->setColor(Palette::blockOffset(0)+15);
+
+		_txtTitle->setColor(Palette::blockOffset(14)+15);
+		_txtTitle->setBig();
+		_txtTitle->setText(tr(defs->title));
+
+		_image = new Surface(320, 200, 0, 0);
+		add(_image);
+
+		std::string look = armor->getSpriteInventory();
+		look += "M0.SPK";
+		if (!_game->getMod()->getSurface(look, false))
+		{
+			look = armor->getSpriteInventory() + ".SPK";
+		}
+		if (!_game->getMod()->getSurface(look, false))
+		{
+			look = armor->getSpriteInventory();
+		}
+		_game->getMod()->getSurface(look)->blit(_image);
+
+
+		_lstInfo = new TextList(150, 96, 150, 46);
+		add(_lstInfo);
+
+		_lstInfo->setColor(Palette::blockOffset(14)+15);
+		_lstInfo->setColumns(2, 125, 25);
+		_lstInfo->setDot(true);
+
+		_txtInfo = new Text(300, 48, 8, 150);
+		add(_txtInfo);
+
+		_txtInfo->setColor(Palette::blockOffset(14)+15);
+		_txtInfo->setWordWrap(true);
+		_txtInfo->setScrollable(true);
+		_txtInfo->setText(tr(defs->text));
+
+		// Add armor values
+		addStat("STR_FRONT_ARMOR", armor->getFrontArmor());
+		addStat("STR_LEFT_ARMOR", armor->getSideArmor());
+		addStat("STR_RIGHT_ARMOR", armor->getSideArmor());
+		addStat("STR_REAR_ARMOR", armor->getRearArmor());
+		addStat("STR_UNDER_ARMOR", armor->getUnderArmor());
+
+		_lstInfo->addRow(0);
+		++_row;
+
+		// Add damage modifiers
+		for (int i = 0; i < Armor::DAMAGE_TYPES; ++i)
+		{
+			ItemDamageType dt = (ItemDamageType)i;
+			int percentage = (int)Round(armor->getDamageModifier(dt) * 100.0f);
+			std::string damage = getDamageTypeText(dt);
+			if (percentage != 100 && damage != "STR_UNKNOWN")
+			{
+				addStat(damage, Unicode::formatPercentage(percentage));
+			}
+		}
+
+		_lstInfo->addRow(0);
+		++_row;
+
+		// Add unit stats
+		addStat("STR_TIME_UNITS", armor->getStats()->tu, true);
+		addStat("STR_STAMINA", armor->getStats()->stamina, true);
+		addStat("STR_HEALTH", armor->getStats()->health, true);
+		addStat("STR_BRAVERY", armor->getStats()->bravery, true);
+		addStat("STR_REACTIONS", armor->getStats()->reactions, true);
+		addStat("STR_FIRING_ACCURACY", armor->getStats()->firing, true);
+		addStat("STR_THROWING_ACCURACY", armor->getStats()->throwing, true);
+		addStat("STR_MELEE_ACCURACY", armor->getStats()->melee, true);
+		addStat("STR_STRENGTH", armor->getStats()->strength, true);
+		addStat("STR_PSIONIC_STRENGTH", armor->getStats()->psiStrength, true);
+		addStat("STR_PSIONIC_SKILL", armor->getStats()->psiSkill, true);
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateArmor::~ArticleStateArmor()
+	{}
+
+	void ArticleStateArmor::addStat(const std::string &label, int stat, bool plus)
+	{
+		if (stat != 0)
+		{
+			std::ostringstream ss;
+			if (plus && stat > 0)
+				ss << "+";
+			ss << stat;
+			_lstInfo->addRow(2, tr(label).c_str(), ss.str().c_str());
+			_lstInfo->setCellColor(_row, 1, Palette::blockOffset(15)+4);
+			++_row;
+		}
+	}
+
+	void ArticleStateArmor::addStat(const std::string &label, const std::string &stat)
+	{
+		_lstInfo->addRow(2, tr(label).c_str(), stat.c_str());
+		_lstInfo->setCellColor(_row, 1, Palette::blockOffset(15)+4);
+		++_row;
+	}
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateArmor.h;encoding=utf8;sha256=11475686447b42fb3ce44a2edf9a99c792b728488a467fec9be5b6f5d579ccb7;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleState.h"
+
+namespace OpenXcom
+{
+	class Game;
+	class Surface;
+	class Text;
+	class TextList;
+	class ArticleDefinitionArmor;
+
+	/**
+	 * ArticleStateArmor has a caption, preview image and a stats block.
+	 * The image is found using the Armor class.
+	 */
+
+	class ArticleStateArmor : public ArticleState
+	{
+	public:
+		ArticleStateArmor(ArticleDefinitionArmor *article_defs);
+		virtual ~ArticleStateArmor();
+
+	protected:
+		void addStat(const std::string &label, int stat, bool plus = false);
+		void addStat(const std::string &label, const std::string &stat);
+
+		int _row;
+		Surface *_image;
+		Text *_txtTitle;
+		TextList *_lstInfo;
+		Text *_txtInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateBaseFacility.cpp;encoding=utf8;sha256=625b2e20ab6baab4b67e210f7514ee1d055781afb60b8942772ba73d803de394;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <sstream>
+#include "ArticleStateBaseFacility.h"
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/Mod.h"
+#include "../Mod/RuleBaseFacility.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Surface.h"
+#include "../Engine/SurfaceSet.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+#include "../Interface/TextList.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateBaseFacility::ArticleStateBaseFacility(ArticleDefinitionBaseFacility *defs) : ArticleState(defs->id)
+	{
+		RuleBaseFacility *facility = _game->getMod()->getBaseFacility(defs->id, true);
+
+		// add screen elements
+		_txtTitle = new Text(200, 17, 10, 24);
+
+		// Set palette
+		setPalette("PAL_BASESCAPE");
+
+		ArticleState::initLayout();
+
+		// add other elements
+		add(_txtTitle);
+
+		// Set up objects
+		_game->getMod()->getSurface("BACK09.SCR")->blit(_bg);
+		_btnOk->setColor(Palette::blockOffset(4));
+		_btnPrev->setColor(Palette::blockOffset(4));
+		_btnNext->setColor(Palette::blockOffset(4));
+
+		_txtTitle->setColor(Palette::blockOffset(13)+10);
+		_txtTitle->setBig();
+		_txtTitle->setText(tr(defs->title));
+
+		// build preview image
+		int tile_size = 32;
+		_image = new Surface(tile_size*2, tile_size*2, 232, 16);
+		add(_image);
+
+		SurfaceSet *graphic = _game->getMod()->getSurfaceSet("BASEBITS.PCK");
+		Surface *frame;
+		int x_offset, y_offset;
+		int x_pos, y_pos;
+		int num;
+
+		if (facility->getSize()==1)
+		{
+			x_offset = y_offset = tile_size/2;
+		}
+		else
+		{
+			x_offset = y_offset = 0;
+		}
+
+		num = 0;
+		y_pos = y_offset;
+		for (int y = 0; y < facility->getSize(); ++y)
+		{
+			x_pos = x_offset;
+			for (int x = 0; x < facility->getSize(); ++x)
+			{
+				frame = graphic->getFrame(facility->getSpriteShape() + num);
+				frame->setX(x_pos);
+				frame->setY(y_pos);
+				frame->blit(_image);
+
+				if (facility->getSize()==1)
+				{
+					frame = graphic->getFrame(facility->getSpriteFacility() + num);
+					frame->setX(x_pos);
+					frame->setY(y_pos);
+					frame->blit(_image);
+				}
+
+				x_pos += tile_size;
+				num++;
+			}
+			y_pos += tile_size;
+		}
+
+		_txtInfo = new Text(300, 90, 10, 104);
+		add(_txtInfo);
+
+		_txtInfo->setColor(Palette::blockOffset(13)+10);
+		_txtInfo->setWordWrap(true);
+		_txtInfo->setScrollable(true);
+		_txtInfo->setText(tr(defs->text));
+
+		_lstInfo = new TextList(200, 42, 10, 42);
+		add(_lstInfo);
+
+		_lstInfo->setColor(Palette::blockOffset(13)+10);
+		_lstInfo->setColumns(2, 140, 60);
+		_lstInfo->setDot(true);
+
+		_lstInfo->addRow(2, tr("STR_CONSTRUCTION_TIME").c_str(), tr("STR_DAY", facility->getBuildTime()).c_str());
+		_lstInfo->setCellColor(0, 1, Palette::blockOffset(13)+0);
+
+		std::ostringstream ss;
+		ss << Unicode::formatFunding(facility->getBuildCost());
+		_lstInfo->addRow(2, tr("STR_CONSTRUCTION_COST").c_str(), ss.str().c_str());
+		_lstInfo->setCellColor(1, 1, Palette::blockOffset(13)+0);
+
+		ss.str("");ss.clear();
+		ss << Unicode::formatFunding(facility->getMonthlyCost());
+		_lstInfo->addRow(2, tr("STR_MAINTENANCE_COST").c_str(), ss.str().c_str());
+		_lstInfo->setCellColor(2, 1, Palette::blockOffset(13)+0);
+
+		if (facility->getDefenseValue() > 0)
+		{
+			ss.str("");ss.clear();
+			ss << facility->getDefenseValue();
+			_lstInfo->addRow(2, tr("STR_DEFENSE_VALUE").c_str(), ss.str().c_str());
+			_lstInfo->setCellColor(3, 1, Palette::blockOffset(13)+0);
+
+			ss.str("");ss.clear();
+			ss << Unicode::formatPercentage(facility->getHitRatio());
+			_lstInfo->addRow(2, tr("STR_HIT_RATIO").c_str(), ss.str().c_str());
+			_lstInfo->setCellColor(4, 1, Palette::blockOffset(13)+0);
+		}
+		centerAllSurfaces();
+	}
+
+	ArticleStateBaseFacility::~ArticleStateBaseFacility()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateBaseFacility.h;encoding=utf8;sha256=bc5af202d7984a3b8152dca13d8ec0256ba24ad4e8c624e463aa63356a149e00;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleState.h"
+
+namespace OpenXcom
+{
+	class Game;
+	class Surface;
+	class Text;
+	class TextList;
+	class ArticleDefinitionBaseFacility;
+
+	/**
+	 * ArticleStateBaseFacility has a caption, text, preview image and a stats block.
+	 * The facility image is found using the RuleBasefacility class.
+	 */
+
+	class ArticleStateBaseFacility : public ArticleState
+	{
+	public:
+		ArticleStateBaseFacility(ArticleDefinitionBaseFacility *article_defs);
+		virtual ~ArticleStateBaseFacility();
+
+	protected:
+		Surface *_image;
+		Text *_txtTitle;
+		Text *_txtInfo;
+		TextList *_lstInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateCraft.cpp;encoding=utf8;sha256=4785cc9ddd706241d992ad6effc981a59cbd703822adf57b50d3f556a9318cc5;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <sstream>
+#include "ArticleStateCraft.h"
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/Mod.h"
+#include "../Mod/RuleCraft.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Surface.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateCraft::ArticleStateCraft(ArticleDefinitionCraft *defs) : ArticleState(defs->id)
+	{
+		RuleCraft *craft = _game->getMod()->getCraft(defs->id, true);
+
+		// add screen elements
+		_txtTitle = new Text(210, 32, 5, 24);
+
+		// Set palette
+		setPalette("PAL_UFOPAEDIA");
+
+		ArticleState::initLayout();
+
+		// add other elements
+		add(_txtTitle);
+
+		// Set up objects
+		_game->getMod()->getSurface(defs->image_id)->blit(_bg);
+		_btnOk->setColor(Palette::blockOffset(15)-1);
+		_btnPrev->setColor(Palette::blockOffset(15)-1);
+		_btnNext->setColor(Palette::blockOffset(15)-1);
+
+		_txtTitle->setColor(Palette::blockOffset(14)+15);
+		_txtTitle->setBig();
+		_txtTitle->setWordWrap(true);
+		_txtTitle->setText(tr(defs->title));
+
+		_txtInfo = new Text(defs->rect_text.width, defs->rect_text.height, defs->rect_text.x, defs->rect_text.y);
+		add(_txtInfo);
+
+		_txtInfo->setColor(Palette::blockOffset(14)+15);
+		_txtInfo->setWordWrap(true);
+		_txtInfo->setScrollable(true);
+		_txtInfo->setText(tr(defs->text));
+
+		_txtStats = new Text(defs->rect_stats.width, defs->rect_stats.height, defs->rect_stats.x, defs->rect_stats.y);
+		add(_txtStats);
+
+		_txtStats->setColor(Palette::blockOffset(14)+15);
+		_txtStats->setSecondaryColor(Palette::blockOffset(15)+4);
+
+		std::ostringstream ss;
+		ss << tr("STR_MAXIMUM_SPEED_UC").arg(Unicode::formatNumber(craft->getMaxSpeed())) << '\n';
+		ss << tr("STR_ACCELERATION").arg(craft->getAcceleration()) << '\n';
+		ss << tr("STR_FUEL_CAPACITY").arg(Unicode::formatNumber(craft->getMaxFuel())) << '\n';
+		ss << tr("STR_WEAPON_PODS").arg(craft->getWeapons()) << '\n';
+		ss << tr("STR_DAMAGE_CAPACITY_UC").arg(Unicode::formatNumber(craft->getMaxDamage())) << '\n';
+		ss << tr("STR_CARGO_SPACE").arg(craft->getSoldiers()) << '\n';
+		ss << tr("STR_HWP_CAPACITY").arg(craft->getVehicles());
+		_txtStats->setText(ss.str());
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateCraft::~ArticleStateCraft()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateCraft.h;encoding=utf8;sha256=431b77cc6d0fe82320797908e20de9d5db0205badfd90696c9106c460e4b29a5;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleState.h"
+
+namespace OpenXcom
+{
+	class Game;
+	class Text;
+	class ArticleDefinitionCraft;
+
+	/**
+	 * ArticleStateCraft has a caption, text, background image and a stats block.
+	 * The layout of the description text and stats block can vary,
+	 * depending on the background craft image.
+	 */
+
+	class ArticleStateCraft : public ArticleState
+	{
+	public:
+		ArticleStateCraft(ArticleDefinitionCraft *article_defs);
+		virtual ~ArticleStateCraft();
+
+	protected:
+		Text *_txtTitle;
+		Text *_txtInfo;
+		Text *_txtStats;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateCraftWeapon.cpp;encoding=utf8;sha256=82350e12b26f6c92ca8578a53528fcc1b67ea75e0ab1c919bb9dbfa823834ca5;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <sstream>
+#include "ArticleStateCraftWeapon.h"
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/Mod.h"
+#include "../Mod/RuleCraftWeapon.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Surface.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+#include "../Interface/TextList.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateCraftWeapon::ArticleStateCraftWeapon(ArticleDefinitionCraftWeapon *defs) : ArticleState(defs->id)
+	{
+		RuleCraftWeapon *weapon = _game->getMod()->getCraftWeapon(defs->id, true);
+
+		// add screen elements
+		_txtTitle = new Text(200, 32, 5, 24);
+
+		// Set palette
+		setPalette("PAL_BATTLEPEDIA");
+
+		ArticleState::initLayout();
+
+		// add other elements
+		add(_txtTitle);
+
+		// Set up objects
+		_game->getMod()->getSurface(defs->image_id)->blit(_bg);
+		_btnOk->setColor(Palette::blockOffset(1));
+		_btnPrev->setColor(Palette::blockOffset(1));
+		_btnNext->setColor(Palette::blockOffset(1));
+
+		_txtTitle->setColor(Palette::blockOffset(14)+15);
+		_txtTitle->setBig();
+		_txtTitle->setWordWrap(true);
+		_txtTitle->setText(tr(defs->title));
+
+		_txtInfo = new Text(310, 32, 5, 160);
+		add(_txtInfo);
+
+		_txtInfo->setColor(Palette::blockOffset(14)+15);
+		_txtInfo->setWordWrap(true);
+		_txtInfo->setScrollable(true);
+		_txtInfo->setText(tr(defs->text));
+
+		_lstInfo = new TextList(250, 111, 5, 80);
+		add(_lstInfo);
+
+
+		_lstInfo->setColor(Palette::blockOffset(14)+15);
+		_lstInfo->setColumns(2, 180, 70);
+		_lstInfo->setDot(true);
+		_lstInfo->setBig();
+
+		_lstInfo->addRow(2, tr("STR_DAMAGE").c_str(), Unicode::formatNumber(weapon->getDamage()).c_str());
+		_lstInfo->setCellColor(0, 1, Palette::blockOffset(15)+4);
+
+		_lstInfo->addRow(2, tr("STR_RANGE").c_str(), tr("STR_KILOMETERS").arg(weapon->getRange()).c_str());
+		_lstInfo->setCellColor(1, 1, Palette::blockOffset(15)+4);
+
+		_lstInfo->addRow(2, tr("STR_ACCURACY").c_str(), Unicode::formatPercentage(weapon->getAccuracy()).c_str());
+		_lstInfo->setCellColor(2, 1, Palette::blockOffset(15)+4);
+
+		_lstInfo->addRow(2, tr("STR_RE_LOAD_TIME").c_str(), tr("STR_SECONDS").arg(weapon->getStandardReload()).c_str());
+		_lstInfo->setCellColor(3, 1, Palette::blockOffset(15)+4);
+
+		_lstInfo->addRow(2, tr("STR_ROUNDS").c_str(), Unicode::formatNumber(weapon->getAmmoMax()).c_str());
+		_lstInfo->setCellColor(4, 1, Palette::blockOffset(15)+4);
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateCraftWeapon::~ArticleStateCraftWeapon()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateCraftWeapon.h;encoding=utf8;sha256=c5d3b9993840aac3692282db226c5b64540a503aa0f0b238010843b074bcd3c8;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleState.h"
+
+namespace OpenXcom
+{
+	class Game;
+	class Text;
+	class TextList;
+	class ArticleDefinitionCraftWeapon;
+
+	/**
+	 * ArticleStateCraftWeapon has a caption, background image and a stats block.
+	 */
+
+	class ArticleStateCraftWeapon : public ArticleState
+	{
+	public:
+		ArticleStateCraftWeapon(ArticleDefinitionCraftWeapon *article_defs);
+		virtual ~ArticleStateCraftWeapon();
+
+	protected:
+		Text *_txtTitle;
+		Text *_txtInfo;
+		TextList *_lstInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateItem.cpp;encoding=utf8;sha256=71c2c5fbd113a4b9e879146325bfc8c3bb21e9ee05acf95a2e3a1e1f6cccd3ac;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <sstream>
+#include <algorithm>
+#include "Ufopaedia.h"
+#include "ArticleStateItem.h"
+#include "../Mod/Mod.h"
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/RuleItem.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Surface.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+#include "../Interface/TextList.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateItem::ArticleStateItem(ArticleDefinitionItem *defs) : ArticleState(defs->id)
+	{
+		RuleItem *item = _game->getMod()->getItem(defs->id, true);
+
+		// add screen elements
+		_txtTitle = new Text(148, 32, 5, 24);
+
+		// Set palette
+		setPalette("PAL_BATTLEPEDIA");
+
+		ArticleState::initLayout();
+
+		// add other elements
+		add(_txtTitle);
+
+		// Set up objects
+		_game->getMod()->getSurface("BACK08.SCR")->blit(_bg);
+		_btnOk->setColor(Palette::blockOffset(9));
+		_btnPrev->setColor(Palette::blockOffset(9));
+		_btnNext->setColor(Palette::blockOffset(9));
+
+		_txtTitle->setColor(Palette::blockOffset(14)+15);
+		_txtTitle->setBig();
+		_txtTitle->setWordWrap(true);
+		_txtTitle->setText(tr(defs->title));
+
+		// IMAGE
+		_image = new Surface(32, 48, 157, 5);
+		add(_image);
+
+		item->drawHandSprite(_game->getMod()->getSurfaceSet("BIGOBS.PCK"), _image);
+
+		std::vector<std::string> *ammo_data = item->getCompatibleAmmo();
+
+		// SHOT STATS TABLE (for firearms only)
+		if (item->getBattleType() == BT_FIREARM)
+		{
+			_txtShotType = new Text(100, 17, 8, 66);
+			add(_txtShotType);
+			_txtShotType->setColor(Palette::blockOffset(14)+15);
+			_txtShotType->setWordWrap(true);
+			_txtShotType->setText(tr("STR_SHOT_TYPE"));
+
+			_txtAccuracy = new Text(50, 17, 104, 66);
+			add(_txtAccuracy);
+			_txtAccuracy->setColor(Palette::blockOffset(14)+15);
+			_txtAccuracy->setWordWrap(true);
+			_txtAccuracy->setText(tr("STR_ACCURACY_UC"));
+
+			_txtTuCost = new Text(60, 17, 158, 66);
+			add(_txtTuCost);
+			_txtTuCost->setColor(Palette::blockOffset(14)+15);
+			_txtTuCost->setWordWrap(true);
+			_txtTuCost->setText(tr("STR_TIME_UNIT_COST"));
+
+			_lstInfo = new TextList(204, 55, 8, 82);
+			add(_lstInfo);
+
+			_lstInfo->setColor(Palette::blockOffset(15)+4); // color for %-data!
+			_lstInfo->setColumns(3, 100, 52, 52);
+			_lstInfo->setBig();
+
+			int current_row = 0;
+			if (item->getTUAuto()>0)
+			{
+				std::string tu = Unicode::formatPercentage(item->getTUAuto());
+				if (item->getFlatRate())
+				{
+					tu.erase(tu.end() - 1);
+				}
+				_lstInfo->addRow(3,
+								 tr("STR_SHOT_TYPE_AUTO").c_str(),
+								 Unicode::formatPercentage(item->getAccuracyAuto()).c_str(),
+								 tu.c_str());
+				_lstInfo->setCellColor(current_row, 0, Palette::blockOffset(14)+15);
+				current_row++;
+			}
+
+			if (item->getTUSnap()>0)
+			{
+				std::string tu = Unicode::formatPercentage(item->getTUSnap());
+				if (item->getFlatRate())
+				{
+					tu.erase(tu.end() - 1);
+				}
+				_lstInfo->addRow(3,
+								 tr("STR_SHOT_TYPE_SNAP").c_str(),
+								 Unicode::formatPercentage(item->getAccuracySnap()).c_str(),
+								 tu.c_str());
+				_lstInfo->setCellColor(current_row, 0, Palette::blockOffset(14)+15);
+				current_row++;
+			}
+
+			if (item->getTUAimed()>0)
+			{
+				std::string tu = Unicode::formatPercentage(item->getTUAimed());
+				if (item->getFlatRate())
+				{
+					tu.erase(tu.end() - 1);
+				}
+				_lstInfo->addRow(3,
+								 tr("STR_SHOT_TYPE_AIMED").c_str(),
+								 Unicode::formatPercentage(item->getAccuracyAimed()).c_str(),
+								 tu.c_str());
+				_lstInfo->setCellColor(current_row, 0, Palette::blockOffset(14)+15);
+				current_row++;
+			}
+
+			// text_info is BELOW the info table
+			_txtInfo = new Text((ammo_data->size()<3 ? 300 : 180), 56, 8, 138);
+		}
+		else
+		{
+			// text_info is larger and starts on top
+			_txtInfo = new Text(300, 125, 8, 67);
+		}
+
+		add(_txtInfo);
+
+		_txtInfo->setColor(Palette::blockOffset(14)+15);
+		_txtInfo->setWordWrap(true);
+		_txtInfo->setScrollable(true);
+		_txtInfo->setText(tr(defs->text));
+
+
+		// AMMO column
+		std::ostringstream ss;
+
+		for (int i = 0; i<3; ++i)
+		{
+			_txtAmmoType[i] = new Text(82, 16, 194, 20 + i*49);
+			add(_txtAmmoType[i]);
+			_txtAmmoType[i]->setColor(Palette::blockOffset(14)+15);
+			_txtAmmoType[i]->setAlign(ALIGN_CENTER);
+			_txtAmmoType[i]->setVerticalAlign(ALIGN_MIDDLE);
+			_txtAmmoType[i]->setWordWrap(true);
+
+			_txtAmmoDamage[i] = new Text(82, 17, 194, 40 + i*49);
+			add(_txtAmmoDamage[i]);
+			_txtAmmoDamage[i]->setColor(Palette::blockOffset(2));
+			_txtAmmoDamage[i]->setAlign(ALIGN_CENTER);
+			_txtAmmoDamage[i]->setBig();
+
+			_imageAmmo[i] = new Surface(32, 48, 280, 16 + i*49);
+			add(_imageAmmo[i]);
+		}
+
+		switch (item->getBattleType())
+		{
+			case BT_FIREARM:
+				_txtDamage = new Text(82, 10, 194, 7);
+				add(_txtDamage);
+				_txtDamage->setColor(Palette::blockOffset(14)+15);
+				_txtDamage->setAlign(ALIGN_CENTER);
+				_txtDamage->setText(tr("STR_DAMAGE_UC"));
+
+				_txtAmmo = new Text(50, 10, 268, 7);
+				add(_txtAmmo);
+				_txtAmmo->setColor(Palette::blockOffset(14)+15);
+				_txtAmmo->setAlign(ALIGN_CENTER);
+				_txtAmmo->setText(tr("STR_AMMO"));
+
+				if (ammo_data->empty())
+				{
+					_txtAmmoType[0]->setText(tr(getDamageTypeText(item->getDamageType())));
+
+					ss.str("");ss.clear();
+					ss << item->getPower();
+					if (item->getShotgunPellets())
+					{
+						ss << "x" << item->getShotgunPellets();
+					}
+					_txtAmmoDamage[0]->setText(ss.str());
+				}
+				else
+				{
+					for (size_t i = 0; i < std::min(ammo_data->size(), (size_t)3); ++i)
+					{
+						ArticleDefinition *ammo_article = _game->getMod()->getUfopaediaArticle((*ammo_data)[i], true);
+						if (Ufopaedia::isArticleAvailable(_game->getSavedGame(), ammo_article))
+						{
+							RuleItem *ammo_rule = _game->getMod()->getItem((*ammo_data)[i], true);
+							_txtAmmoType[i]->setText(tr(getDamageTypeText(ammo_rule->getDamageType())));
+
+							ss.str("");ss.clear();
+							ss << ammo_rule->getPower();
+							if (ammo_rule->getShotgunPellets())
+							{
+								ss << "x" << ammo_rule->getShotgunPellets();
+							}
+							_txtAmmoDamage[i]->setText(ss.str());
+
+							ammo_rule->drawHandSprite(_game->getMod()->getSurfaceSet("BIGOBS.PCK"), _imageAmmo[i]);
+						}
+					}
+				}
+				break;
+			case BT_AMMO:
+			case BT_GRENADE:
+			case BT_PROXIMITYGRENADE:
+			case BT_MELEE:
+				_txtDamage = new Text(82, 10, 194, 7);
+				add(_txtDamage);
+				_txtDamage->setColor(Palette::blockOffset(14)+15);
+				_txtDamage->setAlign(ALIGN_CENTER);
+				_txtDamage->setText(tr("STR_DAMAGE_UC"));
+
+				_txtAmmoType[0]->setText(tr(getDamageTypeText(item->getDamageType())));
+
+				ss.str("");ss.clear();
+				ss << item->getPower();
+				if (item->getShotgunPellets())
+				{
+					ss << "x" << item->getShotgunPellets();
+				}
+				_txtAmmoDamage[0]->setText(ss.str());
+				break;
+			default: break;
+		}
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateItem::~ArticleStateItem()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateItem.h;encoding=utf8;sha256=f830bd298e677bccbab4fbd50384b1fe6749a158fdcbc9a432da653188c7de7f;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleState.h"
+
+namespace OpenXcom
+{
+	class Game;
+	class Surface;
+	class Text;
+	class TextList;
+	class ArticleDefinitionItem;
+
+	/**
+	 * ArticleStateItem has a caption, text, preview image and a stats block.
+	 * The facility image is found using the RuleBasefacility class.
+	 */
+
+	class ArticleStateItem : public ArticleState
+	{
+	public:
+		ArticleStateItem(ArticleDefinitionItem *article_defs);
+		virtual ~ArticleStateItem();
+
+	protected:
+		Surface *_image;
+		Text *_txtTitle;
+		Text *_txtInfo;
+		TextList *_lstInfo;
+		Text *_txtShotType;
+		Text *_txtAccuracy;
+		Text *_txtTuCost;
+		Text *_txtDamage;
+		Text *_txtAmmo;
+		Text *_txtAmmoType[3];
+		Text *_txtAmmoDamage[3];
+		Surface *_imageAmmo[3];
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTD.cpp;encoding=utf8;sha256=5facca2c55e1a56557fc0098aefe6f013d990b4803439d4bbf0b13ee23825f80;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "../Mod/ArticleDefinition.h"
+#include "ArticleStateTFTD.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Surface.h"
+#include "../Engine/LocalizedText.h"
+#include "../Mod/Mod.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateTFTD::ArticleStateTFTD(ArticleDefinitionTFTD *defs) : ArticleState(defs->id)
+	{
+		// Set palette
+		setPalette("PAL_BASESCAPE");
+
+		_btnOk->setX(227);
+		_btnOk->setY(179);
+		_btnOk->setHeight(10);
+		_btnOk->setWidth(23);
+		_btnOk->setColor(Palette::blockOffset(0)+2);
+		_btnPrev->setX(254);
+		_btnPrev->setY(179);
+		_btnPrev->setHeight(10);
+		_btnPrev->setWidth(23);
+		_btnPrev->setColor(Palette::blockOffset(0)+2);
+		_btnNext->setX(281);
+		_btnNext->setY(179);
+		_btnNext->setHeight(10);
+		_btnNext->setWidth(23);
+		_btnNext->setColor(Palette::blockOffset(0)+2);
+
+		ArticleState::initLayout();
+
+		_game->getMod()->getSurface("BACK08.SCR")->blit(_bg);
+		_game->getMod()->getSurface(defs->image_id)->blit(_bg);
+
+		_txtInfo = new Text(defs->text_width, 136, 320 - defs->text_width, 34);
+		_txtTitle = new Text(284, 16, 36, 14);
+
+		add(_txtTitle);
+		add(_txtInfo);
+
+		_txtTitle->setColor(Palette::blockOffset(0)+2);
+		_txtTitle->setBig();
+		_txtTitle->setWordWrap(true);
+		_txtTitle->setAlign(ALIGN_CENTER);
+		_txtTitle->setText(tr(defs->title));
+
+		_txtInfo->setColor(Palette::blockOffset(0)+2);
+		_txtInfo->setWordWrap(true);
+		_txtInfo->setScrollable(true);
+		_txtInfo->setText(tr(defs->text));
+
+		// all of the above are common to the TFTD articles.
+
+		if (defs->getType() == UFOPAEDIA_TYPE_TFTD)
+		{
+			// this command is contained in all the subtypes of this article,
+			// and probably shouldn't run until all surfaces are added.
+			// in the case of a simple image/title/text article,
+			// we're done adding surfaces for now.
+			centerAllSurfaces();
+		}
+
+	}
+
+	ArticleStateTFTD::~ArticleStateTFTD()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTD.h;encoding=utf8;sha256=f00df9a2869d065e46d76378ee49558ac80e2c2ea57e34d12ab67622f13a7059;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleState.h"
+
+namespace OpenXcom
+{
+	class Text;
+	class ArticleDefinitionTFTD;
+
+	/**
+	 * Every TFTD article has a title, text block and a background image, with little to no variation.
+	 */
+
+	class ArticleStateTFTD : public ArticleState
+	{
+	public:
+		ArticleStateTFTD(ArticleDefinitionTFTD *defs);
+		virtual ~ArticleStateTFTD();
+
+	protected:
+		Text *_txtTitle;
+		Text *_txtInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDArmor.cpp;encoding=utf8;sha256=57cd073e936b3a305e3034a198e3a1c54b2a9a5d795849435aee118177919556;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <sstream>
+#include "../fmath.h"
+#include "ArticleStateTFTD.h"
+#include "ArticleStateTFTDArmor.h"
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/Mod.h"
+#include "../Mod/Armor.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/TextList.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateTFTDArmor::ArticleStateTFTDArmor(ArticleDefinitionTFTD *defs) : ArticleStateTFTD(defs), _row(0)
+	{
+		_txtInfo->setHeight(72);
+
+		Armor *armor = _game->getMod()->getArmor(defs->id, true);
+
+		_lstInfo = new TextList(150, 64, 168, 110);
+		add(_lstInfo);
+
+		_lstInfo->setColor(Palette::blockOffset(0)+2);
+		_lstInfo->setColumns(2, 125, 25);
+		_lstInfo->setDot(true);
+
+		// Add armor values
+		addStat("STR_FRONT_ARMOR", armor->getFrontArmor());
+		addStat("STR_LEFT_ARMOR", armor->getSideArmor());
+		addStat("STR_RIGHT_ARMOR", armor->getSideArmor());
+		addStat("STR_REAR_ARMOR", armor->getRearArmor());
+		addStat("STR_UNDER_ARMOR", armor->getUnderArmor());
+
+		_lstInfo->addRow(0);
+		++_row;
+
+		// Add damage modifiers
+		for (int i = 0; i < Armor::DAMAGE_TYPES; ++i)
+		{
+			ItemDamageType dt = (ItemDamageType)i;
+			int percentage = (int)Round(armor->getDamageModifier(dt) * 100.0f);
+			std::string damage = getDamageTypeText(dt);
+			if (percentage != 100 && damage != "STR_UNKNOWN")
+			{
+				addStat(damage, Unicode::formatPercentage(percentage));
+			}
+		}
+
+		_lstInfo->addRow(0);
+		++_row;
+
+		// Add unit stats
+		addStat("STR_TIME_UNITS", armor->getStats()->tu, true);
+		addStat("STR_STAMINA", armor->getStats()->stamina, true);
+		addStat("STR_HEALTH", armor->getStats()->health, true);
+		addStat("STR_BRAVERY", armor->getStats()->bravery, true);
+		addStat("STR_REACTIONS", armor->getStats()->reactions, true);
+		addStat("STR_FIRING_ACCURACY", armor->getStats()->firing, true);
+		addStat("STR_THROWING_ACCURACY", armor->getStats()->throwing, true);
+		addStat("STR_MELEE_ACCURACY", armor->getStats()->melee, true);
+		addStat("STR_STRENGTH", armor->getStats()->strength, true);
+		addStat("STR_PSIONIC_STRENGTH", armor->getStats()->psiStrength, true);
+		addStat("STR_PSIONIC_SKILL", armor->getStats()->psiSkill, true);
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateTFTDArmor::~ArticleStateTFTDArmor()
+	{}
+
+	void ArticleStateTFTDArmor::addStat(const std::string &label, int stat, bool plus)
+	{
+		if (stat != 0)
+		{
+			std::ostringstream ss;
+			if (plus && stat > 0)
+				ss << "+";
+			ss << stat;
+			_lstInfo->addRow(2, tr(label).c_str(), ss.str().c_str());
+			_lstInfo->setCellColor(_row, 1, Palette::blockOffset(15)+4);
+			++_row;
+		}
+	}
+
+	void ArticleStateTFTDArmor::addStat(const std::string &label, const std::string &stat)
+	{
+		_lstInfo->addRow(2, tr(label).c_str(), stat.c_str());
+		_lstInfo->setCellColor(_row, 1, Palette::blockOffset(15)+4);
+		++_row;
+	}
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDArmor.h;encoding=utf8;sha256=a770e47f2548b0b38da74d16b01c0005d39563235fe315d02dcc7bc00dedf9d2;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleStateTFTD.h"
+
+namespace OpenXcom
+{
+	class TextList;
+	class ArticleDefinitionTFTD;
+
+	class ArticleStateTFTDArmor : public ArticleStateTFTD
+	{
+	public:
+		ArticleStateTFTDArmor(ArticleDefinitionTFTD *defs);
+		virtual ~ArticleStateTFTDArmor();
+
+	protected:
+		void addStat(const std::string &label, int stat, bool plus = false);
+		void addStat(const std::string &label, const std::string &stat);
+
+		int _row;
+		TextList *_lstInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDCraft.cpp;encoding=utf8;sha256=91f77836ecd60cec09b623f6dca81082764dca45613d83ff284d9a521b214a4d;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/Mod.h"
+#include "../Mod/RuleCraft.h"
+#include "ArticleStateTFTD.h"
+#include "ArticleStateTFTDCraft.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/Text.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateTFTDCraft::ArticleStateTFTDCraft(ArticleDefinitionTFTD *defs) : ArticleStateTFTD(defs)
+	{
+		_txtInfo->setHeight(80);
+
+		RuleCraft *craft = _game->getMod()->getCraft(defs->id, true);
+		_txtStats = new Text(131, 56, 187, 116);
+		add(_txtStats);
+
+		_txtStats->setColor(Palette::blockOffset(0)+2);
+		_txtStats->setSecondaryColor(Palette::blockOffset(15)+4);
+
+		std::ostringstream ss;
+		ss << tr("STR_MAXIMUM_SPEED_UC").arg(Unicode::formatNumber(craft->getMaxSpeed())) << '\n';
+		ss << tr("STR_ACCELERATION").arg(craft->getAcceleration()) << '\n';
+		ss << tr("STR_FUEL_CAPACITY").arg(Unicode::formatNumber(craft->getMaxFuel())) << '\n';
+		ss << tr("STR_WEAPON_PODS").arg(craft->getWeapons()) << '\n';
+		ss << tr("STR_DAMAGE_CAPACITY_UC").arg(Unicode::formatNumber(craft->getMaxDamage())) << '\n';
+		ss << tr("STR_CARGO_SPACE").arg(craft->getSoldiers()) << '\n';
+		ss << tr("STR_HWP_CAPACITY").arg(craft->getVehicles());
+		_txtStats->setText(ss.str());
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateTFTDCraft::~ArticleStateTFTDCraft()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDCraft.h;encoding=utf8;sha256=45b75cefbd0c78a9bc4e2a92f66c9b968448023258e1060492268475c0768f9a;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleStateTFTD.h"
+
+namespace OpenXcom
+{
+	class Text;
+	class ArticleDefinitionTFTD;
+
+	class ArticleStateTFTDCraft : public ArticleStateTFTD
+	{
+	public:
+		ArticleStateTFTDCraft(ArticleDefinitionTFTD *defs);
+		virtual ~ArticleStateTFTDCraft();
+
+	protected:
+		Text *_txtStats;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDCraftWeapon.cpp;encoding=utf8;sha256=83e217045be8d5e9612b271a57c3941dcdaa8e2ff2ee70c39bb7bb74cd6c89cc;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "ArticleStateTFTD.h"
+#include "ArticleStateTFTDCraftWeapon.h"
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/Mod.h"
+#include "../Mod/RuleCraftWeapon.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/TextList.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateTFTDCraftWeapon::ArticleStateTFTDCraftWeapon(ArticleDefinitionTFTD *defs) : ArticleStateTFTD(defs)
+	{
+		_txtInfo->setHeight(88);
+
+		RuleCraftWeapon *weapon = _game->getMod()->getCraftWeapon(defs->id, true);
+
+		_lstInfo = new TextList(150, 50, 168, 126);
+		add(_lstInfo);
+
+		_lstInfo->setColor(Palette::blockOffset(0)+2);
+		_lstInfo->setColumns(2, 100, 68); // deliberately making this wider than the original to account for finnish.
+		_lstInfo->setDot(true);
+
+		_lstInfo->addRow(2, tr("STR_DAMAGE").c_str(), Unicode::formatNumber(weapon->getDamage()).c_str());
+		_lstInfo->setCellColor(0, 1, Palette::blockOffset(15)+4);
+
+		_lstInfo->addRow(2, tr("STR_RANGE").c_str(), tr("STR_KILOMETERS").arg(weapon->getRange()).c_str());
+		_lstInfo->setCellColor(1, 1, Palette::blockOffset(15)+4);
+
+		_lstInfo->addRow(2, tr("STR_ACCURACY").c_str(), Unicode::formatPercentage(weapon->getAccuracy()).c_str());
+		_lstInfo->setCellColor(2, 1, Palette::blockOffset(15)+4);
+
+		_lstInfo->addRow(2, tr("STR_RE_LOAD_TIME").c_str(), tr("STR_SECONDS").arg(weapon->getStandardReload()).c_str());
+		_lstInfo->setCellColor(3, 1, Palette::blockOffset(15)+4);
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateTFTDCraftWeapon::~ArticleStateTFTDCraftWeapon()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDCraftWeapon.h;encoding=utf8;sha256=77ba6da4bd6f422de0131986fdc6416e37b002320358b5c0590c84eb77143cf8;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleStateTFTD.h"
+
+namespace OpenXcom
+{
+	class TextList;
+	class ArticleDefinitionTFTD;
+
+	class ArticleStateTFTDCraftWeapon : public ArticleStateTFTD
+	{
+	public:
+		ArticleStateTFTDCraftWeapon(ArticleDefinitionTFTD *defs);
+		virtual ~ArticleStateTFTDCraftWeapon();
+
+	protected:
+		TextList *_lstInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDFacility.cpp;encoding=utf8;sha256=e0da56b625cd62e671ccdd92dd2af9ee972f12598e7d0a63e5f4dfd35ef85502;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/Mod.h"
+#include "../Mod/RuleBaseFacility.h"
+#include "ArticleStateTFTD.h"
+#include "ArticleStateTFTDFacility.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/TextList.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateTFTDFacility::ArticleStateTFTDFacility(ArticleDefinitionTFTD *defs) : ArticleStateTFTD(defs)
+	{
+		_txtInfo->setHeight(112);
+
+		RuleBaseFacility *facility = _game->getMod()->getBaseFacility(defs->id, true);
+
+		_lstInfo = new TextList(150, 50, 168, 150);
+		add(_lstInfo);
+
+		_lstInfo->setColor(Palette::blockOffset(0)+2);
+		_lstInfo->setColumns(2, 104, 46);
+		_lstInfo->setDot(true);
+
+		std::ostringstream ss;
+		int row = 0;
+		if (facility->getDefenseValue() > 0)
+		{
+			_lstInfo->setY(_lstInfo->getY() - 16);
+			_txtInfo->setHeight(_txtInfo->getHeight() - 16);
+			ss.str("");ss.clear();
+			ss << facility->getDefenseValue();
+			_lstInfo->addRow(2, tr("STR_DEFENSE_VALUE").c_str(), ss.str().c_str());
+			_lstInfo->setCellColor(row++, 1, Palette::blockOffset(15)+4);
+
+			ss.str("");ss.clear();
+			ss << Unicode::formatPercentage(facility->getHitRatio());
+			_lstInfo->addRow(2, tr("STR_HIT_RATIO").c_str(), ss.str().c_str());
+			_lstInfo->setCellColor(row++, 1, Palette::blockOffset(15)+4);
+		}
+
+		ss.str("");ss.clear();
+		_lstInfo->addRow(2, tr("STR_CONSTRUCTION_TIME").c_str(), tr("STR_DAY", facility->getBuildTime()).c_str());
+		_lstInfo->setCellColor(row++, 1, Palette::blockOffset(15)+4);
+
+		ss << Unicode::formatFunding(facility->getBuildCost());
+		_lstInfo->addRow(2, tr("STR_CONSTRUCTION_COST").c_str(), ss.str().c_str());
+		_lstInfo->setCellColor(row++, 1, Palette::blockOffset(15)+4);
+
+		ss.str("");ss.clear();
+		ss << Unicode::formatFunding(facility->getMonthlyCost());
+		_lstInfo->addRow(2, tr("STR_MAINTENANCE_COST").c_str(), ss.str().c_str());
+		_lstInfo->setCellColor(row++, 1, Palette::blockOffset(15)+4);
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateTFTDFacility::~ArticleStateTFTDFacility()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDFacility.h;encoding=utf8;sha256=051ad9d7f68dbdb5ab87611943cb8f23f0b20317054dac1b24e894360551f646;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleStateTFTD.h"
+
+namespace OpenXcom
+{
+	class TextList;
+	class ArticleDefinitionTFTD;
+
+	class ArticleStateTFTDFacility : public ArticleStateTFTD
+	{
+	public:
+		ArticleStateTFTDFacility(ArticleDefinitionTFTD *defs);
+		virtual ~ArticleStateTFTDFacility();
+
+	protected:
+		TextList *_lstInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDItem.cpp;encoding=utf8;sha256=8eabc9f91a77eae517d37f54ac4fa164f418cd54eed3fadfec4d728e08ff6677;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <sstream>
+#include <algorithm>
+#include "Ufopaedia.h"
+#include "ArticleStateTFTDItem.h"
+#include "../Mod/Mod.h"
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/RuleItem.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/TextList.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateTFTDItem::ArticleStateTFTDItem(ArticleDefinitionTFTD *defs) : ArticleStateTFTD(defs)
+	{
+		RuleItem *item = _game->getMod()->getItem(defs->id, true);
+
+		std::vector<std::string> *ammo_data = item->getCompatibleAmmo();
+
+		// SHOT STATS TABLE (for firearms only)
+		if (item->getBattleType() == BT_FIREARM)
+		{
+			_txtShotType = new Text(53, 17, 8, 157);
+			add(_txtShotType);
+			_txtShotType->setColor(Palette::blockOffset(0)+2);
+			_txtShotType->setWordWrap(true);
+			_txtShotType->setText(tr("STR_SHOT_TYPE"));
+
+			_txtAccuracy = new Text(57, 17, 61, 157);
+			add(_txtAccuracy);
+			_txtAccuracy->setColor(Palette::blockOffset(0)+2);
+			_txtAccuracy->setWordWrap(true);
+			_txtAccuracy->setText(tr("STR_ACCURACY_UC"));
+
+			_txtTuCost = new Text(56, 17, 118, 157);
+			add(_txtTuCost);
+			_txtTuCost->setColor(Palette::blockOffset(0)+2);
+			_txtTuCost->setWordWrap(true);
+			_txtTuCost->setText(tr("STR_TIME_UNIT_COST"));
+
+			_lstInfo = new TextList(140, 55, 8, 170);
+			add(_lstInfo);
+
+			_lstInfo->setColor(Palette::blockOffset(15)+4); // color for %-data!
+			_lstInfo->setColumns(3, 70, 40, 30);
+
+			int current_row = 0;
+			if (item->getTUAuto()>0)
+			{
+				std::string tu = Unicode::formatPercentage(item->getTUAuto());
+				if (item->getFlatRate())
+				{
+					tu.erase(tu.end() - 1);
+				}
+				_lstInfo->addRow(3,
+								 tr("STR_SHOT_TYPE_AUTO").c_str(),
+								 Unicode::formatPercentage(item->getAccuracyAuto()).c_str(),
+								 tu.c_str());
+				_lstInfo->setCellColor(current_row, 0, Palette::blockOffset(0)+2);
+				current_row++;
+			}
+
+			if (item->getTUSnap()>0)
+			{
+				std::string tu = Unicode::formatPercentage(item->getTUSnap());
+				if (item->getFlatRate())
+				{
+					tu.erase(tu.end() - 1);
+				}
+				_lstInfo->addRow(3,
+								 tr("STR_SHOT_TYPE_SNAP").c_str(),
+								 Unicode::formatPercentage(item->getAccuracySnap()).c_str(),
+								 tu.c_str());
+				_lstInfo->setCellColor(current_row, 0, Palette::blockOffset(0)+2);
+				current_row++;
+			}
+
+			if (item->getTUAimed()>0)
+			{
+				std::string tu = Unicode::formatPercentage(item->getTUAimed());
+				if (item->getFlatRate())
+				{
+					tu.erase(tu.end() - 1);
+				}
+				_lstInfo->addRow(3,
+								 tr("STR_SHOT_TYPE_AIMED").c_str(),
+								 Unicode::formatPercentage(item->getAccuracyAimed()).c_str(),
+								 tu.c_str());
+				_lstInfo->setCellColor(current_row, 0, Palette::blockOffset(0)+2);
+				current_row++;
+			}
+		}
+
+		// AMMO column
+		std::ostringstream ss;
+
+		for (int i = 0; i<3; ++i)
+		{
+			_txtAmmoType[i] = new Text(120, 9, 168, 144 + i*10);
+			add(_txtAmmoType[i]);
+			_txtAmmoType[i]->setColor(Palette::blockOffset(0)+2);
+			_txtAmmoType[i]->setWordWrap(true);
+
+			_txtAmmoDamage[i] = new Text(20, 9, 300, 144 + i*10);
+			add(_txtAmmoDamage[i]);
+			_txtAmmoDamage[i]->setColor(Palette::blockOffset(3)+6);
+		}
+
+		switch (item->getBattleType())
+		{
+			case BT_FIREARM:
+				if (ammo_data->empty())
+				{
+					_txtAmmoType[0]->setText(tr(getDamageTypeText(item->getDamageType())));
+
+					ss.str("");ss.clear();
+					ss << item->getPower();
+					if (item->getShotgunPellets())
+					{
+						ss << "x" << item->getShotgunPellets();
+					}
+					_txtAmmoDamage[0]->setText(ss.str());
+				}
+				else
+				{
+					for (size_t i = 0; i < std::min(ammo_data->size(), (size_t)3); ++i)
+					{
+						ArticleDefinition *ammo_article = _game->getMod()->getUfopaediaArticle((*ammo_data)[i], true);
+						if (Ufopaedia::isArticleAvailable(_game->getSavedGame(), ammo_article))
+						{
+							RuleItem *ammo_rule = _game->getMod()->getItem((*ammo_data)[i], true);
+							_txtAmmoType[i]->setText(tr(getDamageTypeText(ammo_rule->getDamageType())));
+
+							ss.str("");ss.clear();
+							ss << ammo_rule->getPower();
+							if (ammo_rule->getShotgunPellets())
+							{
+								ss << "x" << ammo_rule->getShotgunPellets();
+							}
+							_txtAmmoDamage[i]->setText(ss.str());
+						}
+					}
+				}
+				break;
+			case BT_AMMO:
+			case BT_GRENADE:
+			case BT_PROXIMITYGRENADE:
+			case BT_MELEE:
+				_txtAmmoType[0]->setText(tr(getDamageTypeText(item->getDamageType())));
+
+				ss.str("");ss.clear();
+				ss << item->getPower();
+				_txtAmmoDamage[0]->setText(ss.str());
+				break;
+			default: break;
+		}
+
+		if (!_txtAmmoType[0]->getText().empty())
+			_txtInfo->setHeight(112);
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateTFTDItem::~ArticleStateTFTDItem()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDItem.h;encoding=utf8;sha256=71793180766252c105a6fa0730d5faf2988613f43419517610a31153740fa500;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleStateTFTD.h"
+
+namespace OpenXcom
+{
+	class TextList;
+	class Text;
+	class ArticleDefinitionTFTD;
+
+	class ArticleStateTFTDItem : public ArticleStateTFTD
+	{
+	public:
+		ArticleStateTFTDItem(ArticleDefinitionTFTD *defs);
+		virtual ~ArticleStateTFTDItem();
+
+	protected:
+		TextList *_lstInfo;
+		Text *_txtShotType;
+		Text *_txtAccuracy;
+		Text *_txtTuCost;
+		Text *_txtAmmoType[3];
+		Text *_txtAmmoDamage[3];
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDUso.cpp;encoding=utf8;sha256=d79f566f0c39263555ebeaf8b72c79cb629e8bdfc64531019e1bcf914c2593bd;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/Mod.h"
+#include "../Mod/RuleUfo.h"
+#include "ArticleStateTFTD.h"
+#include "ArticleStateTFTDUso.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/TextList.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateTFTDUso::ArticleStateTFTDUso(ArticleDefinitionTFTD *defs) : ArticleStateTFTD(defs)
+	{
+		_txtInfo->setHeight(112);
+
+		RuleUfo *ufo = _game->getMod()->getUfo(defs->id, true);
+
+		_lstInfo = new TextList(150, 50, 168, 142);
+		add(_lstInfo);
+
+		_lstInfo->setColor(Palette::blockOffset(0)+2);
+		_lstInfo->setColumns(2, 95, 55);
+		_lstInfo->setDot(true);
+
+		_lstInfo->addRow(2, tr("STR_DAMAGE_CAPACITY").c_str(), Unicode::formatNumber(ufo->getMaxDamage()).c_str());
+
+		_lstInfo->addRow(2, tr("STR_WEAPON_POWER").c_str(), Unicode::formatNumber(ufo->getWeaponPower()).c_str());
+
+		_lstInfo->addRow(2, tr("STR_WEAPON_RANGE").c_str(), tr("STR_KILOMETERS").arg(ufo->getWeaponRange()).c_str());
+
+		_lstInfo->addRow(2, tr("STR_MAXIMUM_SPEED").c_str(), tr("STR_KNOTS").arg(Unicode::formatNumber(ufo->getMaxSpeed())).c_str());
+		for (int i = 0; i != 4; ++i)
+		{
+			_lstInfo->setCellColor(i, 1, Palette::blockOffset(15)+4);
+		}
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateTFTDUso::~ArticleStateTFTDUso()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDUso.h;encoding=utf8;sha256=80bb42e3a0d740e135f2b1fe9bd68c44a36fc6ac34ca5029e4d3b4754604c178;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleStateTFTD.h"
+
+namespace OpenXcom
+{
+	class TextList;
+	class ArticleDefinitionTFTD;
+
+	class ArticleStateTFTDUso : public ArticleStateTFTD
+	{
+	public:
+		ArticleStateTFTDUso(ArticleDefinitionTFTD *defs);
+		virtual ~ArticleStateTFTDUso();
+
+	protected:
+		TextList *_lstInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDVehicle.cpp;encoding=utf8;sha256=cdb0116817012328708323a50870bc755652c3a7876abe0c95f1ef0a42df9bcc;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "../Mod/ArticleDefinition.h"
+#include "ArticleStateTFTDVehicle.h"
+#include <sstream>
+#include "../Engine/Game.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Palette.h"
+#include "../Interface/TextList.h"
+#include "../Mod/Mod.h"
+#include "../Mod/Unit.h"
+#include "../Mod/Armor.h"
+#include "../Mod/RuleItem.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateTFTDVehicle::ArticleStateTFTDVehicle(ArticleDefinitionTFTD *defs) : ArticleStateTFTD(defs)
+	{
+		_txtInfo->setHeight(72);
+
+		Unit *unit = _game->getMod()->getUnit(defs->id, true);
+		Armor *armor = _game->getMod()->getArmor(unit->getArmor(), true);
+		RuleItem *item = _game->getMod()->getItem(defs->id, true);
+
+		_lstStats = new TextList(150, 65, 168, 106);
+
+		add(_lstStats);
+
+		_lstStats->setColor(Palette::blockOffset(0)+2);
+		_lstStats->setColumns(2, 100, 50);
+		_lstStats->setDot(true);
+
+		_lstStats2 = new TextList(195, 33, 25, 166);
+
+		add(_lstStats2);
+
+		_lstStats2->setColor(Palette::blockOffset(0) + 2);
+		_lstStats2->setColumns(2, 65, 130);
+		_lstStats2->setDot(true);
+
+		std::ostringstream ss;
+		ss << unit->getStats()->tu;
+		_lstStats->addRow(2, tr("STR_TIME_UNITS").c_str(), ss.str().c_str());
+
+		std::ostringstream ss2;
+		ss2 << unit->getStats()->health;
+		_lstStats->addRow(2, tr("STR_HEALTH").c_str(), ss2.str().c_str());
+
+		std::ostringstream ss3;
+		ss3 << armor->getFrontArmor();
+		_lstStats->addRow(2, tr("STR_FRONT_ARMOR").c_str(), ss3.str().c_str());
+
+		std::ostringstream ss4;
+		ss4 << armor->getSideArmor();
+		_lstStats->addRow(2, tr("STR_LEFT_ARMOR").c_str(), ss4.str().c_str());
+
+		std::ostringstream ss5;
+		ss5 << armor->getSideArmor();
+		_lstStats->addRow(2, tr("STR_RIGHT_ARMOR").c_str(), ss5.str().c_str());
+
+		std::ostringstream ss6;
+		ss6 << armor->getRearArmor();
+		_lstStats->addRow(2, tr("STR_REAR_ARMOR").c_str(), ss6.str().c_str());
+
+		std::ostringstream ss7;
+		ss7 << armor->getUnderArmor();
+		_lstStats->addRow(2, tr("STR_UNDER_ARMOR").c_str(), ss7.str().c_str());
+
+		_lstStats2->addRow(2, tr("STR_WEAPON").c_str(), tr(defs->weapon).c_str());
+
+		if (!item->getCompatibleAmmo()->empty())
+		{
+			RuleItem *ammo = _game->getMod()->getItem(item->getCompatibleAmmo()->front(), true);
+
+			std::ostringstream ss8;
+			ss8 << ammo->getPower();
+			_lstStats2->addRow(2, tr("STR_WEAPON_POWER").c_str(), ss8.str().c_str());
+
+			_lstStats2->addRow(2, tr("STR_AMMUNITION").c_str(), tr(ammo->getName()).c_str());
+
+			std::ostringstream ss9;
+			if (item->getClipSize() > 0)
+			{
+				ss9 << item->getClipSize();
+			}
+			else
+			{
+				ss9 << ammo->getClipSize();
+			}
+
+			_lstStats2->addRow(2, tr("STR_ROUNDS").c_str(), ss9.str().c_str());
+		}
+		else
+		{
+			std::ostringstream ss8;
+			ss8 << item->getPower();
+			_lstStats2->addRow(2, tr("STR_WEAPON_POWER").c_str(), ss8.str().c_str());
+		}
+
+		for (size_t i = 0; i != _lstStats->getRows(); ++i)
+		{
+			_lstStats->setCellColor(i, 1, Palette::blockOffset(15)+4);
+		}
+		for (size_t i = 0; i != _lstStats2->getRows(); ++i)
+		{
+			_lstStats2->setCellColor(i, 1, Palette::blockOffset(15) + 4);
+		}
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateTFTDVehicle::~ArticleStateTFTDVehicle()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTFTDVehicle.h;encoding=utf8;sha256=75406e39fb998354acebe05f34e761f7c18289b9cab6454c156ef4ac40908eb7;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleStateTFTD.h"
+
+namespace OpenXcom
+{
+	class TextList;
+	class ArticleDefinitionTFTD;
+
+	class ArticleStateTFTDVehicle : public ArticleStateTFTD
+	{
+	public:
+		ArticleStateTFTDVehicle(ArticleDefinitionTFTD *defs);
+		virtual ~ArticleStateTFTDVehicle();
+
+	protected:
+		TextList *_lstStats, *_lstStats2;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateText.cpp;encoding=utf8;sha256=15929f89b096d4a7b92d3e8e80d14b05a3df41aae610bf12cecbeeadce25b6e6;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "../Mod/ArticleDefinition.h"
+#include "ArticleStateText.h"
+#include "../Engine/Game.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Surface.h"
+#include "../Mod/Mod.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateText::ArticleStateText(ArticleDefinitionText *defs) : ArticleState(defs->id)
+	{
+		// add screen elements
+		_txtTitle = new Text(296, 17, 5, 23);
+		_txtInfo = new Text(296, 150, 10, 48);
+
+		// Set palette
+		setPalette("PAL_UFOPAEDIA");
+
+		ArticleState::initLayout();
+
+		// add other elements
+		add(_txtTitle);
+		add(_txtInfo);
+
+		centerAllSurfaces();
+
+		// Set up objects
+		_game->getMod()->getSurface("BACK10.SCR")->blit(_bg);
+		_btnOk->setColor(Palette::blockOffset(5));
+		_btnPrev->setColor(Palette::blockOffset(5));
+		_btnNext->setColor(Palette::blockOffset(5));
+
+		_txtTitle->setColor(Palette::blockOffset(15)+4);
+		_txtTitle->setBig();
+		_txtTitle->setText(tr(defs->title));
+
+		_txtInfo->setColor(Palette::blockOffset(15)-1);
+		_txtInfo->setWordWrap(true);
+		_txtInfo->setScrollable(true);
+		_txtInfo->setText(tr(defs->text));
+	}
+
+	ArticleStateText::~ArticleStateText()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateText.h;encoding=utf8;sha256=87cd384c65c59f43681e560c1a85a6beea48ad397b21b5a40ec00d77e906a812;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleState.h"
+
+namespace OpenXcom
+{
+	class Game;
+	class Text;
+	class ArticleDefinitionText;
+
+	/**
+	 * ArticleStateText has only a caption and a text.
+	 */
+
+	class ArticleStateText : public ArticleState
+	{
+	public:
+		ArticleStateText(ArticleDefinitionText *article_defs);
+		virtual ~ArticleStateText();
+
+	protected:
+		Text *_txtTitle;
+		Text *_txtInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTextImage.cpp;encoding=utf8;sha256=6dcf844b199bb23d160ce7b21d40aa9cb44b468fa7dbb94b22f5e354a585319c;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "../Mod/ArticleDefinition.h"
+#include "ArticleStateTextImage.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Surface.h"
+#include "../Engine/LocalizedText.h"
+#include "../Mod/Mod.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateTextImage::ArticleStateTextImage(ArticleDefinitionTextImage *defs) : ArticleState(defs->id)
+	{
+		// add screen elements
+		_txtTitle = new Text(defs->text_width, 48, 5, 22);
+
+		// Set palette
+		setPalette("PAL_UFOPAEDIA");
+
+		ArticleState::initLayout();
+
+		// add other elements
+		add(_txtTitle);
+
+		// Set up objects
+		_game->getMod()->getSurface(defs->image_id)->blit(_bg);
+		_btnOk->setColor(Palette::blockOffset(5)+3);
+		_btnPrev->setColor(Palette::blockOffset(5)+3);
+		_btnNext->setColor(Palette::blockOffset(5)+3);
+
+		_txtTitle->setColor(Palette::blockOffset(15)+4);
+		_txtTitle->setBig();
+		_txtTitle->setWordWrap(true);
+		_txtTitle->setText(tr(defs->title));
+
+		int text_height = _txtTitle->getTextHeight();
+
+		_txtInfo = new Text(defs->text_width, 176 - text_height, 5, 23 + text_height);
+		add(_txtInfo);
+
+		_txtInfo->setColor(Palette::blockOffset(15)-1);
+		_txtInfo->setWordWrap(true);
+		_txtInfo->setScrollable(true);
+		_txtInfo->setText(tr(defs->text));
+
+		centerAllSurfaces();
+	}
+
+	ArticleStateTextImage::~ArticleStateTextImage()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateTextImage.h;encoding=utf8;sha256=7d3b7b115647a9d720c9a78c76c094a4f7c6433e032f8e5fc1028904962b89a1;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleState.h"
+
+namespace OpenXcom
+{
+	class Game;
+	class Text;
+	class ArticleStateTextImage;
+	class ArticleDefinitionTextImage;
+
+	/**
+	 * ArticleStateTextImage has a title, text block and a background image.
+	 */
+
+	class ArticleStateTextImage : public ArticleState
+	{
+	public:
+		ArticleStateTextImage(ArticleDefinitionTextImage *defs);
+		virtual ~ArticleStateTextImage();
+
+	protected:
+		Text *_txtTitle;
+		Text *_txtInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateUfo.cpp;encoding=utf8;sha256=d5983b49a4ceba8ad58b37acc6d4af678d59d8339f0d997e7d836a6da64de793;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <sstream>
+#include "ArticleStateUfo.h"
+#include "../Mod/ArticleDefinition.h"
+#include "../Mod/Mod.h"
+#include "../Mod/RuleUfo.h"
+#include "../Engine/Game.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Surface.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Unicode.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+#include "../Interface/TextList.h"
+#include "../Mod/RuleInterface.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateUfo::ArticleStateUfo(ArticleDefinitionUfo *defs) : ArticleState(defs->id)
+	{
+		RuleUfo *ufo = _game->getMod()->getUfo(defs->id, true);
+
+		// add screen elements
+		_txtTitle = new Text(155, 32, 5, 24);
+
+		// Set palette
+		setPalette("PAL_GEOSCAPE");
+
+		ArticleState::initLayout();
+
+		// add other elements
+		add(_txtTitle);
+
+		// Set up objects
+		_game->getMod()->getSurface("BACK11.SCR")->blit(_bg);
+		_btnOk->setColor(Palette::blockOffset(8)+5);
+		_btnPrev->setColor(Palette::blockOffset(8)+5);
+		_btnNext->setColor(Palette::blockOffset(8)+5);
+
+		_txtTitle->setColor(Palette::blockOffset(8)+5);
+		_txtTitle->setBig();
+		_txtTitle->setWordWrap(true);
+		_txtTitle->setText(tr(defs->title));
+
+		_image = new Surface(160, 52, 160, 6);
+		add(_image);
+
+		RuleInterface *dogfightInterface = _game->getMod()->getInterface("dogfight");
+		Surface *graphic = _game->getMod()->getSurface("INTERWIN.DAT");
+		graphic->setX(0);
+		graphic->setY(0);
+		graphic->getCrop()->x = 0;
+		graphic->getCrop()->y = 0;
+		graphic->getCrop()->w = _image->getWidth();
+		graphic->getCrop()->h = _image->getHeight();
+		_image->drawRect(graphic->getCrop(), 15);
+		graphic->blit(_image);
+
+		if (ufo->getModSprite().empty())
+		{
+			graphic->getCrop()->y = dogfightInterface->getElement("previewMid")->y + dogfightInterface->getElement("previewMid")->h * ufo->getSprite();
+			graphic->getCrop()->h = dogfightInterface->getElement("previewMid")->h;
+		}
+		else
+		{
+			graphic = _game->getMod()->getSurface(ufo->getModSprite());
+		}
+		graphic->setX(0);
+		graphic->setY(0);
+		graphic->blit(_image);
+
+		_txtInfo = new Text(300, 50, 10, 140);
+		add(_txtInfo);
+
+		_txtInfo->setColor(Palette::blockOffset(8)+5);
+		_txtInfo->setWordWrap(true);
+		_txtInfo->setScrollable(true);
+		_txtInfo->setText(tr(defs->text));
+
+		_lstInfo = new TextList(310, 64, 10, 68);
+		add(_lstInfo);
+
+		centerAllSurfaces();
+
+		_lstInfo->setColor(Palette::blockOffset(8)+5);
+		_lstInfo->setColumns(2, 200, 110);
+//		_lstInfo->setCondensed(true);
+		_lstInfo->setBig();
+		_lstInfo->setDot(true);
+
+		_lstInfo->addRow(2, tr("STR_DAMAGE_CAPACITY").c_str(), Unicode::formatNumber(ufo->getMaxDamage()).c_str());
+
+		_lstInfo->addRow(2, tr("STR_WEAPON_POWER").c_str(), Unicode::formatNumber(ufo->getWeaponPower()).c_str());
+
+		_lstInfo->addRow(2, tr("STR_WEAPON_RANGE").c_str(), tr("STR_KILOMETERS").arg(ufo->getWeaponRange()).c_str());
+
+		_lstInfo->addRow(2, tr("STR_MAXIMUM_SPEED").c_str(), tr("STR_KNOTS").arg(Unicode::formatNumber(ufo->getMaxSpeed())).c_str());
+	}
+
+	ArticleStateUfo::~ArticleStateUfo()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateUfo.h;encoding=utf8;sha256=3cce580b0c9464c773b0a52741691c4bc058acd168d6dca732d268120d2db460;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleState.h"
+
+namespace OpenXcom
+{
+	class Game;
+	class Surface;
+	class Text;
+	class TextList;
+	class ArticleDefinitionUfo;
+
+	/**
+	 * ArticleStateUfo has a caption, text, preview image and a stats block.
+	 * The UFO image is found using the RuleUfo class.
+	 */
+
+	class ArticleStateUfo : public ArticleState
+	{
+	public:
+		ArticleStateUfo(ArticleDefinitionUfo *article_defs);
+		virtual ~ArticleStateUfo();
+
+	protected:
+		Surface *_image;
+		Text *_txtTitle;
+		Text *_txtInfo;
+		TextList *_lstInfo;
+	};
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateVehicle.cpp;encoding=utf8;sha256=2e73b7ff39cce46fd1293197b5a5d01e95c1fd368383387996ef54e436322293;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "../Mod/ArticleDefinition.h"
+#include "ArticleStateVehicle.h"
+#include <sstream>
+#include "../Engine/Game.h"
+#include "../Engine/LocalizedText.h"
+#include "../Engine/Palette.h"
+#include "../Engine/Surface.h"
+#include "../Mod/Mod.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+#include "../Interface/TextList.h"
+#include "../Mod/Unit.h"
+#include "../Mod/Armor.h"
+#include "../Mod/RuleItem.h"
+
+namespace OpenXcom
+{
+
+	ArticleStateVehicle::ArticleStateVehicle(ArticleDefinitionVehicle *defs) : ArticleState(defs->id)
+	{
+		Unit *unit = _game->getMod()->getUnit(defs->id, true);
+		Armor *armor = _game->getMod()->getArmor(unit->getArmor(), true);
+		RuleItem *item = _game->getMod()->getItem(defs->id, true);
+
+		// add screen elements
+		_txtTitle = new Text(310, 17, 5, 23);
+		_txtInfo = new Text(300, 150, 10, 122);
+		_lstStats = new TextList(300, 89, 10, 48);
+
+		// Set palette
+		setPalette("PAL_UFOPAEDIA");
+
+		ArticleState::initLayout();
+
+		// add other elements
+		add(_txtTitle);
+		add(_txtInfo);
+		add(_lstStats);
+
+		// Set up objects
+		_game->getMod()->getSurface("BACK10.SCR")->blit(_bg);
+		_btnOk->setColor(Palette::blockOffset(5));
+		_btnPrev->setColor(Palette::blockOffset(5));
+		_btnNext->setColor(Palette::blockOffset(5));
+
+		_txtTitle->setColor(Palette::blockOffset(15)+4);
+		_txtTitle->setBig();
+		_txtTitle->setText(tr(defs->title));
+
+		_txtInfo->setColor(Palette::blockOffset(15)-1);
+		_txtInfo->setWordWrap(true);
+		_txtInfo->setScrollable(true);
+		_txtInfo->setText(tr(defs->text));
+
+		_lstStats->setColor(Palette::blockOffset(15)+4);
+		_lstStats->setColumns(2, 175, 145);
+		_lstStats->setDot(true);
+
+		std::ostringstream ss;
+		ss << unit->getStats()->tu;
+		_lstStats->addRow(2, tr("STR_TIME_UNITS").c_str(), ss.str().c_str());
+
+		std::ostringstream ss2;
+		ss2 << unit->getStats()->health;
+		_lstStats->addRow(2, tr("STR_HEALTH").c_str(), ss2.str().c_str());
+
+		std::ostringstream ss3;
+		ss3 << armor->getFrontArmor();
+		_lstStats->addRow(2, tr("STR_FRONT_ARMOR").c_str(), ss3.str().c_str());
+
+		std::ostringstream ss4;
+		ss4 << armor->getSideArmor();
+		_lstStats->addRow(2, tr("STR_LEFT_ARMOR").c_str(), ss4.str().c_str());
+
+		std::ostringstream ss5;
+		ss5 << armor->getSideArmor();
+		_lstStats->addRow(2, tr("STR_RIGHT_ARMOR").c_str(), ss5.str().c_str());
+
+		std::ostringstream ss6;
+		ss6 << armor->getRearArmor();
+		_lstStats->addRow(2, tr("STR_REAR_ARMOR").c_str(), ss6.str().c_str());
+
+		std::ostringstream ss7;
+		ss7 << armor->getUnderArmor();
+		_lstStats->addRow(2, tr("STR_UNDER_ARMOR").c_str(), ss7.str().c_str());
+
+		_lstStats->addRow(2, tr("STR_WEAPON").c_str(), tr(defs->weapon).c_str());
+
+		if (!item->getCompatibleAmmo()->empty())
+		{
+			RuleItem *ammo = _game->getMod()->getItem(item->getCompatibleAmmo()->front(), true);
+
+			std::ostringstream ss8;
+			ss8 << ammo->getPower();
+			_lstStats->addRow(2, tr("STR_WEAPON_POWER").c_str(), ss8.str().c_str());
+
+			_lstStats->addRow(2, tr("STR_AMMUNITION").c_str(), tr(ammo->getName()).c_str());
+
+			std::ostringstream ss9;
+			if (item->getClipSize() > 0)
+			{
+				ss9 << item->getClipSize();
+			}
+			else
+			{
+				ss9 << ammo->getClipSize();
+			}
+
+			_lstStats->addRow(2, tr("STR_ROUNDS").c_str(), ss9.str().c_str());
+
+			_txtInfo->setY(138);
+		}
+		else
+		{
+			std::ostringstream ss8;
+			ss8 << item->getPower();
+			_lstStats->addRow(2, tr("STR_WEAPON_POWER").c_str(), ss8.str().c_str());
+		}
+		centerAllSurfaces();
+	}
+
+	ArticleStateVehicle::~ArticleStateVehicle()
+	{}
+
+}
+⟦/FILE⟧
+⟦FILE:ArticleStateVehicle.h;encoding=utf8;sha256=eb8885c96359802348b6ced95dab508f4b88bc3a9fb0aef13fabdd7c95a0bf3c;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "ArticleState.h"
+
+namespace OpenXcom
+{
+	class Game;
+	class Text;
+	class TextList;
+	class ArticleDefinitionVehicle;
+
+	/**
+	 * ArticleStateVehicle has a caption, text and a stats block.
+	 */
+
+	class ArticleStateVehicle : public ArticleState
+	{
+	public:
+		ArticleStateVehicle(ArticleDefinitionVehicle *article_defs);
+		virtual ~ArticleStateVehicle();
+
+	protected:
+		Text *_txtTitle;
+		Text *_txtInfo;
+		TextList *_lstStats;
+	};
+}
+⟦/FILE⟧
+⟦FILE:Ufopaedia.cpp;encoding=utf8;sha256=cd1415b3f329437c919a3e6009047db3876a4cb53464aa21f33c0f88585e1687;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "Ufopaedia.h"
+#include "UfopaediaStartState.h"
+#include "../Savegame/SavedGame.h"
+#include "../Mod/Mod.h"
+#include "../Mod/ArticleDefinition.h"
+#include "ArticleState.h"
+#include "ArticleStateBaseFacility.h"
+#include "ArticleStateCraft.h"
+#include "ArticleStateCraftWeapon.h"
+#include "ArticleStateItem.h"
+#include "ArticleStateArmor.h"
+#include "ArticleStateText.h"
+#include "ArticleStateTextImage.h"
+#include "ArticleStateUfo.h"
+#include "ArticleStateVehicle.h"
+#include "ArticleStateTFTD.h"
+#include "ArticleStateTFTDArmor.h"
+#include "ArticleStateTFTDVehicle.h"
+#include "ArticleStateTFTDItem.h"
+#include "ArticleStateTFTDFacility.h"
+#include "ArticleStateTFTDCraft.h"
+#include "ArticleStateTFTDCraftWeapon.h"
+#include "ArticleStateTFTDUso.h"
+#include "../Engine/Game.h"
+
+namespace OpenXcom
+{
+	size_t Ufopaedia::_current_index = 0;
+
+	/**
+	 * Checks, if an article has already been released.
+	 * @param save Pointer to saved game.
+	 * @param article Article definition to release.
+	 * @returns true, if the article is available.
+	 */
+	bool Ufopaedia::isArticleAvailable(SavedGame *save, ArticleDefinition *article)
+	{
+		return save->isResearched(article->_requires);
+	}
+
+	/**
+	 * Gets the index of the selected article_id in the visible list.
+	 * If the id is not found, returns -1.
+	 * @param save Pointer to saved game.
+	 * @param mod Pointer to mod.
+	 * @param article_id Article id to find.
+	 * @returns Index of the given article id in the internal list, -1 if not found.
+	 */
+	size_t Ufopaedia::getArticleIndex(SavedGame *save, Mod *mod, std::string &article_id)
+	{
+		std::string UC_ID = article_id + "_UC";
+		ArticleDefinitionList articles = getAvailableArticles(save, mod);
+		for (size_t it=0; it<articles.size(); ++it)
+		{
+			if (articles[it]->id == article_id)
+			{
+				return it;
+			}
+		}
+		for (size_t it = 0; it<articles.size(); ++it)
+		{
+			if (articles[it]->id == UC_ID)
+			{
+				article_id = UC_ID;
+				return it;
+			}
+		}
+		for (size_t it = 0; it<articles.size(); ++it)
+		{
+			for (std::vector<std::string>::iterator j = articles[it]->_requires.begin(); j != articles[it]->_requires.end(); ++j)
+			{
+				if (article_id == *j)
+				{
+					article_id = articles[it]->id;
+					return it;
+				}
+			}
+		}
+		return -1;
+	}
+
+	/**
+	 * Creates a new article state dependent on the given article definition.
+	 * @param game Pointer to actual game.
+	 * @param article Article definition to create from.
+	 * @returns Article state object if created, 0 otherwise.
+	 */
+	ArticleState *Ufopaedia::createArticleState(ArticleDefinition *article)
+	{
+		switch (article->getType())
+		{
+			case UFOPAEDIA_TYPE_CRAFT:
+				return new ArticleStateCraft(dynamic_cast<ArticleDefinitionCraft *> (article));
+			case UFOPAEDIA_TYPE_CRAFT_WEAPON:
+				return new ArticleStateCraftWeapon(dynamic_cast<ArticleDefinitionCraftWeapon *> (article));
+			case UFOPAEDIA_TYPE_VEHICLE:
+				return new ArticleStateVehicle(dynamic_cast<ArticleDefinitionVehicle *> (article));
+			case UFOPAEDIA_TYPE_ITEM:
+				return new ArticleStateItem(dynamic_cast<ArticleDefinitionItem *> (article));
+			case UFOPAEDIA_TYPE_ARMOR:
+				return new ArticleStateArmor(dynamic_cast<ArticleDefinitionArmor *> (article));
+			case UFOPAEDIA_TYPE_BASE_FACILITY:
+				return new ArticleStateBaseFacility(dynamic_cast<ArticleDefinitionBaseFacility *> (article));
+			case UFOPAEDIA_TYPE_TEXT:
+				return new ArticleStateText(dynamic_cast<ArticleDefinitionText *> (article));
+			case UFOPAEDIA_TYPE_TEXTIMAGE:
+				return new ArticleStateTextImage(dynamic_cast<ArticleDefinitionTextImage *> (article));
+			case UFOPAEDIA_TYPE_UFO:
+				return new ArticleStateUfo(dynamic_cast<ArticleDefinitionUfo *> (article));
+			case UFOPAEDIA_TYPE_TFTD:
+				return new ArticleStateTFTD(dynamic_cast<ArticleDefinitionTFTD *> (article));
+			case UFOPAEDIA_TYPE_TFTD_CRAFT:
+				return new ArticleStateTFTDCraft(dynamic_cast<ArticleDefinitionTFTD *> (article));
+			case UFOPAEDIA_TYPE_TFTD_CRAFT_WEAPON:
+				return new ArticleStateTFTDCraftWeapon(dynamic_cast<ArticleDefinitionTFTD *> (article));
+			case UFOPAEDIA_TYPE_TFTD_VEHICLE:
+				return new ArticleStateTFTDVehicle(dynamic_cast<ArticleDefinitionTFTD *> (article));
+			case UFOPAEDIA_TYPE_TFTD_ITEM:
+				return new ArticleStateTFTDItem(dynamic_cast<ArticleDefinitionTFTD *> (article));
+			case UFOPAEDIA_TYPE_TFTD_ARMOR:
+				return new ArticleStateTFTDArmor(dynamic_cast<ArticleDefinitionTFTD *> (article));
+			case UFOPAEDIA_TYPE_TFTD_BASE_FACILITY:
+				return new ArticleStateTFTDFacility(dynamic_cast<ArticleDefinitionTFTD *> (article));
+			case UFOPAEDIA_TYPE_TFTD_USO:
+				return new ArticleStateTFTDUso(dynamic_cast<ArticleDefinitionTFTD *> (article));
+			default: break;
+		}
+		return 0;
+	}
+
+	/**
+	 * Set UPSaved index and open the new state.
+	 * @param game Pointer to actual game.
+	 * @param article Article definition of the article to open.
+	 */
+	void Ufopaedia::openArticle(Game *game, ArticleDefinition *article)
+	{
+		std::string id = article->id;
+		_current_index = getArticleIndex(game->getSavedGame(), game->getMod(), id);
+		if (_current_index != (size_t) -1)
+		{
+			game->pushState(createArticleState(article));
+		}
+	}
+
+	/**
+	 * Checks if selected article_id is available -> if yes, open it.
+	 * @param game Pointer to actual game.
+	 * @param article_id Article id to find.
+	 */
+	void Ufopaedia::openArticle(Game *game, const std::string &article_id)
+	{
+		std::string id = article_id;
+		_current_index = getArticleIndex(game->getSavedGame(), game->getMod(), id);
+		if (_current_index != (size_t) -1)
+		{
+			ArticleDefinition *article = game->getMod()->getUfopaediaArticle(id);
+			game->pushState(createArticleState(article));
+		}
+	}
+
+	/**
+	 * Open Ufopaedia start state, presenting the section selection buttons.
+	 * @param game Pointer to actual game.
+	 */
+	void Ufopaedia::open(Game *game)
+	{
+		game->pushState(new UfopaediaStartState);
+	}
+
+	/**
+	 * Open the next article in the list. Loops to the first.
+	 * @param game Pointer to actual game.
+	 */
+	void Ufopaedia::next(Game *game)
+	{
+		ArticleDefinitionList articles = getAvailableArticles(game->getSavedGame(), game->getMod());
+		if (_current_index >= articles.size() - 1)
+		{
+			// goto first
+			_current_index = 0;
+		}
+		else
+		{
+			_current_index++;
+		}
+		game->popState();
+		game->pushState(createArticleState(articles[_current_index]));
+	}
+
+	/**
+	 * Open the previous article in the list. Loops to the last.
+	 * @param game Pointer to actual game.
+	 */
+	void Ufopaedia::prev(Game *game)
+	{
+		ArticleDefinitionList articles = getAvailableArticles(game->getSavedGame(), game->getMod());
+		if (_current_index == 0)
+		{
+			// goto last
+			_current_index = articles.size() - 1;
+		}
+		else
+		{
+			_current_index--;
+		}
+		game->popState();
+		game->pushState(createArticleState(articles[_current_index]));
+	}
+
+	/**
+	 * Fill an ArticleList with the currently visible ArticleIds of the given section.
+	 * @param save Pointer to saved game.
+	 * @param mod Pointer to mod.
+	 * @param section Article section to find, e.g. "XCOM Crafts & Armaments", "Alien Lifeforms", etc.
+	 * @param data Article definition list object to fill data in.
+	 */
+	void Ufopaedia::list(SavedGame *save, Mod *mod, const std::string &section, ArticleDefinitionList &data)
+	{
+		ArticleDefinitionList articles = getAvailableArticles(save, mod);
+		for (ArticleDefinitionList::iterator it=articles.begin(); it!=articles.end(); ++it)
+		{
+			if ((*it)->section == section)
+			{
+				data.push_back(*it);
+			}
+		}
+	}
+
+	/**
+	 * Return an ArticleList with all the currently visible ArticleIds.
+	 * @param save Pointer to saved game.
+	 * @param mod Pointer to mod.
+	 * @return List of visible ArticleDefinitions.
+	 */
+	ArticleDefinitionList Ufopaedia::getAvailableArticles(SavedGame *save, Mod *mod)
+	{
+		const std::vector<std::string> &list = mod->getUfopaediaList();
+		ArticleDefinitionList articles;
+		for (std::vector<std::string>::const_iterator it=list.begin(); it!=list.end(); ++it)
+		{
+			ArticleDefinition *article = mod->getUfopaediaArticle(*it);
+			if (isArticleAvailable(save, article) && article->section != UFOPAEDIA_NOT_AVAILABLE)
+			{
+				articles.push_back(article);
+			}
+		}
+		return articles;
+	}
+
+}
+⟦/FILE⟧
+⟦FILE:Ufopaedia.h;encoding=utf8;sha256=1ca25189364db8ff59092018f8f1921546521bf60d7fb01a7c177e99d1a581a8;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include <vector>
+#include <string>
+
+namespace OpenXcom
+{
+	class Game;
+	class SavedGame;
+	class Mod;
+	class ArticleDefinition;
+	class ArticleState;
+
+	/// definition of an article list
+	typedef std::vector<ArticleDefinition *> ArticleDefinitionList;
+
+	// This section is meant for articles, that have to be activated,
+	// but have no own entry in a list. E.g. Ammunition items.
+	// Maybe others as well, that should just not be selectable.
+	static const std::string UFOPAEDIA_NOT_AVAILABLE = "STR_NOT_AVAILABLE";
+
+	/**
+	 * This static class encapsulates all functions related to Ufopaedia
+	 * for the game.
+	 * Main purpose is to open Ufopaedia from Geoscape, navigate between articles
+	 * and release new articles after successful research.
+	 */
+
+	class Ufopaedia
+	{
+	public:
+		/// check, if a specific article is currently available.
+		static bool isArticleAvailable(SavedGame *save, ArticleDefinition *article);
+
+		/// open Ufopaedia on a certain entry.
+		static void openArticle(Game *game, const std::string &article_id);
+
+		/// open Ufopaedia article from a given article definition.
+		static void openArticle(Game *game, ArticleDefinition *article);
+
+		/// open Ufopaedia with selection dialog.
+		static void open(Game *game);
+
+		/// article navigation to next article.
+		static void next(Game *game);
+
+		/// article navigation to previous article.
+		static void prev(Game *game);
+
+		/// load a vector with article ids that are currently visible of a given section.
+		static void list(SavedGame *save, Mod *rule, const std::string &section, ArticleDefinitionList &data);
+
+	protected:
+
+		/// current selected article index (for prev/next navigation).
+		static size_t _current_index;
+
+		/// get index of the given article id in the visible list.
+		static size_t getArticleIndex(SavedGame *save, Mod *rule, std::string &article_id);
+
+		/// get list of researched articles
+		static ArticleDefinitionList getAvailableArticles(SavedGame *save, Mod *rule);
+
+		/// create a new state object from article definition.
+		static ArticleState *createArticleState(ArticleDefinition *article);
+	};
+}
+⟦/FILE⟧
+⟦FILE:UfopaediaSelectState.cpp;encoding=utf8;sha256=d7517fba7958742d31454e7ebde4375d12a92c404b0bfde8631c6085436852d3;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "Ufopaedia.h"
+#include "UfopaediaSelectState.h"
+#include "../Mod/ArticleDefinition.h"
+#include "../Engine/Game.h"
+#include "../Engine/Options.h"
+#include "../Engine/LocalizedText.h"
+#include "../Interface/Window.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+#include "../Interface/TextList.h"
+#include "../Mod/Mod.h"
+
+namespace OpenXcom
+{
+	UfopaediaSelectState::UfopaediaSelectState(const std::string &section) : _section(section)
+	{
+		_screen = false;
+
+		// set background window
+		_window = new Window(this, 256, 180, 32, 10, POPUP_NONE);
+
+		// set title
+		_txtTitle = new Text(224, 17, 48, 26);
+
+		// set buttons
+		_btnOk = new TextButton(224, 16, 48, 166);
+		_lstSelection = new TextList(224, 104, 40, 50);
+
+		// Set palette
+		setInterface("ufopaedia");
+
+		add(_window, "window", "ufopaedia");
+		add(_txtTitle, "text", "ufopaedia");
+		add(_btnOk, "button2", "ufopaedia");
+		add(_lstSelection, "list", "ufopaedia");
+
+		centerAllSurfaces();
+
+		_window->setBackground(_game->getMod()->getSurface("BACK01.SCR"));
+
+		_txtTitle->setBig();
+		_txtTitle->setAlign(ALIGN_CENTER);
+		_txtTitle->setText(tr("STR_SELECT_ITEM"));
+
+		_btnOk->setText(tr("STR_OK"));
+		_btnOk->onMouseClick((ActionHandler)&UfopaediaSelectState::btnOkClick);
+		_btnOk->onKeyboardPress((ActionHandler)&UfopaediaSelectState::btnOkClick,Options::keyCancel);
+
+		_lstSelection->setColumns(1, 206);
+		_lstSelection->setSelectable(true);
+		_lstSelection->setBackground(_window);
+		_lstSelection->setMargin(18);
+		_lstSelection->setAlign(ALIGN_CENTER);
+		_lstSelection->onMouseClick((ActionHandler)&UfopaediaSelectState::lstSelectionClick);
+
+		loadSelectionList();
+	}
+
+	UfopaediaSelectState::~UfopaediaSelectState()
+	{}
+
+	/**
+	 * Initializes the state.
+	 */
+	void UfopaediaSelectState::init()
+	{
+		State::init();
+	}
+
+	/**
+	 * Returns to the previous screen.
+	 * @param action Pointer to an action.
+	 */
+	void UfopaediaSelectState::btnOkClick(Action *)
+	{
+		_game->popState();
+	}
+
+	/**
+	 *
+	 * @param action Pointer to an action.
+	 */
+	void UfopaediaSelectState::lstSelectionClick(Action *)
+	{
+		Ufopaedia::openArticle(_game, _article_list[_lstSelection->getSelectedRow()]);
+	}
+
+	void UfopaediaSelectState::loadSelectionList()
+	{
+		ArticleDefinitionList::iterator it;
+
+		_article_list.clear();
+		Ufopaedia::list(_game->getSavedGame(), _game->getMod(), _section, _article_list);
+		for (it = _article_list.begin(); it!=_article_list.end(); ++it)
+		{
+			_lstSelection->addRow(1, tr((*it)->title).c_str());
+		}
+	}
+
+}
+⟦/FILE⟧
+⟦FILE:UfopaediaSelectState.h;encoding=utf8;sha256=e68ded017d2758ff7632e4c5779ff4bbc2e62d3666982c0cba329110ef8672e3;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/State.h"
+#include "Ufopaedia.h"
+#include <string>
+
+namespace OpenXcom
+{
+	class Game;
+	class Action;
+	class Window;
+	class Text;
+	class TextButton;
+	class TextList;
+
+	/**
+	 * UfopaediaSelectState is the screen that lists articles of a given type.
+	 */
+
+	class UfopaediaSelectState : public State
+	{
+	public:
+		UfopaediaSelectState(const std::string &section);
+		virtual ~UfopaediaSelectState();
+		void init();
+	protected:
+		std::string _section;
+		Window *_window;
+		Text *_txtTitle;
+		TextButton *_btnOk;
+		TextList *_lstSelection;
+		ArticleDefinitionList _article_list;
+
+		/// Handler for clicking the OK button
+		void btnOkClick(Action *action);
+		/// Handler for clicking the selection list.
+		void lstSelectionClick(Action *action);
+		/// load available articles into the selection list
+		void loadSelectionList();
+	};
+}
+⟦/FILE⟧
+⟦FILE:UfopaediaStartState.cpp;encoding=utf8;sha256=42b65203375cd58b4263a5e9b9169803d57e562f493660dff42a213685becaf2;eol=crlf;trailing-lf=true⟧
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "UfopaediaStartState.h"
+#include "UfopaediaSelectState.h"
+#include "../Engine/Game.h"
+#include "../Engine/Action.h"
+#include "../Engine/Options.h"
+#include "../Engine/LocalizedText.h"
+#include "../Interface/Window.h"
+#include "../Interface/Text.h"
+#include "../Interface/TextButton.h"
+#include "../Interface/ArrowButton.h"
+#include "../Mod/Mod.h"
+#include "../Engine/Timer.h"
+#include "../fmath.h"
+
+namespace OpenXcom
+{
+	const size_t UfopaediaStartState::CAT_MIN_BUTTONS = 9;
+	const size_t UfopaediaStartState::CAT_MAX_BUTTONS = 10;
+
+	UfopaediaStartState::UfopaediaStartState() : _offset(0), _scroll(0), _cats(_game->getMod()->getUfopaediaCategoryList())
+	{
+		_screen = false;
+
+		// set background window
+		_window = new Window(this, 256, 180, 32, 10, POPUP_BOTH);
+
+		// set title
+		_txtTitle = new Text(220, 17, 50, 33);
+
+		// Set palette
+		setInterface("ufopaedia");
+
+		add(_window, "window", "ufopaedia");
+		add(_txtTitle, "text", "ufopaedia");
+
+		_btnOk = new TextButton(220, 12, 50, 167);
+		add(_btnOk, "button1", "ufopaedia");
+
+		// set buttons
+		int y = 50;
+		size_t numButtons = std::min(_cats.size(), CAT_MAX_BUTTONS);
+		if (numButtons > CAT_MIN_BUTTONS)
+			y -= 13 * (numButtons - CAT_MIN_BUTTONS);
+
+		_btnScrollUp = new ArrowButton(ARROW_BIG_UP, 13, 14, 270, y);
+		add(_btnScrollUp, "button1", "ufopaedia");
+		_btnScrollDown = new ArrowButton(ARROW_BIG_DOWN, 13, 14, 270, 152);
+		add(_btnScrollDown, "button1", "ufopaedia");
+
+		for (size_t i = 0; i < numButtons; ++i)
+		{
+			TextButton *button = new TextButton(220, 12, 50, y);
+			y += 13;
+
+			add(button, "button1", "ufopaedia");
+
+			button->onMouseClick((ActionHandler)&UfopaediaStartState::btnSectionClick);
+			button->onMousePress((ActionHandler)&UfopaediaStartState::btnScrollUpClick, SDL_BUTTON_WHEELUP);
+			button->onMousePress((ActionHandler)&UfopaediaStartState::btnScrollDownClick, SDL_BUTTON_WHEELDOWN);
+
+			_btnSections.push_back(button);
+		}
+		updateButtons();
+		if (!_btnSections.empty())
+			_txtTitle->setY(_btnSections.front()->getY() - _txtTitle->getHeight());
+
+		centerAllSurfaces();
+
+		_window->setBackground(_game->getMod()->getSurface("BACK01.SCR"));
+
+		_txtTitle->setBig();
+		_txtTitle->setAlign(ALIGN_CENTER);
+		_txtTitle->setText(tr("STR_UFOPAEDIA"));
+
+		_btnOk->setText(tr("STR_OK"));
+		_btnOk->onMouseClick((ActionHandler)&UfopaediaStartState::btnOkClick);
+		_btnOk->onKeyboardPress((ActionHandler)&UfopaediaStartState::btnOkClick, Options::keyCancel);
+		_btnOk->onKeyboardPress((ActionHandler)&UfopaediaStartState::btnOkClick, Options::keyGeoUfopedia);
+
+		_btnScrollUp->setVisible(_cats.size() > CAT_MAX_BUTTONS);
+		_btnScrollUp->onMousePress((ActionHandler)&UfopaediaStartState::btnScrollUpPress);
+		_btnScrollUp->onMouseRelease((ActionHandler)&UfopaediaStartState::btnScrollRelease);
+		_btnScrollDown->setVisible(_cats.size() > CAT_MAX_BUTTONS);
+		_btnScrollDown->onMousePress((ActionHandler)&UfopaediaStartState::btnScrollDownPress);
+		_btnScrollDown->onMouseRelease((ActionHandler)&UfopaediaStartState::btnScrollRelease);
+
+		_timerScroll = new Timer(50);
+		_timerScroll->onTimer((StateHandler)&UfopaediaStartState::scroll);
+	}
+
+	/**
+	 * Deletes timers.
+	 */
+	UfopaediaStartState::~UfopaediaStartState()
+	{
+		delete _timerScroll;
+	}
+
+	/**
+	 * Run timers.
+	 */
+	void UfopaediaStartState::think()
+	{
+		State::think();
+		_timerScroll->think(this, 0);
+	}
+
+	/**
+	 * Returns to the previous screen.
+	 * @param action Pointer to an action.
+	 */
+	void UfopaediaStartState::btnOkClick(Action *)
+	{
+		_game->popState();
+	}
+
+	/**
+	 * Displays the list of articles for this section.
+	 * @param action Pointer to an action.
+	 */
+	void UfopaediaStartState::btnSectionClick(Action *action)
+	{
+		for (size_t i = 0; i < _btnSections.size(); ++i)
+		{
+			if (action->getSender() == _btnSections[i])
+			{
+				_game->pushState(new UfopaediaSelectState(_cats[_offset + i]));
+				break;
+			}
+		}
+	}
+
+	/**
+	 * Starts scrolling the section buttons up.
+	 * @param action Pointer to an action.
+	 */
+	void UfopaediaStartState::btnScrollUpPress(Action *)
+	{
+		_scroll = -1;
+		_timerScroll->start();
+	}
+
+	/**
+	 * Scrolls the section buttons up.
+	 * @param action Pointer to an action.
+	 */
+	void UfopaediaStartState::btnScrollUpClick(Action *)
+	{
+		_scroll = -1;
+		scroll();
+	}
+
+	/**
+	 * Starts scrolling the section buttons down.
+	 * @param action Pointer to an action.
+	 */
+	void UfopaediaStartState::btnScrollDownPress(Action *)
+	{
+		_scroll = 1;
+		_timerScroll->start();
+	}
+
+	/**
+	 * Scrolls the section buttons down.
+	 * @param action Pointer to an action.
+	 */
+	void UfopaediaStartState::btnScrollDownClick(Action *)
+	{
+		_scroll = 1;
+		scroll();
+	}
+
+	/**
+	 * Stops scrolling the section buttons.
+	 * @param action Pointer to an action.
+	 */
+	void UfopaediaStartState::btnScrollRelease(Action *)
+	{
+		_timerScroll->stop();
+	}
+
+	/**
+	 * Offsets the list of section buttons.
+	 */
+	void UfopaediaStartState::scroll()
+	{
+		if (_cats.size() > CAT_MAX_BUTTONS)
+		{
+			_offset = Clamp(_offset + _scroll, 0, int(_cats.size() - CAT_MAX_BUTTONS));
+			updateButtons();
+		}
+	}
+
+	/**
+	 * Updates the section button labels based on scroll.
+	 */
+	void UfopaediaStartState::updateButtons()
+	{
+		for (size_t i = 0; i < _btnSections.size(); ++i)
+		{
+			_btnSections[i]->setText(tr(_cats[_offset + i]));
+		}
+	}
+}
+⟦/FILE⟧
+⟦FILE:UfopaediaStartState.h;encoding=utf8;sha256=5f8d7947eeb5636d0352e80171d20bfa13b66f25af77cb27e498a0eb12d1d1ec;eol=crlf;trailing-lf=true⟧
+#pragma once
+/*
+ * Copyright 2010-2016 OpenXcom Developers.
+ *
+ * This file is part of OpenXcom.
+ *
+ * OpenXcom is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * OpenXcom is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with OpenXcom.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include "../Engine/State.h"
+#include <string>
+#include <vector>
+
+namespace OpenXcom
+{
+	class Game;
+	class Action;
+	class Window;
+	class Text;
+	class TextButton;
+	class ArrowButton;
+	class Timer;
+
+	/**
+	 * UfopaediaStartState is the screen that opens when clicking Ufopaedia button in Geoscape.
+	 * Presents buttons to all sections of Ufopaedia, opening a UfopaediaSelectState on click.
+	 */
+
+	class UfopaediaStartState : public State
+	{
+	public:
+		UfopaediaStartState();
+		virtual ~UfopaediaStartState();
+
+	protected:
+		static const size_t CAT_MIN_BUTTONS;
+		static const size_t CAT_MAX_BUTTONS;
+		Window *_window;
+		Text *_txtTitle;
+		TextButton *_btnOk;
+		std::vector<TextButton*> _btnSections;
+		ArrowButton *_btnScrollUp, *_btnScrollDown;
+		Timer *_timerScroll;
+
+		int _offset, _scroll;
+		const std::vector<std::string> &_cats;
+
+		// navigation callbacks
+		void think();
+		void btnSectionClick(Action *action);
+		void btnOkClick(Action *action);
+
+		// scrolling logic
+		void btnScrollUpPress(Action *action);
+		void btnScrollUpClick(Action *action);
+		void btnScrollDownPress(Action *action);
+		void btnScrollDownClick(Action *action);
+		void btnScrollRelease(Action *action);
+		void scroll();
+		void updateButtons();
+	};
+}
+⟦/FILE⟧
+⟦/BUNDLE⟧
